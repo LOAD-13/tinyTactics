@@ -105,3 +105,23 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# ============================================================
+# Tiny Tactics — añadidos del equipo
+# ============================================================
+
+# Notas locales de trabajo. No forman parte del proyecto.
+*.local.md
+notas/
+
+# Builds locales — la entrega se hace por release, no por repo
+/Builds/
+/[Bb]uild[Ss]/
+
+# Archivos de trabajo del sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Entregables semanales: viven en la carpeta del curso, no en el repo
+/Semana*/

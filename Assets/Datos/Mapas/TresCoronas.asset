@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c341b69e6a685db49a1dd79e313c5105, type: 3}
+  m_Name: TresCoronas
+  m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Mundo.DefinicionMapa
+  nombreMapa: Tres Coronas
+  descripcion: "Tres l\xF3bulos separados por brazos de mar, unidos \xFAnicamente
+    por la meseta central. Para atacar a alguien hay que pasar por el medio, y el
+    medio guarda la veta m\xE1s rica del mapa."
+  bandos: 3
+  ancho: 224
+  alto: 224
+  semilla: 20260816
+  cobertura: 0.86
+  escalaRuido: 0.045
+  pasosSuavizado: 2
+  durezaBorde: 4
+  pesoIsla: 0.34
+  margenAgua: 5
+  radioBases: 0.6
+  radioExpansiones: 0.4
+  radioCentro: 0.16
+  bajadasPorBase: 3
+  tallarBrazos: 1
+  anchoBrazoAgua: 0.33
+  soloMasaPrincipal: 1
+  rellenarLagosHasta: 10
+  densidadRocas: 0.005
+  densidadArbustos: 0.012
+  arrecifes: 14
+  separacionArrecifes: 5
+  formacionesDeRoca: 3
+  cantidadNubes: 34
+  patitoDeGoma: 1
