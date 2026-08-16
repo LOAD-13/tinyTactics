@@ -72,6 +72,30 @@ y le da a las ovejas del pack un propósito real en vez de decoración.
 El pawn camina al recurso → recolecta durante N segundos → carga un tope → **vuelve al castillo**
 a depositar → repite. El viaje de ida y vuelta es lo que hace que la posición del castillo importe.
 
+### Recursos finitos y expansión
+
+Como en Warcraft y StarCraft, **los recursos se agotan**. Cada nodo tiene un número limitado
+de extracciones:
+
+| Nodo | Extracciones aprox. | Al agotarse |
+|---|---|---|
+| Veta de oro | 50 | Desaparece |
+| Árbol | 20 | Queda el tocón (`Stump` del pack) |
+| Oveja | 10 | Desaparece |
+
+El mapa se genera con **zonas de recursos** repartidas: un grupo denso en la base inicial de cada
+bando y varios grupos neutrales en el terreno disputado.
+
+**Esto es lo que crea el arco de la partida.** Cuando tu zona inicial se seca, no te queda más
+remedio que salir a buscar otra — y ahí es donde empiezan las peleas de verdad. Para explotar una
+zona lejana hace falta un punto de entrega cerca, así que se puede construir un **castillo
+adicional** (caro) que funciona como segundo centro de recolección.
+
+Sin esta mecánica, un RTS se convierte en dos jugadores minando eternamente en su esquina sin
+motivo para encontrarse. El agotamiento es lo que fuerza el conflicto.
+
+> Los números son punto de partida y se calibran en la semana 16 junto con el resto del balance.
+
 ---
 
 ## 4. Unidades
@@ -164,13 +188,39 @@ enemigo = atacar, árbol/oro/oveja = recolectar, construcción propia = ayudar a
 
 ## 8. Mapas
 
-Mínimo **3 mapas**, cada uno con posiciones iniciales balanceadas para hasta 5 bandos:
+**Tres mapas, cada uno con un número distinto de bandos.** Cada mapa se genera con
+**simetría rotacional de N pliegues**, así que ninguna posición inicial está en desventaja:
 
-1. **Isla central** — recursos abundantes al centro, disputados. Fomenta el conflicto temprano.
-2. **Cuencas separadas** — cada bando con su valle de recursos y pasos estrechos. Juego más lento y defensivo.
-3. **Llanura abierta** — poca cobertura, expansión rápida. Partidas cortas y agresivas.
+| Mapa | Bandos | Simetría | Carácter |
+|---|---|---|---|
+| **Duelo** *(pendiente)* | 2 | Espejo | 1v1 clásico, con un accidente natural separando ambas mitades |
+| **Tres Coronas** ✅ | 3 | 3 pliegues | Tres lóbulos unidos **solo** por la meseta central |
+| **Cuatro Vientos** *(pendiente)* | 4 | 4 pliegues | Cuatro esquinas y un centro abierto |
 
-Cada mapa declara cuántos bandos soporta (3 o 5).
+### El color no lo fija el mapa
+
+Los cinco colores del pack (azul, rojo, amarillo, morado, negro) están **desacoplados del
+mapa**: el jugador elige el suyo en la pantalla de partida. Un mapa de 3 bandos simplemente
+usa 3 de los 5 colores disponibles.
+
+> Antes el alcance decía "FFA hasta 5 bandos en todos los mapas". Se cambió porque forzar
+> simetría de 5 en los tres mapas era peor diseño: 2, 3 y 4 pliegues dan mapas más limpios
+> y se parecen a los de Warcraft de verdad. El motor sigue soportando hasta 5.
+
+### Anatomía de un mapa
+
+Todos siguen la misma gramática, tomada de los RTS clásicos:
+
+1. **Base inicial** — castillo y dos pawns, con una **veta de oro apiñada** en un recodo a un
+   lado y un **bosque denso** al otro que hace de pared natural.
+2. **Expansión natural** — a mitad de camino del centro, dentro del lóbulo propio. Más
+   recursos, mucho peor de defender.
+3. **Centro disputado** — la veta más rica del mapa, rodeada de bosque con entradas
+   contadas. El que llega primero se lo queda.
+4. **Bosques como muros** que canalizan el movimiento hacia los pasos.
+
+Los recursos van siempre en **bolsones**, nunca esparcidos: es lo que convierte el mapa en
+una economía con *sitios* que merece la pena disputar.
 
 ---
 

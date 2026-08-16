@@ -150,6 +150,35 @@ profundo que colgar un `Rigidbody2D` y dejar que el motor decida.
 
 ---
 
+### ADR-09 · El mapa se genera por código, no se pinta
+
+**Decisión.** Los mapas se generan desde una `DefinicionMapa` mediante un script de editor,
+en vez de pintarse a mano en el Tilemap.
+
+**Por qué.** En un RTS conviven dos representaciones del mapa: la **visual** (tilemap) y la
+**lógica** (grilla de transitabilidad para A*). Si se mantienen por separado, tarde o temprano
+se desincronizan y aparecen unidades caminando sobre el agua — un bug que además es carísimo
+de encontrar. Generando ambas desde la misma máscara, esa clase de fallo es estructuralmente
+imposible.
+
+**Beneficios colaterales.** Los tres mapas del proyecto son cambios de parámetros, no de
+trabajo manual repetido. Y el diseño es reproducible: la misma semilla da siempre el mismo
+mapa, así que un problema de balance se puede volver a mirar exactamente igual.
+
+**Cómo se logra la simetría.** El ruido no se muestrea en la posición de la celda sino en su
+posición **plegada**: se convierte a polares y el ángulo se dobla dentro del primer sector de
+360/N grados, con espejo para que no haya costura en la frontera. Resultado: los N bandos
+reciben terreno idéntico y ninguno arranca en desventaja.
+
+**Alternativa descartada.** Pintar a mano. Solo lo puede hacer una persona, obliga a mantener
+la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la primera vez.
+
+> Lecciones caras de esta implementación, documentadas en [`BITACORA.md`](BITACORA.md):
+> multiplicar el ruido por la caída radial siempre produce un círculo (hay que interpolar),
+> y un margen de agua cuadrado rompe la simetría radial.
+
+---
+
 ## 3. Estructura de carpetas
 
 ```

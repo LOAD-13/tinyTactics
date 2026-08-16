@@ -132,5 +132,11 @@ con el formato de [`docs/GITFLOW.md`](docs/GITFLOW.md).
 - **Se expone como:** semana 02 del curso, lunes 17/08/2026
 - **Entrega al intranet:** domingo 16/08/2026
 - **Expone:** Joaquín
-- **Última entrega:** ninguna todavía · **Último tag:** ninguno
-- **Estado del repo:** docs base escritos, sin pushear. Comandos en [`docs/BITACORA.md`](docs/BITACORA.md)
+- **Último tag:** `v0.2.0-s02` — fundación, generador de mapa y cámara RTS
+- **Épica cerrada:** E01. **Siguiente:** E02 (grilla lógica, A*, selección y movimiento)
+- **Escena principal:** `Assets/Scenes/Juego.unity`, generada con
+  `Tiny Tactics → Generar escena de juego`
+
+⚠️ **Antes de decir que algo compila**, comprobar que `Library/ScriptAssemblies/*.dll` es más
+reciente que los `.cs`. Unity conserva ensamblados viejos cuando la compilación falla y sigue
+ejecutando código obsoleto: ya pasó una vez y costó una tarde.
