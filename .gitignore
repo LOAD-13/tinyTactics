@@ -105,3 +105,27 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# ============================================================
+# Tiny Tactics — añadidos del equipo
+# ============================================================
+
+# Herramientas de asistencia: no forman parte del proyecto.
+# Nota: CLAUDE.md SÍ se versiona (es contexto del proyecto, ver docs/).
+# Lo que se ignora es la configuración local de la herramienta.
+.claude/
+.claude.json
+CLAUDE.local.md
+.mcp.json
+
+# Builds locales — la entrega se hace por release, no por repo
+/Builds/
+/[Bb]uild[Ss]/
+
+# Archivos de trabajo del sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Entregables semanales: viven en la carpeta del curso, no en el repo
+/Semana*/
