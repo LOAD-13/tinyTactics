@@ -11,8 +11,8 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 
 | ID | Épica | Semanas | Estado |
 |---|---|---|---|
-| `E01` | Fundación del proyecto | 02 | 🔵 En curso |
-| `E02` | Núcleo de simulación — grilla, A*, movimiento, selección, órdenes | 03 | ⚪ Pendiente |
+| `E01` | Fundación del proyecto | 02 | 🟢 Cerrada |
+| `E02` | Núcleo de simulación — grilla, A*, movimiento, selección, órdenes | 03 | 🔵 En curso |
 | `E03` | Unidades y animación | 04 | ⚪ Pendiente |
 | `E04` | Economía | 05 | ⚪ Pendiente |
 | `E05` | Construcción y producción | 06 | ⚪ Pendiente |
@@ -55,6 +55,10 @@ Reglas de los criterios:
 mapa que se puede recorrer con la cámara. La expo es conceptual por naturaleza, pero cierra
 con algo corriendo.
 
+> ✅ **Épica cerrada.** Las cinco HUs entregadas en el tag `v0.2.0-s02`. HU-003 superó su
+> alcance: en vez de un mapa pintado a mano salió un generador procedimental completo.
+> El detalle de lo que costó está en [`BITACORA.md`](BITACORA.md).
+
 ### HU-001 · Documentación base del proyecto
 **Épica:** E01 · **Semana:** 02 · **Responsable:** Joaquín · **Rama:** `docs/HU-001-documentacion-base`
 
@@ -62,9 +66,9 @@ con algo corriendo.
 **para** que las decisiones estén escritas y el docente pueda verificarlas.
 
 **Criterios de aceptación**
-- [ ] Existen `CLAUDE.md`, `README.md` y `docs/` con GDD, CRONOGRAMA, BACKLOG, GITFLOW, ARQUITECTURA y BITACORA.
+- [ ] Existen `README.md` y `docs/` con GDD, CRONOGRAMA, BACKLOG, GITFLOW, ARQUITECTURA y BITACORA.
 - [ ] El `README.md` explica qué es el juego, cómo abrirlo y quién lo hizo.
-- [ ] `.gitignore` excluye `Library/`, `Temp/`, `Logs/` y todo lo de Claude.
+- [ ] `.gitignore` excluye `Library/`, `Temp/`, `Logs/` y las notas locales de trabajo.
 - [ ] `git status` en limpio no muestra ningún archivo generado por Unity.
 
 **Evidencia PPT:** captura del árbol de `docs/` en GitHub → slide de arquitectura/proceso.
@@ -88,7 +92,7 @@ con algo corriendo.
 ---
 
 ### HU-003 · Escena de juego con el mapa base
-**Épica:** E01 · **Semana:** 02 · **Responsable:** Joaquín · **Rama:** `feat/HU-003-escena-mapa-base`
+**Épica:** E01 · **Semana:** 02 · **Responsable:** Joaquín · **Rama:** `feat/HU-003-generacion-de-mapa`
 
 **Como** jugador **quiero** ver un mapa con terreno, agua y vegetación
 **para** tener un escenario reconocible donde ocurrirá la partida.
@@ -96,7 +100,7 @@ con algo corriendo.
 **Criterios de aceptación**
 - [ ] Existe la escena `Assets/Scenes/Juego.unity`.
 - [ ] El mapa usa Tilemap con el tileset de Tiny Swords: al menos tierra, agua y algo de vegetación.
-- [ ] El mapa mide como mínimo 40×40 tiles.
+- [ ] El mapa mide como mínimo 40×40 tiles. *(Entregado: 224×224.)*
 - [ ] Los sprites se ven nítidos: filtro **Point (no filter)**, compresión **None**, píxeles por unidad consistente.
 - [ ] El orden de capas es correcto — la vegetación no queda tapada por el terreno.
 
@@ -105,7 +109,10 @@ con algo corriendo.
 ---
 
 ### HU-004 · Cámara RTS con paneo y zoom
-**Épica:** E01 · **Semana:** 02 · **Responsable:** Joaquín · **Rama:** `feat/HU-004-camara-rts`
+**Épica:** E01 · **Semana:** 02 · **Responsable:** Joaquín · **Rama:** `feat/HU-003-generacion-de-mapa`
+
+> ℹ️ **Comparte rama con HU-003**, declarado antes de empezar. El generador construye la cámara
+> dentro de la escena, así que no se puede mergear una sin la otra. Ver [`GITFLOW.md`](GITFLOW.md) §5.4.
 
 **Como** jugador **quiero** mover y acercar la cámara libremente
 **para** poder observar cualquier zona del mapa durante la partida.
@@ -123,7 +130,11 @@ con algo corriendo.
 ---
 
 ### HU-005 · Ficha conceptual del videojuego
-**Épica:** E01 · **Semana:** 02 · **Responsable:** Kiara · **Rama:** `docs/HU-005-ficha-conceptual`
+**Épica:** E01 · **Semana:** 02 · **Responsable:** Kiara · **Rama:** — *(ver nota)*
+
+> ⚠️ **Entregada dentro de `docs/HU-001-documentacion-base`.** La ficha conceptual vive en
+> `GDD.md`, un único archivo, y separarla en su propia rama habría sido burocracia sin valor.
+> Se deja registrado aquí en vez de crear una rama vacía para simular trazabilidad.
 
 **Como** equipo **queremos** la ficha conceptual completa
 **para** cubrir lo que el docente pide en la semana 2 y fijar el diseño.

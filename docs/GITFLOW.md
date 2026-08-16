@@ -126,6 +126,17 @@ git push origin v0.3.0-s03
    en `git status`, algo se configuró mal.
 4. **Un PR por HU.** Aunque sean de una línea. El historial de PRs es parte de la evidencia
    que se le muestra al docente.
+
+   **Excepción — HUs que comparten rama.** A veces dos HUs son técnicamente inseparables
+   (por ejemplo, un generador de escena que construye también la cámara: no se puede mergear
+   una sin la otra). En ese caso comparten rama, **pero se declara ANTES de empezar**, no
+   después: se anota en la HU del backlog y en la bitácora. Inventar una rama vacía solo para
+   aparentar trazabilidad es peor que decir la verdad.
+
+   | Fusión | Rama | Motivo |
+   |---|---|---|
+   | HU-005 dentro de HU-001 | `docs/HU-001-documentacion-base` | La ficha conceptual es una sección del mismo `GDD.md` |
+   | HU-003 + HU-004 | `feat/HU-003-generacion-de-mapa` | El generador construye la cámara dentro de la escena |
 5. **Escenas y prefabs son YAML gigante y no se mergean bien.** Hoy el riesgo es bajo porque
    solo Joaquín programa, pero la disciplina se mantiene: preferir **prefabs** sobre meter
    todo en la escena. Si el día de mañana alguien más toca código, esta regla salva el proyecto.
