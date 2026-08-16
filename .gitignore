@@ -110,13 +110,9 @@ InitTestScene*.unity*
 # Tiny Tactics — añadidos del equipo
 # ============================================================
 
-# Herramientas de asistencia: no forman parte del proyecto.
-# Nota: CLAUDE.md SÍ se versiona (es contexto del proyecto, ver docs/).
-# Lo que se ignora es la configuración local de la herramienta.
-.claude/
-.claude.json
-CLAUDE.local.md
-.mcp.json
+# Notas locales de trabajo. No forman parte del proyecto.
+*.local.md
+notas/
 
 # Builds locales — la entrega se hace por release, no por repo
 /Builds/

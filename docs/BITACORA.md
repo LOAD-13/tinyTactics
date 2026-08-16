@@ -24,7 +24,7 @@ Las cinco, y bastante más de lo previsto en HU-003.
 
 | HU | Estado | Notas |
 |---|---|---|
-| HU-001 Documentación base | ✅ | `CLAUDE.md`, `README.md` y 6 docs en `docs/` |
+| HU-001 Documentación base | ✅ | `README.md` y 6 documentos en `docs/` |
 | HU-002 Estructura de carpetas | ✅ | `Assets/Scripts/` por dominio + assets Tiny Swords versionados |
 | HU-005 Ficha conceptual | ✅ | Dentro de `GDD.md`, en la rama de HU-001 (declarado) |
 | HU-003 Escena con el mapa | ✅ | Superó el alcance: generación procedimental completa |
@@ -124,7 +124,7 @@ git push -u origin develop
 ```bash
 git checkout -b docs/HU-001-documentacion-base
 
-git add CLAUDE.md README.md docs/ .gitignore
+git add README.md docs/ .gitignore
 
 git commit -m "docs(proyecto): documentacion base, cronograma propio y backlog" \
            -m "GDD con reglas y balance inicial, cronograma propio de 18 semanas, backlog de epicas e historias, convencion GitFlow, 8 decisiones de arquitectura y bitacora. Se anade el .gitignore del equipo." \

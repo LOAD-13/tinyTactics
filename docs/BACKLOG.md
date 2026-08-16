@@ -66,9 +66,9 @@ con algo corriendo.
 **para** que las decisiones estén escritas y el docente pueda verificarlas.
 
 **Criterios de aceptación**
-- [ ] Existen `CLAUDE.md`, `README.md` y `docs/` con GDD, CRONOGRAMA, BACKLOG, GITFLOW, ARQUITECTURA y BITACORA.
+- [ ] Existen `README.md` y `docs/` con GDD, CRONOGRAMA, BACKLOG, GITFLOW, ARQUITECTURA y BITACORA.
 - [ ] El `README.md` explica qué es el juego, cómo abrirlo y quién lo hizo.
-- [ ] `.gitignore` excluye `Library/`, `Temp/`, `Logs/` y todo lo de Claude.
+- [ ] `.gitignore` excluye `Library/`, `Temp/`, `Logs/` y las notas locales de trabajo.
 - [ ] `git status` en limpio no muestra ningún archivo generado por Unity.
 
 **Evidencia PPT:** captura del árbol de `docs/` en GitHub → slide de arquitectura/proceso.
