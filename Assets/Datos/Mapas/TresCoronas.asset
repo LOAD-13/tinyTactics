@@ -41,3 +41,12 @@ MonoBehaviour:
   formacionesDeRoca: 3
   cantidadNubes: 34
   patitoDeGoma: 1
+  relieve: {fileID: 11400000, guid: 557dc2c9414de774fbd5f64d973158d3, type: 2}
+  mesetas: 1
+  escalaMesetas: 0.055
+  umbralMesetas: 0.6
+  llanoAlrededorDeBases: 16
+  llanoAlrededorDeRecursos: 9
+  margenMesetaCosta: 3
+  mesetaMinima: 60
+  pasoEntreEscaleras: 14

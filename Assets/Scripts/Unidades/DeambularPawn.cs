@@ -83,13 +83,12 @@ namespace TinyTactics.Unidades
             Vector2 paso = haciaDestino.normalized * velocidad * Time.deltaTime;
             transform.position = new Vector3(posicion.x + paso.x, posicion.y + paso.y, 0f);
 
-            // El sprite mira hacia donde anda. El pack dibuja al pawn mirando a la
-            // derecha, así que basta con voltear la escala en X.
+            // El sprite mira hacia donde anda. El pack dibuja al pawn mirando a la derecha,
+            // así que basta con voltear el renderer. La escala del transform no se toca:
+            // arrastraría a los hijos de UI que cuelgan de la unidad.
             if (Mathf.Abs(haciaDestino.x) > 0.05f)
             {
-                var escala = transform.localScale;
-                escala.x = Mathf.Abs(escala.x) * (haciaDestino.x < 0f ? -1f : 1f);
-                transform.localScale = escala;
+                if (_renderizador != null) _renderizador.flipX = haciaDestino.x < 0f;
             }
         }
 

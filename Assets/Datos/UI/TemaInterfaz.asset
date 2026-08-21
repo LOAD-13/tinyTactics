@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c58a922285df8a64bbd38885c25a383c, type: 3}
+  m_Name: TemaInterfaz
+  m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Interfaz.TemaInterfaz
+  cursorNormal: {fileID: 2800000, guid: e50602bb4737a4a8795f25305980c3b7, type: 3}
+  cursorMano: {fileID: 2800000, guid: d5341ee0556844303a17dd8cb83e9727, type: 3}
+  cursorProhibido: {fileID: 2800000, guid: 1cd1bf70615454fcc8312d17f6a27e16, type: 3}
+  puntoNormal: {x: 23, y: 18}
+  puntoMano: {x: 27, y: 18}
+  puntoProhibido: {x: 32, y: 31}
+  marcadorSeleccion: {fileID: 21300000, guid: 148e1ab80b2b14ce5858df57aeae24e0, type: 3}
+  barraChicaMarco: {fileID: 21300000, guid: d410c511e208615468e244b53073bb5e, type: 3}
+  barraChicaRelleno: {fileID: 21300000, guid: 0a9687702ae69a34aaa69cb72bfe4907, type: 3}
+  panelFondo: {fileID: 21300000, guid: 85fd34e6a64fd414fae2973b0a111cd4, type: 3}
+  cajas:
+  - {fileID: 21300000, guid: ff08e0e6a714bd64793eed42b20c091a, type: 3}
+  - {fileID: 21300000, guid: 86f81ea3f6174fb40b35052aa06a4a5a, type: 3}
+  - {fileID: 21300000, guid: 482f53a00083dd040a5ded1d07edd8bd, type: 3}
+  - {fileID: 21300000, guid: 48d425c80353ae5419833fc490c1cab8, type: 3}
+  - {fileID: 21300000, guid: 5068960d79cab524ab129f95701ed68f, type: 3}
+  cajasChicas:
+  - {fileID: 21300000, guid: 450822c382e41f1459f219791010bde7, type: 3}
+  - {fileID: 21300000, guid: 04213aaa26f106046b81e0a280775154, type: 3}
+  - {fileID: 21300000, guid: 17ff0b8673146e94f84c2937118d7733, type: 3}
+  - {fileID: 21300000, guid: 43d092e1a1d0f804a8bb3eeffa31c168, type: 3}
+  - {fileID: 21300000, guid: 729a6b354961ad14eb9fe6678326bcb9, type: 3}
+  listonesPanel:
+  - {fileID: 21300000, guid: 15b31204676e1e0459dea19956128110, type: 3}
+  - {fileID: 21300000, guid: 76b376c6fb906bb48bf71dfa8532517e, type: 3}
+  - {fileID: 21300000, guid: 9095220564a34c04e9e046c93b385888, type: 3}
+  - {fileID: 21300000, guid: b6f260aa8fd665947942e6970c79019b, type: 3}
+  - {fileID: 21300000, guid: a2cd41eb5bb15fc4a9a901046264e5d0, type: 3}
+  listonesNombre:
+  - {fileID: 21300000, guid: d9e10db2eb2e55d4f8f4994c993eea24, type: 3}
+  - {fileID: 21300000, guid: 2687963f2e18d1c4187c3c8d8fa3fb60, type: 3}
+  - {fileID: 21300000, guid: 1bee7a94e7454b2459ffa3d5d720b3c9, type: 3}
+  - {fileID: 21300000, guid: 5514da3bbb94f384f9ca79b5f3266286, type: 3}
+  - {fileID: 21300000, guid: 192d6c1afbd735b4f931e2a9f58f0f77, type: 3}
+  barraGrandeMarco: {fileID: 21300000, guid: 4a2c0aea75afc2c4cbb5e2236f2b2838, type: 3}
+  barraGrandeRelleno: {fileID: 21300000, guid: e0548e6704c5aff4fb79d2f17b2e5e0e, type: 3}
+  iconoAtaque: {fileID: 21300000, guid: 23450567bedfb472eb6f8efd4ad515da, type: 3}
+  iconoOro: {fileID: 21300000, guid: 7a0f4fab77b344f7b9386a7c87e492b1, type: 3}
+  iconoVelocidad: {fileID: 21300000, guid: fae718ae59ba4491e94b6063a1d127ab, type: 3}
+  retratos:
+  - {fileID: 21300000, guid: 8831145787b65e240a36d4d272a9710e, type: 3}
+  - {fileID: 21300000, guid: 2658d317719bf1b4fbb16c5259996cf0, type: 3}
+  - {fileID: 21300000, guid: 60d1226ae6c88d44584a6d7cc768bebb, type: 3}
+  - {fileID: 21300000, guid: 15824cc0805167e458391d5cb4d9cada, type: 3}
+  - {fileID: 21300000, guid: 8500841e208e50a41ba8712c475b99a3, type: 3}
+  - {fileID: 21300000, guid: dc4c8f660817924459dc9200be0e31d0, type: 3}
+  - {fileID: 21300000, guid: 5c4a46c2d8b90294686050aeaaeed64c, type: 3}
+  - {fileID: 21300000, guid: 473b11c0fbbd8114087a88148ecaa2fc, type: 3}
+  - {fileID: 21300000, guid: aa7ef7cfc45edfb468d33f8c474e11bf, type: 3}
+  - {fileID: 21300000, guid: 2e473ed9523b81a468b670c04baec849, type: 3}
+  - {fileID: 21300000, guid: c33dc1488161e5a408f787ef64375af2, type: 3}
+  - {fileID: 21300000, guid: 38f929efaeb0dbc4caf48331fbde5c18, type: 3}
+  - {fileID: 21300000, guid: 01c359bb8ad1cf647bd66c77feb65e09, type: 3}
+  - {fileID: 21300000, guid: 6c2fd9e584fabf446b90294f798a40c3, type: 3}
+  - {fileID: 21300000, guid: ec90995c8b175a14bab5793ec79f1949, type: 3}
+  - {fileID: 21300000, guid: 97b4c41bf30d8984684be59ead98537b, type: 3}
+  - {fileID: 21300000, guid: 76e9171037c1c43429e159ae48538121, type: 3}
+  - {fileID: 21300000, guid: 79c10aff452074f40b16543c79432cfe, type: 3}
+  - {fileID: 21300000, guid: 56810feed8bb2d245ae3f5542f58786c, type: 3}
+  - {fileID: 21300000, guid: e0503066b2e45c4498986ec6bbdbefc5, type: 3}
+  - {fileID: 21300000, guid: 95c8f506580bf48419f53c874d88577c, type: 3}
+  - {fileID: 21300000, guid: c8bf5dd26779c624095c00a85a781303, type: 3}
+  - {fileID: 21300000, guid: a785028b87a06b649a45d9a1a00b1e8d, type: 3}
+  - {fileID: 21300000, guid: 57c635d3eaf2ee94cbfd990a63b1c7a4, type: 3}
+  - {fileID: 21300000, guid: 95d2413becc167c4f9b25b21791505be, type: 3}
+  coloresFaccion:
+  - {r: 0.36, g: 0.63, b: 0.92, a: 1}
+  - {r: 0.9, g: 0.33, b: 0.33, a: 1}
+  - {r: 0.94, g: 0.82, b: 0.31, a: 1}
+  - {r: 0.68, g: 0.45, b: 0.88, a: 1}
+  - {r: 0.42, g: 0.45, b: 0.52, a: 1}

@@ -98,6 +98,37 @@ namespace TinyTactics.Mundo
         [Tooltip("Patito de goma escondido en el mar. Sí, viene en el pack.")]
         public bool patitoDeGoma = true;
 
+        [Header("Desniveles")]
+        [Tooltip("Relieve dibujado a mano. Si hay uno aquí, el generador no inventa " +
+                 "mesetas: pinta exactamente lo que diga el asset.")]
+        public RelieveMapa relieve;
+
+        [Tooltip("Generar mesetas elevadas. Apagarlo deja el mapa completamente llano.")]
+        public bool mesetas = true;
+
+        [Tooltip("Escala del ruido de altura. Más alto = mesetas más pequeñas y numerosas.")]
+        [Range(0.01f, 0.30f)] public float escalaMesetas = 0.055f;
+
+        [Tooltip("Umbral de altura. Subirlo deja menos terreno elevado.")]
+        [Range(0.40f, 0.85f)] public float umbralMesetas = 0.60f;
+
+        [Tooltip("Tiles de llano que se respetan alrededor de cada base. " +
+                 "Nadie quiere aparecer encajonado entre acantilados.")]
+        [Range(4, 40)] public int llanoAlrededorDeBases = 16;
+
+        [Tooltip("Tiles de llano alrededor de expansiones y del centro del mapa.")]
+        [Range(2, 30)] public int llanoAlrededorDeRecursos = 9;
+
+        [Tooltip("Distancia mínima entre una meseta y la costa. " +
+                 "Un acantilado que cae al mar no tiene cara que dibujar.")]
+        [Range(1, 10)] public int margenMesetaCosta = 3;
+
+        [Tooltip("Superficie mínima de una meseta. Las más chicas se aplanan.")]
+        [Range(8, 400)] public int mesetaMinima = 60;
+
+        [Tooltip("Una escalera cada tantos tiles de borde sur aprovechable.")]
+        [Range(4, 40)] public int pasoEntreEscaleras = 14;
+
         /// <summary>Extensión del mapa en unidades de mundo (1 tile = 1 unidad).</summary>
         public Vector2 TamanoEnMundo => new Vector2(ancho, alto);
 

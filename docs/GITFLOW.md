@@ -64,8 +64,31 @@ Scopes habituales: `grilla`, `pathfinding`, `seleccion`, `movimiento`, `economia
 |---|---|
 | **Lunes / miércoles** | Se crean las ramas de las HUs de la semana desde `develop` |
 | **Durante** | Commits y push en la rama de cada HU |
-| **Viernes-sábado** | PR de cada rama → `develop`, se cierra la HU |
+| **Viernes-sábado** | PR de cada rama → `develop`, se cierra la HU y **se borra la rama** |
 | **Domingo** | PR `develop` → `main` + **tag `v0.N.0-sNN`**. Ese tag es la entrega |
+
+### Las ramas de HU se borran al mergear
+
+Una rama de historia de usuario es **temporal**: nace de `develop`, vuelve a `develop` y
+desaparece. Lo que persiste como registro histórico es el **tag**, no la rama.
+
+Dejarlas acumularse hace que en la semana 12 haya cuarenta ramas muertas y nadie sepa cuál
+sigue viva. Y no se pierde nada: los commits ya están en `develop`, y GitHub conserva el
+historial del pull request aunque la rama ya no exista.
+
+```bash
+git checkout develop
+git pull origin develop
+
+git branch -d feat/HU-0NN-descripcion            # local
+git push origin --delete feat/HU-0NN-descripcion  # remoto
+```
+
+⚠️ **Siempre `-d` en minúscula**, que solo borra si la rama está mergeada. Si git responde
+*"not fully merged"*, es una señal real de que algo no llegó a `develop`: hay que investigar,
+nunca forzar con `-D`.
+
+Permanentes: **`main`** y **`develop`**. Todo lo demás es temporal.
 
 ### Los tags son la evidencia
 
@@ -137,6 +160,20 @@ git push origin v0.3.0-s03
    |---|---|---|
    | HU-005 dentro de HU-001 | `docs/HU-001-documentacion-base` | La ficha conceptual es una sección del mismo `GDD.md` |
    | HU-003 + HU-004 | `feat/HU-003-generacion-de-mapa` | El generador construye la cámara dentro de la escena |
+   | HU-006 … HU-018 | `feat/E02-nucleo-y-desniveles` | Ver nota de abajo |
+
+   > **Sobre `feat/E02-nucleo-y-desniveles`.** Esta rama se declara *después* de empezar, y eso
+   > es exactamente lo que la regla de arriba prohíbe. Se anota igualmente en vez de fingir
+   > trazabilidad con ramas vacías creadas a posteriori.
+   >
+   > La rama nació como `feat/HU-006-grilla-logica` y acabó llevando la épica E02 entera. El
+   > motivo real: las HUs del núcleo resultaron ser un solo bloque —una grilla sin A* no se
+   > puede probar, un A* sin unidades tampoco, y unas unidades sin selección menos— y el
+   > alcance creció en marcha con dos HUs que no estaban en el plan (HU-017 y HU-018).
+   >
+   > **Lección para la semana 04:** trocear la épica en ramas mergeables *antes* de escribir la
+   > primera línea, y aceptar que una HU sin probar en aislamiento se mergea igual si el
+   > conjunto compila. Trece HUs en una rama no son revisables.
 5. **Escenas y prefabs son YAML gigante y no se mergean bien.** Hoy el riesgo es bajo porque
    solo Joaquín programa, pero la disciplina se mantiene: preferir **prefabs** sobre meter
    todo en la escena. Si el día de mañana alguien más toca código, esta regla salva el proyecto.

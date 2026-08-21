@@ -7,6 +7,9 @@ using UnityEngine.Tilemaps;
 using TinyTactics.Entrada;
 using TinyTactics.Mundo;
 using TinyTactics.Unidades;
+using TinyTactics.Movimiento;
+using TinyTactics.Datos;
+using TinyTactics.Interfaz;
 
 namespace TinyTactics.EditorHerramientas
 {
@@ -70,11 +73,17 @@ namespace TinyTactics.EditorHerramientas
                 var escena = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
                 CrearLuzGlobal();
-                camara = CrearCamara(definicion);
+                CrearMundo(definicion);
+                camara = CrearCamara(definicion, mapa);
                 PintarMapa(definicion, mapa, paleta);
+
+                EditorUtility.DisplayProgressBar("Tiny Tactics", "Preparando la interfaz…", 0.8f);
+                _tema = ConstructorDeInterfaz.ObtenerTema();
 
                 EditorUtility.DisplayProgressBar("Tiny Tactics", "Poblando el mapa…", 0.85f);
                 PoblarMapa(definicion, mapa);
+
+                ConstructorDeInterfaz.CrearLienzo(_tema);
 
                 EditorSceneManager.MarkSceneDirty(escena);
                 EditorSceneManager.SaveScene(escena, RutaEscena);
@@ -98,7 +107,10 @@ namespace TinyTactics.EditorHerramientas
                 $"{definicion.bandos} bandos.\n" +
                 $"Contenido: {mapa.Oro.Count} nodos de oro, {mapa.Arboles.Count} árboles, " +
                 $"{mapa.Ovejas.Count} ovejas, {mapa.Rocas.Count} rocas, {mapa.Arbustos.Count} arbustos, " +
-                $"{mapa.RocasAgua.Count} rocas de mar.");
+                $"{mapa.RocasAgua.Count} rocas de mar.\n" +
+                $"Relieve {(mapa.RelieveDibujado ? "DIBUJADO A MANO" : "generado por ruido")}: " +
+                $"{GeneradorTerreno.ContarElevadas(mapa.Nivel, mapa.Ancho, mapa.Alto)} " +
+                $"tiles de meseta y {mapa.Rampas.Count} rampas.");
         }
 
         // -----------------------------------------------------------------
@@ -130,6 +142,18 @@ namespace TinyTactics.EditorHerramientas
             public TileBase Agua;
             public TileBase Espuma;
             public readonly Dictionary<int, TileBase> Suelo = new Dictionary<int, TileBase>();
+
+            /// <summary>Las mismas 16 piezas con el borde rocoso, para la meseta.</summary>
+            public readonly Dictionary<int, TileBase> Meseta = new Dictionary<int, TileBase>();
+
+            public TileBase[] CaraEnTierra;
+            public TileBase[] CaraEnAgua;
+
+            /// <summary>
+            /// Las dos mitades de la rampa: alta-der, alta-izq, baja-der, baja-izq.
+            /// La que cae a la derecha usa 0+2; la que cae a la izquierda, 1+3.
+            /// </summary>
+            public TileBase[] Rampa;
         }
 
         static Paleta ConstruirPaleta()
@@ -172,7 +196,18 @@ namespace TinyTactics.EditorHerramientas
             {
                 paleta.Suelo[indice] = CrearTile(
                     spritesTileset[indice], $"{CarpetaTiles}/Suelo_{indice:D2}.asset");
+
+                int elevado = indice + GeneradorTerreno.DesplazamientoElevado;
+                if (elevado < spritesTileset.Count)
+                {
+                    paleta.Meseta[elevado] = CrearTile(
+                        spritesTileset[elevado], $"{CarpetaTiles}/Meseta_{elevado:D2}.asset");
+                }
             }
+
+            paleta.CaraEnTierra = CrearJuego(spritesTileset, GeneradorTerreno.IndicesCaraEnTierra, "Cara");
+            paleta.CaraEnAgua = CrearJuego(spritesTileset, GeneradorTerreno.IndicesCaraEnAgua, "CaraAgua");
+            paleta.Rampa = CrearJuego(spritesTileset, GeneradorTerreno.IndicesRampa, "Rampa");
 
             if (framesEspuma.Count > 1)
                 paleta.Espuma = CrearTileAnimado(framesEspuma, $"{CarpetaTiles}/Espuma.asset");
@@ -183,6 +218,22 @@ namespace TinyTactics.EditorHerramientas
             AssetDatabase.Refresh();
 
             return paleta;
+        }
+
+        /// <summary>Convierte una lista de índices del tileset en tiles listos para pintar.</summary>
+        static TileBase[] CrearJuego(List<Sprite> sprites, int[] indices, string prefijo)
+        {
+            var salida = new TileBase[indices.Length];
+
+            for (int i = 0; i < indices.Length; i++)
+            {
+                int indice = indices[i];
+                if (indice >= sprites.Count) continue;
+
+                salida[i] = CrearTile(sprites[indice], $"{CarpetaTiles}/{prefijo}_{indice:D2}.asset");
+            }
+
+            return salida;
         }
 
         static Tile CrearTile(Sprite sprite, string ruta)
@@ -242,7 +293,19 @@ namespace TinyTactics.EditorHerramientas
             luz.intensity = 1f;
         }
 
-        static CamaraRTS CrearCamara(DefinicionMapa definicion)
+        /// <summary>
+        /// Objeto que reconstruye la grilla logica al arrancar la partida.
+        /// Guarda la referencia a la MISMA definicion con la que se pinto la escena:
+        /// si apuntaran a assets distintos, lo logico y lo visual discreparian.
+        /// </summary>
+        static void CrearMundo(DefinicionMapa definicion)
+        {
+            var go = new GameObject("Mundo");
+            var mundo = go.AddComponent<MundoJuego>();
+            mundo.definicion = definicion;
+        }
+
+        static CamaraRTS CrearCamara(DefinicionMapa definicion, MapaGenerado mapa)
         {
             var go = new GameObject("Camara Principal");
             go.tag = "MainCamera";
@@ -257,6 +320,9 @@ namespace TinyTactics.EditorHerramientas
 
             go.AddComponent<AudioListener>();
 
+            var selector = go.AddComponent<SelectorDeUnidades>();
+            selector.faccionJugador = 0;
+
             var controlador = go.AddComponent<CamaraRTS>();
             controlador.ConfigurarLimites(Vector2.zero, definicion.TamanoEnMundo);
 
@@ -265,7 +331,15 @@ namespace TinyTactics.EditorHerramientas
             controlador.zoomMaximo = camara.orthographicSize;
             controlador.zoomMinimo = 4f;
 
+            // La partida empieza mirando la base propia, no el centro del mapa.
+            // Es lo que hace cualquier RTS: apareces viendo lo tuyo.
             Vector2 centro = definicion.CentroEnMundo;
+            if (mapa != null && mapa.Bases.Count > 0)
+            {
+                var propia = mapa.Bases[0];
+                centro = new Vector2(propia.x + 0.5f, propia.y + 0.5f);
+            }
+
             go.transform.position = new Vector3(centro.x, centro.y, -10f);
 
             return controlador;
@@ -284,12 +358,14 @@ namespace TinyTactics.EditorHerramientas
             var capaAgua = CrearCapa(raiz.transform, "Agua", -30);
             var capaEspuma = CrearCapa(raiz.transform, "Espuma", -20);
             var capaSuelo = CrearCapa(raiz.transform, "Suelo", -10);
+            var capaMeseta = CrearCapa(raiz.transform, "Meseta", -5);
 
             var limites = new BoundsInt(0, 0, 0, ancho, alto, 1);
 
             var agua = new TileBase[ancho * alto];
             var espuma = new TileBase[ancho * alto];
             var suelo = new TileBase[ancho * alto];
+            var meseta = new TileBase[ancho * alto];
 
             for (int y = 0; y < alto; y++)
             {
@@ -312,9 +388,153 @@ namespace TinyTactics.EditorHerramientas
                 }
             }
 
+            PintarRelieve(mapa, paleta, ancho, alto, meseta);
+
             capaAgua.SetTilesBlock(limites, agua);
             capaEspuma.SetTilesBlock(limites, espuma);
             capaSuelo.SetTilesBlock(limites, suelo);
+            capaMeseta.SetTilesBlock(limites, meseta);
+        }
+
+        /// <summary>
+        /// Pinta la meseta, la cara del acantilado y las rampas sobre una capa aparte.
+        ///
+        /// Va encima del suelo y no lo sustituye: bajo la meseta sigue habiendo hierba, y
+        /// eso hace que el borde del acantilado encaje con lo que tiene al lado sin
+        /// recalcular nada. La cara del acantilado ocupa la fila que queda justo al sur de
+        /// la meseta — esa fila es terreno llano, pero el muro la vuelve intransitable, y
+        /// de eso se encarga <see cref="MundoJuego"/> al construir la grilla.
+        /// </summary>
+        static void PintarRelieve(MapaGenerado mapa, Paleta paleta, int ancho, int alto,
+                                  TileBase[] destino)
+        {
+            if (mapa.Nivel == null) return;
+
+            // Índice de rampas montado una vez. EsMuro se llama cuatro veces por celda y
+            // recorrer la lista dentro sería medio millón de comparaciones de más.
+            _celdasDeRampa.Clear();
+            foreach (var rampa in mapa.Rampas) _celdasDeRampa.Add(rampa.Pie);
+
+            for (int y = 0; y < alto; y++)
+            {
+                for (int x = 0; x < ancho; x++)
+                {
+                    int i = x + y * ancho;
+
+                    if (mapa.Nivel[x, y] > 0)
+                    {
+                        int indice = GeneradorTerreno.IndiceAutotileNivel(mapa.Nivel, ancho, alto, x, y);
+                        paleta.Meseta.TryGetValue(indice, out destino[i]);
+                        continue;
+                    }
+
+                    // Justo debajo de una meseta va la pared. Con musgo si el pie es
+                    // tierra, con espuma si cae al agua.
+                    if (!EsMuro(mapa, ancho, alto, x, y)) continue;
+
+                    var juego = mapa.Tierra[x, y] ? paleta.CaraEnTierra : paleta.CaraEnAgua;
+                    if (juego == null || juego.Length < 4) continue;
+
+                    // La pieza depende de si el muro sigue a los lados, no del azar. Las
+                    // cuatro no son variantes: son extremo izquierdo, medio, extremo
+                    // derecho y bloque suelto.
+                    int rol = GeneradorTerreno.RolDeMuro(
+                        EsMuro(mapa, ancho, alto, x - 1, y),
+                        EsMuro(mapa, ancho, alto, x + 1, y));
+
+                    destino[i] = juego[rol];
+                }
+            }
+
+            if (paleta.Rampa == null || paleta.Rampa.Length < 4) return;
+
+            // Las rampas se pintan las últimas: sobrescriben la pared y el borde de meseta
+            // que el bucle de arriba ya había puesto en esas dos celdas.
+            foreach (var rampa in mapa.Rampas)
+            {
+                Poner(destino, ancho, alto, rampa.x, rampa.y + 1,
+                      paleta.Rampa[rampa.derecha ? 0 : 1]);
+
+                Poner(destino, ancho, alto, rampa.x, rampa.y,
+                      paleta.Rampa[rampa.derecha ? 2 : 3]);
+            }
+        }
+
+        /// <summary>
+        /// ¿Esta celda lleva pared de acantilado?
+        ///
+        /// Lo lleva si es llano y justo encima hay meseta. Las celdas de rampa quedan
+        /// fuera: ahí la pared se sustituye por la cuesta, y contarlas como muro haría que
+        /// sus vecinas se dibujaran como si el muro continuara y dejaría un borde abierto
+        /// mirando a la nada.
+        /// </summary>
+        static bool EsMuro(MapaGenerado mapa, int ancho, int alto, int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= ancho || y + 1 >= alto) return false;
+            if (mapa.Nivel[x, y] != 0 || mapa.Nivel[x, y + 1] == 0) return false;
+
+            return !_celdasDeRampa.Contains(new Vector2Int(x, y));
+        }
+
+        static readonly HashSet<Vector2Int> _celdasDeRampa = new HashSet<Vector2Int>();
+
+        /// <summary>
+        /// Vuelve a pintar solo la capa de meseta de la escena abierta.
+        ///
+        /// La usa el editor de relieve para dar respuesta inmediata al pincel. Los tiles se
+        /// cargan de <c>Assets/Datos/Tiles</c> en vez de volver a construir la paleta: esa
+        /// borra y regenera la carpeta entera, que aquí sería carísimo y además dejaría
+        /// referencias rotas en el resto de capas de la escena.
+        /// </summary>
+        public static void RepintarRelieveEnEscena(MapaGenerado mapa)
+        {
+            var objeto = GameObject.Find("Mapa/Meseta");
+            if (objeto == null)
+            {
+                Debug.LogWarning(
+                    "[Tiny Tactics] No hay capa \"Mapa/Meseta\" en la escena. " +
+                    "Genera la escena de juego antes de editar el relieve.");
+                return;
+            }
+
+            var capa = objeto.GetComponent<Tilemap>();
+            if (capa == null) return;
+
+            var paleta = new Paleta();
+
+            foreach (int indice in GeneradorTerreno.IndicesSueloPlano)
+            {
+                int elevado = indice + GeneradorTerreno.DesplazamientoElevado;
+                paleta.Meseta[elevado] =
+                    AssetDatabase.LoadAssetAtPath<TileBase>($"{CarpetaTiles}/Meseta_{elevado:D2}.asset");
+            }
+
+            paleta.CaraEnTierra = CargarJuego(GeneradorTerreno.IndicesCaraEnTierra, "Cara");
+            paleta.CaraEnAgua = CargarJuego(GeneradorTerreno.IndicesCaraEnAgua, "CaraAgua");
+            paleta.Rampa = CargarJuego(GeneradorTerreno.IndicesRampa, "Rampa");
+
+            var destino = new TileBase[mapa.Ancho * mapa.Alto];
+            PintarRelieve(mapa, paleta, mapa.Ancho, mapa.Alto, destino);
+
+            capa.SetTilesBlock(new BoundsInt(0, 0, 0, mapa.Ancho, mapa.Alto, 1), destino);
+            EditorSceneManager.MarkSceneDirty(objeto.scene);
+        }
+
+        static TileBase[] CargarJuego(int[] indices, string prefijo)
+        {
+            var salida = new TileBase[indices.Length];
+
+            for (int i = 0; i < indices.Length; i++)
+                salida[i] = AssetDatabase.LoadAssetAtPath<TileBase>(
+                    $"{CarpetaTiles}/{prefijo}_{indices[i]:D2}.asset");
+
+            return salida;
+        }
+
+        static void Poner(TileBase[] destino, int ancho, int alto, int x, int y, TileBase tile)
+        {
+            if (x < 0 || y < 0 || x >= ancho || y >= alto) return;
+            destino[x + y * ancho] = tile;
         }
 
         static Tilemap CrearCapa(Transform padre, string nombre, int orden)
@@ -402,6 +622,7 @@ namespace TinyTactics.EditorHerramientas
 
             // Estas tres sí traen tira de frames: se animan por sprite-swap.
             Sembrar(mapa.Ovejas, ovejas, definicion.alto, rnd, 0f, animar: true, fps: 6f);
+            SoltarAPastar(ovejas.Padre);
             Sembrar(mapa.Arbustos, arbustos, definicion.alto, rnd, 0f, animar: true, fps: 5f);
 
             // Entre el agua (-30) y la espuma (-20): se ven sobre el mar y la espuma
@@ -414,6 +635,110 @@ namespace TinyTactics.EditorHerramientas
 
             if (definicion.patitoDeGoma)
                 SoltarPatito(raiz, definicion, mapa, rnd);
+        }
+
+        // -----------------------------------------------------------------
+        // Unidades
+        // -----------------------------------------------------------------
+
+        const int UnidadesPorBase = 8;
+        const string RutaDatosPawn = "Assets/Datos/Unidades/Pawn.asset";
+
+        /// <summary>
+        /// Tema de interfaz de la generacion en curso. Es un campo estatico y no un
+        /// parametro porque lo necesita <see cref="CrearUnidad"/>, cinco llamadas mas
+        /// abajo, y encadenarlo por toda la cadena solo ensuciaria firmas.
+        /// </summary>
+        static TemaInterfaz _tema;
+
+        static DatosUnidad ObtenerDatosPawn()
+        {
+            AsegurarCarpeta("Assets/Datos/Unidades");
+
+            var datos = AssetDatabase.LoadAssetAtPath<DatosUnidad>(RutaDatosPawn);
+            if (datos != null) return datos;
+
+            datos = ScriptableObject.CreateInstance<DatosUnidad>();
+            datos.tipo = TipoUnidad.Pawn;
+            datos.nombreVisible = "Pawn";
+            datos.vidaMaxima = 60;
+            datos.dano = 5;
+            datos.alcance = 0.5f;
+            datos.velocidad = 3f;
+            datos.radio = 0.42f;
+            datos.carnePorSegundo = 0.1f;
+            datos.oro = 50;
+
+            AssetDatabase.CreateAsset(datos, RutaDatosPawn);
+            AssetDatabase.SaveAssets();
+            return datos;
+        }
+
+        static void CrearUnidad(Transform padre, DatosUnidad datos, int faccion,
+                                Sprite[] reposo, Sprite[] caminar,
+                                Vector3 posicion, int orden, string nombre)
+        {
+            var go = new GameObject(nombre);
+            go.transform.SetParent(padre, false);
+            go.transform.position = posicion;
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = reposo[0];
+            sr.sortingOrder = orden;
+
+            go.AddComponent<AnimadorSprite>();
+
+            var unidad = go.AddComponent<Unidad>();
+            unidad.Configurar(datos, faccion);
+
+            var movimiento = go.AddComponent<MovimientoUnidad>();
+            movimiento.ConfigurarAnimacion(reposo, caminar != null && caminar.Length > 1 ? caminar : reposo);
+
+            // Marcador y barra salen del pack, no de una textura dibujada por codigo.
+            ConstructorDeInterfaz.AnadirMarcador(go, _tema, faccion, orden);
+            ConstructorDeInterfaz.AnadirBarraDeVida(go, _tema, orden);
+        }
+
+        /// <summary>
+        /// Da vida al rebano: cada oveja alterna quieta, pastando y andando.
+        ///
+        /// El pack trae ademas un Animator con sus clips, pero no se usa — el ADR-03 lo
+        /// prohibe. Aqui se le pasan las tres tiras a nuestro animador por intercambio
+        /// de sprites, que es lo mismo por una fraccion del coste.
+        /// </summary>
+        static void SoltarAPastar(Transform padre)
+        {
+            if (padre == null) return;
+
+            var quieta = CargarSpritesOrdenados($"{DirRecursos}/Meat/Sheep/Sheep_Idle.png");
+            var pastando = CargarSpritesOrdenados($"{DirRecursos}/Meat/Sheep/Sheep_Grass.png");
+            var andando = CargarSpritesOrdenados($"{DirRecursos}/Meat/Sheep/Sheep_Move.png");
+
+            if (quieta.Count == 0) return;
+            if (pastando.Count == 0) pastando = quieta;
+            if (andando.Count == 0) andando = quieta;
+
+            for (int i = 0; i < padre.childCount; i++)
+            {
+                var oveja = padre.GetChild(i).gameObject;
+
+                if (oveja.GetComponent<AnimadorSprite>() == null)
+                    oveja.AddComponent<AnimadorSprite>();
+
+                oveja.AddComponent<PastarOveja>()
+                     .Configurar(quieta.ToArray(), pastando.ToArray(), andando.ToArray());
+
+                // Sembrar voltea algunas invirtiendo la escala. Eso arrastraria a
+                // cualquier hijo y ademas pelea con el flipX que usa el pastoreo.
+                var escala = oveja.transform.localScale;
+                if (escala.x < 0f)
+                {
+                    oveja.transform.localScale = new Vector3(Mathf.Abs(escala.x), escala.y, escala.z);
+
+                    var sr = oveja.GetComponent<SpriteRenderer>();
+                    if (sr != null) sr.flipX = true;
+                }
+            }
         }
 
         /// <summary>Un patito de goma flotando en el mar. Viene en el pack; sería una pena no usarlo.</summary>
@@ -473,30 +798,23 @@ namespace TinyTactics.EditorHerramientas
                     sr.sortingOrder = alto - celda.y;
                 }
 
-                // Dos pawns que se pasean junto al castillo.
+                // Unidades reales: seleccionables y capaces de recibir órdenes.
                 var reposo = CargarSpritesOrdenados($"{DirRecursos}/Pawn/{color} Pawn/Pawn_Idle.png");
                 var caminar = CargarSpritesOrdenados($"{DirRecursos}/Pawn/{color} Pawn/Pawn_Run.png");
+                var datosPawn = ObtenerDatosPawn();
 
-                for (int p = 0; p < 2; p++)
+                for (int p = 0; p < UnidadesPorBase; p++)
                 {
                     if (reposo.Count == 0) break;
 
-                    var go = new GameObject($"Pawn_{p + 1}");
-                    go.transform.SetParent(grupo, false);
-                    go.transform.position = new Vector3(
-                        celda.x + 0.5f + (p == 0 ? -2.4f : 2.4f), celda.y - 2.2f, 0f);
+                    // En fila doble delante del castillo, con algo de holgura para que
+                    // el empuje blando no las tenga peleando desde el primer frame.
+                    float dx = (p % 4 - 1.5f) * 1.6f;
+                    float dy = -2.4f - (p / 4) * 1.5f;
 
-                    var sr = go.AddComponent<SpriteRenderer>();
-                    sr.sprite = reposo[0];
-                    sr.sortingOrder = alto - celda.y + 2;
-
-                    go.AddComponent<AnimadorSprite>();
-
-                    var paseo = go.AddComponent<DeambularPawn>();
-                    paseo.Configurar(
-                        reposo.ToArray(),
-                        caminar.Count > 1 ? caminar.ToArray() : reposo.ToArray(),
-                        4.5f);
+                    CrearUnidad(grupo, datosPawn, i, reposo.ToArray(), caminar.ToArray(),
+                                new Vector3(celda.x + 0.5f + dx, celda.y + dy, 0f),
+                                alto - celda.y + 2, $"Pawn_{p + 1}");
                 }
             }
 

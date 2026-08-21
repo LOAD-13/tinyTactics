@@ -36,6 +36,10 @@ namespace TinyTactics.Entrada
         [Tooltip("Mayor = la cámara alcanza su destino más rápido.")]
         [Range(1f, 30f)] public float suavizado = 12f;
 
+        [Header("Diagnóstico")]
+        [Tooltip("Escribe en consola lo que lee el paneo. Activar solo para depurar.")]
+        public bool registrarEntrada;
+
         [Header("Límites del mapa (en unidades de mundo)")]
         public Vector2 limiteMinimo = Vector2.zero;
         public Vector2 limiteMaximo = new Vector2(48f, 48f);
@@ -51,10 +55,27 @@ namespace TinyTactics.Entrada
 
             _zoomObjetivo = Mathf.Clamp(_camara.orthographicSize, zoomMinimo, ZoomMaximoUtil());
             _posicionObjetivo = transform.position;
+
+            // Traza incondicional al arrancar. Si esta linea no sale en consola, el
+            // componente no se esta ejecutando y el problema no esta en el paneo.
+            Debug.Log(
+                $"[CamaraRTS] Awake OK. camara={_camara != null} ortho={_camara.orthographic} " +
+                $"pos={transform.position} zoom={_camara.orthographicSize:F1} " +
+                $"limites={limiteMinimo}..{limiteMaximo} " +
+                $"teclado={(Keyboard.current != null ? Keyboard.current.displayName : "NULO")} " +
+                $"raton={(Mouse.current != null ? "si" : "NULO")}", this);
         }
+
+        bool _primerUpdate = true;
 
         void Update()
         {
+            if (_primerUpdate)
+            {
+                _primerUpdate = false;
+                Debug.Log($"[CamaraRTS] Update corriendo. timeScale={Time.timeScale}", this);
+            }
+
             ActualizarZoom();
             ActualizarPaneo();
             Aplicar();
@@ -100,6 +121,8 @@ namespace TinyTactics.Entrada
             if (direccion.sqrMagnitude > 1f)
                 direccion.Normalize();
 
+            Diagnostico(direccion);
+
             if (direccion.sqrMagnitude < 0.0001f) return;
 
             // Alejado se recorre más terreno por segundo: el desplazamiento se siente
@@ -132,17 +155,68 @@ namespace TinyTactics.Entrada
 
             Vector2 p = mouse.position.ReadValue();
 
-            // Si el cursor salió de la ventana, no paneamos: evita que la cámara
-            // se dispare sola cuando el usuario cambia de aplicación.
-            if (p.x < 0f || p.y < 0f || p.x > Screen.width || p.y > Screen.height)
+            // Se trabaja en coordenadas normalizadas (0..1) en vez de píxeles.
+            //
+            // El motivo es el deslizador Scale de la Game view: cuando no está en 1x,
+            // Screen.width deja de coincidir con el rango real del cursor, y una
+            // comparación en píxeles descarta el paneo siempre. Normalizando, el margen
+            // sigue siendo proporcional y da igual a qué resolución se renderice.
+            float ancho = Mathf.Max(1, Screen.width);
+            float alto = Mathf.Max(1, Screen.height);
+
+            Vector2 n = new Vector2(p.x / ancho, p.y / alto);
+
+            // Fuera de la ventana no se panea: si no, la cámara se dispara sola
+            // al cambiar de aplicación. Se deja holgura para tolerar el desfase.
+            if (n.x < -0.05f || n.y < -0.05f || n.x > 1.05f || n.y > 1.05f)
                 return Vector2.zero;
 
+            float margen = Mathf.Clamp01(margenBorde / ancho);
+            float margenY = Mathf.Clamp01(margenBorde / alto);
+
             Vector2 d = Vector2.zero;
-            if (p.x <= margenBorde) d.x -= 1f;
-            if (p.x >= Screen.width - margenBorde) d.x += 1f;
-            if (p.y <= margenBorde) d.y -= 1f;
-            if (p.y >= Screen.height - margenBorde) d.y += 1f;
+            if (n.x <= margen) d.x -= 1f;
+            if (n.x >= 1f - margen) d.x += 1f;
+            if (n.y <= margenY) d.y -= 1f;
+            if (n.y >= 1f - margenY) d.y += 1f;
             return d;
+        }
+
+        float _relojDiagnostico;
+
+        void Diagnostico(Vector2 direccion)
+        {
+            if (!registrarEntrada) return;
+
+            _relojDiagnostico += Time.unscaledDeltaTime;
+            if (_relojDiagnostico < 0.5f) return;
+            _relojDiagnostico = 0f;
+
+            float mitadAlto = _camara.orthographicSize;
+            float mitadAncho = mitadAlto * _camara.aspect;
+
+            var teclado = Keyboard.current;
+            var raton = Mouse.current;
+            Vector2 posRaton = raton != null ? raton.position.ReadValue() : Vector2.zero;
+
+            // Si el raton se sale del rango de Screen, el deslizador Scale de la Game
+            // view no esta en 1x: todo el calculo en espacio de pantalla queda desfasado.
+            bool ratonFueraDeRango =
+                posRaton.x < 0f || posRaton.y < 0f ||
+                posRaton.x > Screen.width || posRaton.y > Screen.height;
+
+            Debug.Log(
+                $"[CamaraRTS] W={teclado?.wKey.isPressed} A={teclado?.aKey.isPressed} " +
+                $"S={teclado?.sKey.isPressed} D={teclado?.dKey.isPressed} " +
+                $"foco={Application.isFocused}\n" +
+                $"raton={posRaton} pantalla=({Screen.width}x{Screen.height}) " +
+                $"fueraDeRango={ratonFueraDeRango}" +
+                (ratonFueraDeRango ? "  <-- pon el Scale de la Game view en 1x" : "") + "\n" +
+                $"direccion={direccion}  pos={transform.position}  objetivo={_posicionObjetivo}\n" +
+                $"zoom={_camara.orthographicSize:F1} aspecto={_camara.aspect:F2} " +
+                $"mitad=({mitadAncho:F1},{mitadAlto:F1})\n" +
+                $"rangoX=[{limiteMinimo.x + mitadAncho:F1},{limiteMaximo.x - mitadAncho:F1}] " +
+                $"rangoY=[{limiteMinimo.y + mitadAlto:F1},{limiteMaximo.y - mitadAlto:F1}]");
         }
 
         void Aplicar()
