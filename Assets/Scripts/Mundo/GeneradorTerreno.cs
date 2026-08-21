@@ -3,10 +3,50 @@ using UnityEngine;
 
 namespace TinyTactics.Mundo
 {
+    /// <summary>
+    /// Una rampa: la celda llana del pie y hacia dónde cae la pendiente.
+    ///
+    /// Mide un tile de ancho por dos de alto. La pieza del pack viene en dos mitades
+    /// espejadas, y elegir una u otra es lo que decide el sentido — no son combinables
+    /// entre sí ni forman un bloque de 2×2.
+    /// </summary>
+    [System.Serializable]
+    public struct Rampa
+    {
+        /// <summary>Celda del pie, en llano. La cuesta ocupa esta y la de arriba.</summary>
+        public int x;
+        public int y;
+
+        /// <summary>Sentido de la pendiente. False cae hacia la izquierda.</summary>
+        public bool derecha;
+
+        public Rampa(int x, int y, bool derecha)
+        {
+            this.x = x;
+            this.y = y;
+            this.derecha = derecha;
+        }
+
+        public Vector2Int Pie => new Vector2Int(x, y);
+    }
+
     /// <summary>Resultado completo de generar un mapa: terreno + qué va encima.</summary>
     public class MapaGenerado
     {
         public bool[,] Tierra;
+
+        /// <summary>Altura de cada celda. 0 es el llano; 1, la meseta.</summary>
+        public byte[,] Nivel;
+
+        /// <summary>Celdas por las que sí se puede cambiar de altura.</summary>
+        public bool[,] Escalera;
+
+        /// <summary>Cuestas que permiten cambiar de altura.</summary>
+        public readonly List<Rampa> Rampas = new List<Rampa>();
+
+        /// <summary>True si el relieve vino de un asset dibujado a mano y no del ruido.</summary>
+        public bool RelieveDibujado;
+
         public int Ancho;
         public int Alto;
 
@@ -64,12 +104,129 @@ namespace TinyTactics.Mundo
             HorizIzq, HorizMedio, HorizDer, Aislado
         };
 
+        // ATENCIÓN con los índices de aquí abajo. La hoja del pack tiene 9 columnas, pero
+        // la quinta está vacía y Unity no genera sprite para una celda transparente: salen
+        // 44 sprites para 54 celdas. O sea que en la lista que llega al código las filas
+        // van de 8 en 8, no de 9, y las dos últimas filas solo aportan 6 sprites cada una.
+        // Todo lo que sigue está en índices de esa lista, no en coordenadas de la hoja.
+
+        /// <summary>
+        /// El mismo juego de 16 piezas, cuatro puestos más adelante en la lista.
+        ///
+        /// El pack repite el autotile dos veces: con borde de espuma para la costa y con
+        /// borde rocoso para lo que está en alto. Son idénticos en estructura, así que el
+        /// desplazamiento constante basta y no hace falta una segunda tabla a mano.
+        /// </summary>
+        public const int DesplazamientoElevado = 4;
+
+        // Las cuatro piezas de muro NO son variantes intercambiables: son un autotile
+        // horizontal. Medido sobre los sprites, 34 tiene el borde izquierdo cerrado y el
+        // derecho abierto, 35 los dos abiertos, 36 al revés que 34 y 37 los dos cerrados.
+        // Elegirlas al azar mete tapas en mitad del muro y deja una rendija de hierba
+        // entre bloque y bloque, que es exactamente lo que se veía.
+        public const int MuroIzquierda = 0, MuroMedio = 1, MuroDerecha = 2, MuroSuelto = 3;
+
+        /// <summary>Cara del acantilado con el pie en tierra: lleva musgo abajo.</summary>
+        public static readonly int[] IndicesCaraEnTierra = { 34, 35, 36, 37 };
+
+        /// <summary>Cara del acantilado con el pie en el agua: lleva espuma abajo.</summary>
+        public static readonly int[] IndicesCaraEnAgua = { 40, 41, 42, 43 };
+
+        /// <summary>¿Esta celda llana tiene meseta justo encima, o sea, lleva muro?</summary>
+        public static bool HayMuro(byte[,] nivel, int ancho, int alto, int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= ancho || y + 1 >= alto) return false;
+            return nivel[x, y] == 0 && nivel[x, y + 1] > 0;
+        }
+
+        /// <summary>
+        /// Hacia dónde debe caer una rampa colocada en esta celda.
+        ///
+        /// Las dos mitades del pack no son intercambiables: la izquierda (32/38) encaja a
+        /// ras con el muro que tenga a su derecha, y la derecha (33/39) con el de su
+        /// izquierda. Poner la que no toca deja una rendija de hierba entre la cuesta y la
+        /// pared. Así que la cuesta cae siempre hacia el lado por donde el muro se acaba.
+        /// </summary>
+        public static bool SentidoAutomatico(byte[,] nivel, int ancho, int alto, int x, int y)
+        {
+            int izquierda = LargoDeMuro(nivel, ancho, alto, x, y, -1);
+            int derecha = LargoDeMuro(nivel, ancho, alto, x, y, +1);
+
+            // La cuesta se abre hacia el lado por el que el muro se acaba antes.
+            //
+            // Con muro solo a un lado esto da lo obvio: la rampa encaja a ras contra la
+            // pared y se abre al aire. Y en mitad de un muro largo, que era el caso que
+            // quedaba al azar, la descarga cae hacia el extremo más cercano — se lee como
+            // el final de la pared y no como un agujero en medio.
+            return izquierda > derecha;
+        }
+
+        /// <summary>Cuántas celdas de muro seguidas hay en esa dirección, con tope.</summary>
+        static int LargoDeMuro(byte[,] nivel, int ancho, int alto, int x, int y, int paso)
+        {
+            const int Tope = 16;
+
+            int largo = 0;
+            for (int i = 1; i <= Tope; i++)
+            {
+                if (!HayMuro(nivel, ancho, alto, x + paso * i, y)) break;
+                largo++;
+            }
+
+            return largo;
+        }
+
+        /// <summary>Qué pieza de muro toca según tenga o no muro a los lados.</summary>
+        public static int RolDeMuro(bool hayIzquierda, bool hayDerecha)
+        {
+            if (hayIzquierda && hayDerecha) return MuroMedio;
+            if (hayDerecha) return MuroIzquierda;
+            if (hayIzquierda) return MuroDerecha;
+            return MuroSuelto;
+        }
+
+        // La rampa mide 1×2. El pack la trae en dos mitades espejadas y cada una es una
+        // rampa entera: 32 sobre 38 cae hacia la DERECHA y encaja a ras con el muro que
+        // tenga a su izquierda; 33 sobre 39 es la simétrica.
+        //
+        // El sentido está comprobado en pantalla, no deducido del sprite: mirando el pixel
+        // art se lee al revés con facilidad, y de hecho la primera versión salió invertida.
+        public const int RampaAltaDer = 32;
+        public const int RampaAltaIzq = 33;
+        public const int RampaBajaDer = 38;
+        public const int RampaBajaIzq = 39;
+
+        /// <summary>Orden: alta-derecha, alta-izquierda, baja-derecha, baja-izquierda.</summary>
+        public static readonly int[] IndicesRampa =
+        {
+            RampaAltaDer, RampaAltaIzq, RampaBajaDer, RampaBajaIzq
+        };
+
         // =====================================================================
         // Generación
         // =====================================================================
 
         public static MapaGenerado Generar(DefinicionMapa def)
         {
+            // Validar la entrada antes de tocar nada. Sin esto, una definicion a medio
+            // deserializar (ancho = 0) revienta 15 lineas mas abajo con un
+            // IndexOutOfRangeException que no dice nada util. Ya paso una vez, cuando
+            // Unity se estaba recuperando de un cierre inesperado.
+            if (def == null)
+                throw new System.ArgumentNullException(
+                    nameof(def), "[Tiny Tactics] No hay DefinicionMapa asignada.");
+
+            if (def.ancho < 8 || def.alto < 8)
+                throw new System.ArgumentException(
+                    $"[Tiny Tactics] Dimensiones invalidas en \"{def.name}\": " +
+                    $"{def.ancho}x{def.alto}. Si son 0, el asset no se importo bien: " +
+                    "reimportalo o cierra y vuelve a abrir Unity.", nameof(def));
+
+            if (def.bandos < 2)
+                throw new System.ArgumentException(
+                    $"[Tiny Tactics] \"{def.name}\" declara {def.bandos} bandos; el minimo es 2.",
+                    nameof(def));
+
             var mapa = new MapaGenerado
             {
                 Ancho = def.ancho,
@@ -78,6 +235,7 @@ namespace TinyTactics.Mundo
             };
 
             ColocarContenido(def, mapa);
+            ConstruirRelieve(def, mapa);
             return mapa;
         }
 
@@ -822,6 +980,340 @@ namespace TinyTactics.Mundo
         /// Elige el índice de sprite para una celda de tierra según qué vecinos
         /// cardinales también son tierra. El borde dibujado va del lado donde hay agua.
         /// </summary>
+        // =====================================================================
+        // Relieve — HU-014 y HU-016
+        // =====================================================================
+
+        /// <summary>
+        /// Levanta mesetas sobre el terreno ya generado y les abre escaleras.
+        ///
+        /// Va después del contenido y no antes a propósito: bases, expansiones y centro ya
+        /// están colocados, así que se puede reservar llano a su alrededor. Un bando que
+        /// apareciera encajonado entre acantilados perdería la partida en el minuto uno por
+        /// geografía, no por juego.
+        ///
+        /// La altura sale del mismo ruido plegado que la costa (<see cref="Plegar"/>), con
+        /// otro desplazamiento. Eso garantiza que las mesetas salgan con la misma simetría
+        /// de N pliegues que el resto del mapa.
+        /// </summary>
+        static void ConstruirRelieve(DefinicionMapa def, MapaGenerado mapa)
+        {
+            int ancho = def.ancho, alto = def.alto;
+
+            mapa.Nivel = new byte[ancho, alto];
+            mapa.Escalera = new bool[ancho, alto];
+
+            // Un relieve dibujado a mano manda sobre el ruido. Es lo que permite que el
+            // escenario deje de cambiar cada vez que se regenera la escena.
+            if (def.relieve != null && !def.relieve.Coincide(ancho, alto))
+            {
+                Debug.LogWarning(
+                    $"[Tiny Tactics] El relieve \"{def.relieve.name}\" es de un mapa de " +
+                    $"{def.relieve.ancho}x{def.relieve.alto} y este es de {ancho}x{alto}. " +
+                    "Se ignora y se genera relieve por ruido. Vuelve a guardarlo desde el " +
+                    "editor de relieve con el tamano actual.");
+            }
+
+            if (def.relieve != null && def.relieve.Coincide(ancho, alto))
+            {
+                mapa.RelieveDibujado = true;
+
+                for (int x = 0; x < ancho; x++)
+                    for (int y = 0; y < alto; y++)
+                        mapa.Nivel[x, y] = def.relieve.NivelEn(x, y);
+
+                mapa.Rampas.AddRange(def.relieve.rampas);
+                MarcarEscaleras(mapa);
+                return;
+            }
+
+            if (!def.mesetas) return;
+
+            var alta = MarcarAltura(def, mapa);
+
+            DespejarZonasDeJuego(def, mapa, alta);
+            AbrirEscaleras(def, mapa, alta);
+        }
+
+        /// <summary>
+        /// Deriva las celdas de escalera de la lista de rampas.
+        ///
+        /// Es la unica fuente: la rampa del pack ocupa 2x2 y esas cuatro celdas son
+        /// exactamente por donde se cambia de altura. Guardar ambas cosas por separado
+        /// seria pedir que un dia dejaran de coincidir.
+        /// </summary>
+        public static void MarcarEscaleras(MapaGenerado mapa)
+        {
+            for (int x = 0; x < mapa.Ancho; x++)
+                for (int y = 0; y < mapa.Alto; y++)
+                    mapa.Escalera[x, y] = false;
+
+            foreach (var rampa in mapa.Rampas)
+            {
+                Marcar(mapa, rampa.x, rampa.y);
+                Marcar(mapa, rampa.x, rampa.y + 1);
+            }
+        }
+
+        static void Marcar(MapaGenerado mapa, int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= mapa.Ancho || y >= mapa.Alto) return;
+            mapa.Escalera[x, y] = true;
+        }
+
+        /// <summary>Ruido plegado y umbral, recortado a tierra firme lejos de la costa.</summary>
+        static bool[,] MarcarAltura(DefinicionMapa def, MapaGenerado mapa)
+        {
+            int ancho = def.ancho, alto = def.alto;
+
+            // Semilla derivada, no la misma: compartiendo desplazamiento las mesetas
+            // calcarían la forma de la isla y saldrían siempre pegadas al mismo sitio.
+            var rnd = new System.Random(def.semilla ^ 0x5EA51D);
+            float despX = (float)rnd.NextDouble() * 1000f;
+            float despY = (float)rnd.NextDouble() * 1000f;
+
+            float centroX = (ancho - 1) * 0.5f;
+            float centroY = (alto - 1) * 0.5f;
+
+            var alta = new bool[ancho, alto];
+
+            for (int x = 0; x < ancho; x++)
+            {
+                for (int y = 0; y < alto; y++)
+                {
+                    if (!mapa.Tierra[x, y]) continue;
+                    if (!TierraAlrededor(mapa, x, y, def.margenMesetaCosta)) continue;
+
+                    Vector2 p = Plegar(x, y, centroX, centroY, def.bandos);
+
+                    float n1 = Mathf.PerlinNoise(
+                        despX + p.x * def.escalaMesetas, despY + p.y * def.escalaMesetas);
+                    float n2 = Mathf.PerlinNoise(
+                        despX + 300f + p.x * def.escalaMesetas * 2.1f,
+                        despY + 300f + p.y * def.escalaMesetas * 2.1f);
+
+                    alta[x, y] = n1 * 0.7f + n2 * 0.3f > def.umbralMesetas;
+                }
+            }
+
+            return alta;
+        }
+
+        /// <summary>Todo el vecindario cuadrado de ese radio es tierra.</summary>
+        static bool TierraAlrededor(MapaGenerado mapa, int x, int y, int radio)
+        {
+            for (int dy = -radio; dy <= radio; dy++)
+                for (int dx = -radio; dx <= radio; dx++)
+                    if (!mapa.EsTierra(x + dx, y + dy)) return false;
+
+            return true;
+        }
+
+        /// <summary>Aplana lo que no debe estar elevado: bases, recursos y manchas enanas.</summary>
+        static void DespejarZonasDeJuego(DefinicionMapa def, MapaGenerado mapa, bool[,] alta)
+        {
+            Aplanar(alta, def.ancho, def.alto, mapa.Bases, def.llanoAlrededorDeBases);
+            Aplanar(alta, def.ancho, def.alto, mapa.Expansiones, def.llanoAlrededorDeRecursos);
+            Aplanar(alta, def.ancho, def.alto, mapa.Oro, def.llanoAlrededorDeRecursos);
+
+            // Una meseta de cuatro tiles no es terreno, es un grano. Se quitan aquí y no
+            // subiendo el umbral, porque el umbral también borraría las mesetas buenas.
+            var visitado = new bool[def.ancho, def.alto];
+
+            for (int x = 0; x < def.ancho; x++)
+            {
+                for (int y = 0; y < def.alto; y++)
+                {
+                    if (!alta[x, y] || visitado[x, y]) continue;
+
+                    var region = InundarDesde(alta, visitado, def.ancho, def.alto, x, y, true);
+                    if (region.Count >= def.mesetaMinima) continue;
+
+                    for (int i = 0; i < region.Count; i++)
+                        alta[region[i].x, region[i].y] = false;
+                }
+            }
+        }
+
+        static void Aplanar(bool[,] alta, int ancho, int alto,
+                            List<Vector2Int> puntos, int radio)
+        {
+            if (puntos == null) return;
+
+            int radio2 = radio * radio;
+
+            for (int k = 0; k < puntos.Count; k++)
+            {
+                var p = puntos[k];
+
+                int minX = Mathf.Max(0, p.x - radio), maxX = Mathf.Min(ancho - 1, p.x + radio);
+                int minY = Mathf.Max(0, p.y - radio), maxY = Mathf.Min(alto - 1, p.y + radio);
+
+                for (int x = minX; x <= maxX; x++)
+                {
+                    for (int y = minY; y <= maxY; y++)
+                    {
+                        int dx = x - p.x, dy = y - p.y;
+                        if (dx * dx + dy * dy <= radio2) alta[x, y] = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Vuelca el mapa de altura al mapa final y le abre escaleras por el borde sur.
+        ///
+        /// Sur y no cualquier lado porque es donde el tileset dibuja la cara del acantilado:
+        /// en vista cenital solo se ve la pared que mira hacia abajo. Una escalera al norte
+        /// no tendría pared donde apoyarse.
+        ///
+        /// Si una meseta no tiene ningún borde sur utilizable, se aplana entera. Es preferible
+        /// perder una meseta a dejar una isla elevada a la que no se pueda subir — y peor
+        /// aún, en la que una unidad pueda quedarse encerrada.
+        /// </summary>
+        static void AbrirEscaleras(DefinicionMapa def, MapaGenerado mapa, bool[,] alta)
+        {
+            int ancho = def.ancho, alto = def.alto;
+
+            var visitado = new bool[ancho, alto];
+            var bordeSur = new List<Vector2Int>();
+
+            // El pie de la escalera no puede caer bajo un árbol o una veta de oro: la
+            // grilla los marca como obstáculo y la meseta se quedaría sin acceso real
+            // aunque la escalera esté dibujada.
+            var ocupadas = new HashSet<Vector2Int>();
+            for (int i = 0; i < mapa.Arboles.Count; i++) ocupadas.Add(mapa.Arboles[i]);
+            for (int i = 0; i < mapa.Oro.Count; i++) ocupadas.Add(mapa.Oro[i]);
+
+            for (int x = 0; x < ancho; x++)
+            {
+                for (int y = 0; y < alto; y++)
+                {
+                    if (!alta[x, y] || visitado[x, y]) continue;
+
+                    var region = InundarDesde(alta, visitado, ancho, alto, x, y, true);
+
+                    // Celdas de meseta con el pie despejado justo debajo: ahí cabe una rampa.
+                    bordeSur.Clear();
+                    for (int i = 0; i < region.Count; i++)
+                    {
+                        var c = region[i];
+                        if (PieDeRampaLibre(mapa, alta, ocupadas, c.x, c.y)) bordeSur.Add(c);
+                    }
+
+                    if (bordeSur.Count == 0)
+                    {
+                        for (int i = 0; i < region.Count; i++)
+                            alta[region[i].x, region[i].y] = false;
+
+                        continue;
+                    }
+
+                    // Orden estable: el recorrido de inundación depende del punto de
+                    // arranque, y sin ordenar dos ejecuciones podrían repartir las
+                    // escaleras distinto sobre el mismo mapa.
+                    bordeSur.Sort((a, b) => a.x != b.x ? a.x.CompareTo(b.x) : a.y.CompareTo(b.y));
+
+                    int paso = Mathf.Max(2, def.pasoEntreEscaleras);
+
+                    // -100 y no int.MinValue: la resta de abajo se desbordaría y la
+                    // primera rampa de cada meseta se descartaría siempre.
+                    int ultimaX = -100;
+                    int puestas = 0;
+
+                    for (int i = 0; i < bordeSur.Count; i += paso)
+                    {
+                        var c = bordeSur[i];
+
+                        // Dos rampas pegadas rompen el muro que tienen al lado.
+                        if (c.x - ultimaX < 3) continue;
+                        ultimaX = c.x;
+                        puestas++;
+
+                        // El sentido se resuelve más abajo, cuando el mapa de alturas
+                        // esté volcado: depende de los vecinos, y aquí todavía puede
+                        // aplanarse alguna meseta.
+                        mapa.Rampas.Add(new Rampa(c.x, c.y - 1, true));
+                    }
+
+                    // El salto de `paso` puede caer siempre en pares demasiado juntos y
+                    // dejar la meseta sin una sola rampa. Si pasa, se pone la primera:
+                    // más vale una rampa mal repartida que una meseta inaccesible.
+                    if (puestas == 0)
+                    {
+                        var c = bordeSur[0];
+                        mapa.Rampas.Add(new Rampa(c.x, c.y - 1, true));
+                    }
+                }
+            }
+
+            for (int x = 0; x < ancho; x++)
+                for (int y = 0; y < alto; y++)
+                    mapa.Nivel[x, y] = alta[x, y] ? (byte)1 : (byte)0;
+
+            for (int i = 0; i < mapa.Rampas.Count; i++)
+            {
+                var r = mapa.Rampas[i];
+                r.derecha = SentidoAutomatico(mapa.Nivel, ancho, alto, r.x, r.y);
+                mapa.Rampas[i] = r;
+            }
+
+            MarcarEscaleras(mapa);
+        }
+
+        /// <summary>
+        /// ¿La celda es borde sur de meseta y tiene el pie despejado?
+        ///
+        /// "Pie despejado" es tierra llana, sin árbol ni oro encima, porque la grilla los
+        /// marca como obstáculo: una rampa que naciera bajo un árbol estaría dibujada pero
+        /// sería intransitable.
+        /// </summary>
+        static bool PieDeRampaLibre(MapaGenerado mapa, bool[,] alta,
+                                    HashSet<Vector2Int> ocupadas, int x, int y)
+        {
+            if (x < 0 || x >= mapa.Ancho || y - 1 < 0) return false;
+            if (!alta[x, y]) return false;
+            if (alta[x, y - 1]) return false;
+            if (!mapa.Tierra[x, y - 1]) return false;
+
+            return !ocupadas.Contains(new Vector2Int(x, y)) &&
+                   !ocupadas.Contains(new Vector2Int(x, y - 1));
+        }
+
+        /// <summary>
+        /// Autotile sobre el mapa de alturas en vez de sobre el de tierra.
+        ///
+        /// Se reutiliza <see cref="IndiceAutotile"/> tal cual: la pieza que toca depende
+        /// solo de qué vecinos son del mismo material, y aquí "mismo material" es "también
+        /// está en alto". Fuera del mapa se considera llano, para que el borde de la meseta
+        /// se cierre en vez de quedar abierto.
+        /// </summary>
+        public static int IndiceAutotileNivel(byte[,] nivel, int ancho, int alto, int x, int y)
+        {
+            bool norte = EsAlto(nivel, ancho, alto, x, y + 1);
+            bool sur = EsAlto(nivel, ancho, alto, x, y - 1);
+            bool este = EsAlto(nivel, ancho, alto, x + 1, y);
+            bool oeste = EsAlto(nivel, ancho, alto, x - 1, y);
+
+            return IndiceAutotile(norte, sur, este, oeste) + DesplazamientoElevado;
+        }
+
+        public static bool EsAlto(byte[,] nivel, int ancho, int alto, int x, int y) =>
+            nivel != null && x >= 0 && y >= 0 && x < ancho && y < alto && nivel[x, y] > 0;
+
+        /// <summary>Celdas elevadas del mapa. Sirve para informar en el log.</summary>
+        public static int ContarElevadas(byte[,] nivel, int ancho, int alto)
+        {
+            if (nivel == null) return 0;
+
+            int total = 0;
+            for (int x = 0; x < ancho; x++)
+                for (int y = 0; y < alto; y++)
+                    if (nivel[x, y] > 0) total++;
+
+            return total;
+        }
+
         public static int IndiceAutotile(bool norte, bool sur, bool este, bool oeste)
         {
             if (norte && sur && este && oeste) return Centro;

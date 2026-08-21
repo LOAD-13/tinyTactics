@@ -1,0 +1,695 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using TinyTactics.Datos;
+using TinyTactics.Entrada;
+using TinyTactics.Unidades;
+
+namespace TinyTactics.Interfaz
+{
+    /// <summary>
+    /// La caja inferior con la ficha de lo seleccionado.
+    ///
+    /// El montaje es el del boceto: un listón del color del bando asomando por detrás, la
+    /// caja de madera delante, la cara pegada a la izquierda sin marco, y a su derecha una
+    /// caja azul que contiene el listón del nombre y, debajo, las cajas de vida y de stats.
+    /// Con varias unidades seleccionadas esas dos se sustituyen por una sola con los
+    /// retratos y el total.
+    ///
+    /// Se construye a sí mismo por código en <c>Awake</c>. Es la misma decisión que con el
+    /// mapa (ADR-09): la escena se regenera entera desde el editor, así que un prefab de UI
+    /// sería una segunda fuente de verdad que habría que mantener sincronizada a mano.
+    /// </summary>
+    [AddComponentMenu("Tiny Tactics/Panel de unidad")]
+    public class PanelDeUnidad : MonoBehaviour
+    {
+        [Header("Tema")]
+        public TemaInterfaz tema;
+
+        [Header("Medidas (píxeles de la resolución de referencia, 1920×1080)")]
+        [Tooltip("Ancho total incluyendo lo que asoma el listón por los lados.")]
+        public Vector2 tamanoTotal = new Vector2(840f, 230f);
+
+        [Tooltip("Caja de madera. Más estrecha que el total: la diferencia es el listón.")]
+        public Vector2 tamanoCaja = new Vector2(740f, 230f);
+
+        [Tooltip("Separación entre el borde inferior de la pantalla y el panel.")]
+        public float margenInferior = 16f;
+
+        public float ladoCara = 178f;
+
+        [Tooltip("Ajuste fino del nombre dentro del listón. La fuente gótica cae baja.")]
+        public float subirNombre = 5f;
+
+        [Header("Tipografía")]
+        [Tooltip("Se prueban en orden y gana la primera instalada en el sistema. " +
+                 "No se incluye ningún .ttf en el repo: son fuentes con licencia de terceros.")]
+        public string[] fuentesTitulo = { "Old English Text MT", "Cambria", "Georgia" };
+
+        public string[] fuentesTexto = { "Cambria", "Constantia", "Georgia" };
+
+        [Tooltip("Color de todo el texto del panel. Negro sobre los tonos claros del pack.")]
+        public Color colorTexto = new Color(0.09f, 0.07f, 0.06f);
+
+        [Header("Animación")]
+        [Tooltip("El panel entra deslizándose desde abajo. Apagar para que aparezca de golpe.")]
+        public bool animaciones = true;
+
+        [Range(0.05f, 0.6f)] public float duracionEntrada = 0.16f;
+
+        [Header("Rejilla de grupo")]
+        [Tooltip("Retratos que caben en la caja. El resto solo cuenta para el total.")]
+        public int retratosVisibles = 7;
+
+        // Geometría de los sprites de barra ya recortados por el constructor de interfaz.
+        const float BarraGrandeAncho = 112f;
+        const float BarraGrandeAlto = 48f;
+        const float BarraGrandeCavidadX = 11f;
+        const float BarraGrandeCavidadAncho = 90f;
+
+        const float BarraChicaAncho = 96f;
+        const float BarraChicaAlto = 32f;
+        const float BarraChicaCavidadX = 11f;
+        const float BarraChicaCavidadAncho = 74f;
+
+        RectTransform _raiz;
+        CanvasGroup _opacidad;
+        Image _liston;
+        Image _cara;
+        Image _cajaGrande;
+        readonly List<Image> _cajasChicas = new List<Image>();
+
+        GameObject _vistaIndividual;
+        GameObject _vistaGrupo;
+
+        Image _listonNombre;
+        Text _nombre;
+
+        Text _vida;
+        Image _rellenoVida;
+        Text _ataque;
+        Text _velocidad;
+        Text _oro;
+
+        readonly List<Celda> _celdas = new List<Celda>();
+        Text _total;
+
+        Font _fuenteTitulo;
+        Font _fuenteTexto;
+        int _versionVista = -1;
+        int _faccionPintada = -1;
+
+        float _objetivo;
+        float _mostrado;
+
+        class Celda
+        {
+            public GameObject Raiz;
+            public Image Cara;
+            public Image Relleno;
+        }
+
+        /// <summary>Instancia activa, para que el resto de la entrada sepa esquivarla.</summary>
+        public static PanelDeUnidad Actual { get; private set; }
+
+        /// <summary>
+        /// ¿El puntero está sobre la caja? Sin esta comprobación, un clic derecho sobre el
+        /// panel mandaría a las unidades a la casilla que quedara detrás.
+        /// </summary>
+        public bool CapturaPuntero(Vector2 pantalla)
+        {
+            if (_raiz == null || !_raiz.gameObject.activeInHierarchy) return false;
+
+            // Cámara nula porque el lienzo es Screen Space - Overlay.
+            return RectTransformUtility.RectangleContainsScreenPoint(_raiz, pantalla, null);
+        }
+
+        // -----------------------------------------------------------------
+
+        void Awake()
+        {
+            _fuenteTitulo = PrimeraInstalada(fuentesTitulo);
+            _fuenteTexto = PrimeraInstalada(fuentesTexto);
+
+            Actual = this;
+            Construir();
+            Mostrar(false, false);
+
+            // Sin esto el panel se vería un frame entero, entero y opaco, antes de que la
+            // primera transición lo esconda.
+            AplicarTransicion();
+        }
+
+        void OnDestroy()
+        {
+            if (Actual == this) Actual = null;
+        }
+
+        /// <summary>
+        /// Primera fuente de la lista que esté instalada en el sistema.
+        ///
+        /// Se cargan del sistema operativo y no se copia ningún <c>.ttf</c> al proyecto a
+        /// propósito: las fuentes de Windows tienen licencia de Microsoft y el repositorio
+        /// es público. Si ninguna está, se cae a la fuente incrustada en el motor, que no
+        /// es medieval pero siempre existe.
+        /// </summary>
+        static Font PrimeraInstalada(string[] candidatas)
+        {
+            if (candidatas != null && candidatas.Length > 0)
+            {
+                var instaladas = new HashSet<string>(Font.GetOSInstalledFontNames());
+
+                foreach (var nombre in candidatas)
+                {
+                    if (string.IsNullOrEmpty(nombre) || !instaladas.Contains(nombre)) continue;
+
+                    var fuente = Font.CreateDynamicFontFromOSFont(nombre, 32);
+                    if (fuente != null) return fuente;
+                }
+            }
+
+            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
+
+        void LateUpdate()
+        {
+            var selector = SelectorDeUnidades.Actual;
+            var seleccion = selector != null ? selector.Seleccionadas : null;
+
+            if (seleccion == null || seleccion.Count == 0)
+            {
+                if (selector != null) _versionVista = selector.VersionSeleccion;
+                Mostrar(false, false);
+                AplicarTransicion();
+                return;
+            }
+
+            bool individual = seleccion.Count == 1;
+            Mostrar(individual, !individual);
+            AplicarTransicion();
+
+            // Retratos y nombres solo cambian cuando cambia la selección; la vida, cada
+            // frame. Separarlo evita reasignar sprites y strings sesenta veces por segundo,
+            // que es lo que genera basura en el heap.
+            if (_versionVista != selector.VersionSeleccion)
+            {
+                _versionVista = selector.VersionSeleccion;
+                RefrescarCabecera(seleccion);
+
+                if (individual) RefrescarFicha(seleccion[0]);
+                else RefrescarRejilla(seleccion);
+            }
+
+            if (individual) RefrescarVida(seleccion[0]);
+            else RefrescarVidasRejilla(seleccion);
+        }
+
+        void Mostrar(bool individual, bool grupo)
+        {
+            _objetivo = individual || grupo ? 1f : 0f;
+
+            if (_vistaIndividual != null && _vistaIndividual.activeSelf != individual)
+                _vistaIndividual.SetActive(individual);
+
+            if (_vistaGrupo != null && _vistaGrupo.activeSelf != grupo)
+                _vistaGrupo.SetActive(grupo);
+        }
+
+        /// <summary>
+        /// Entrada y salida del panel: sube desde debajo del borde mientras se funde.
+        ///
+        /// Corre con <c>unscaledDeltaTime</c> para que la animación siga siendo la misma si
+        /// algún día el juego se pausa o va a cámara lenta — la interfaz no forma parte de
+        /// la simulación. Y el objeto solo se desactiva cuando la salida ha terminado; si se
+        /// apagara al soltar la selección no habría nada que animar.
+        /// </summary>
+        void AplicarTransicion()
+        {
+            if (_raiz == null) return;
+
+            if (animaciones && duracionEntrada > 0.001f)
+                _mostrado = Mathf.MoveTowards(_mostrado, _objetivo,
+                                              Time.unscaledDeltaTime / duracionEntrada);
+            else
+                _mostrado = _objetivo;
+
+            bool activo = _mostrado > 0.001f;
+            if (_raiz.gameObject.activeSelf != activo) _raiz.gameObject.SetActive(activo);
+            if (!activo) return;
+
+            float suave = _mostrado * _mostrado * (3f - 2f * _mostrado);
+
+            _raiz.anchoredPosition = new Vector2(
+                0f, Mathf.Lerp(margenInferior - tamanoTotal.y * 0.55f, margenInferior, suave));
+
+            if (_opacidad != null) _opacidad.alpha = suave;
+        }
+
+        // -----------------------------------------------------------------
+        // Refresco
+        // -----------------------------------------------------------------
+
+        /// <summary>Cara, listones y nombre: lo que es común a las dos vistas.</summary>
+        void RefrescarCabecera(IReadOnlyList<Unidad> seleccion)
+        {
+            var primera = seleccion[0];
+            if (primera == null || primera.datos == null || tema == null) return;
+
+            if (_cara != null)
+            {
+                var cara = tema.RetratoDe(primera.datos.tipo, primera.faccion);
+                _cara.sprite = cara;
+                _cara.enabled = cara != null;
+            }
+
+            // Los listones solo se reasignan al cambiar de bando. Hoy siempre es el mismo,
+            // pero en cuanto haya observador o repetición el panel seguirá al jugador activo.
+            if (primera.faccion != _faccionPintada)
+            {
+                _faccionPintada = primera.faccion;
+
+                if (_liston != null)
+                {
+                    _liston.sprite = tema.ListonPanelDe(primera.faccion);
+                    _liston.enabled = _liston.sprite != null;
+                }
+
+                if (_listonNombre != null)
+                {
+                    _listonNombre.sprite = tema.ListonNombreDe(primera.faccion);
+                    _listonNombre.enabled = _listonNombre.sprite != null;
+                }
+
+                if (_cajaGrande != null)
+                {
+                    _cajaGrande.sprite = tema.CajaDe(primera.faccion);
+                    _cajaGrande.enabled = _cajaGrande.sprite != null;
+                }
+
+                var chica = tema.CajaChicaDe(primera.faccion);
+                for (int i = 0; i < _cajasChicas.Count; i++)
+                {
+                    if (_cajasChicas[i] == null) continue;
+                    _cajasChicas[i].sprite = chica;
+                    _cajasChicas[i].enabled = chica != null;
+                }
+            }
+
+            if (_nombre != null) _nombre.text = NombreDe(seleccion);
+        }
+
+        /// <summary>Un solo tipo se nombra; una mezcla no tiene nombre que valga.</summary>
+        static string NombreDe(IReadOnlyList<Unidad> seleccion)
+        {
+            var primera = seleccion[0];
+            if (primera == null || primera.datos == null) return "Selección";
+
+            TipoUnidad tipo = primera.datos.tipo;
+
+            for (int i = 1; i < seleccion.Count; i++)
+            {
+                var u = seleccion[i];
+                if (u == null || u.datos == null || u.datos.tipo != tipo) return "Selección";
+            }
+
+            return primera.datos.nombreVisible;
+        }
+
+        void RefrescarFicha(Unidad unidad)
+        {
+            if (unidad == null || unidad.datos == null) return;
+
+            var datos = unidad.datos;
+
+            if (_ataque != null) _ataque.text = datos.dano.ToString();
+            if (_velocidad != null) _velocidad.text = datos.velocidad.ToString("0.0");
+            if (_oro != null) _oro.text = datos.oro.ToString();
+        }
+
+        void RefrescarVida(Unidad unidad)
+        {
+            if (unidad == null || unidad.datos == null) return;
+
+            int max = Mathf.Max(1, unidad.datos.vidaMaxima);
+            float f = Mathf.Clamp01((float)unidad.Vida / max);
+
+            if (_rellenoVida != null && !Mathf.Approximately(_rellenoVida.fillAmount, f))
+                _rellenoVida.fillAmount = f;
+
+            if (_vida != null)
+            {
+                string texto = unidad.Vida + " / " + max;
+                if (_vida.text != texto) _vida.text = texto;
+            }
+        }
+
+        void RefrescarRejilla(IReadOnlyList<Unidad> seleccion)
+        {
+            int visibles = Mathf.Min(seleccion.Count, _celdas.Count);
+
+            for (int i = 0; i < _celdas.Count; i++)
+            {
+                var celda = _celdas[i];
+                bool activa = i < visibles;
+
+                if (celda.Raiz.activeSelf != activa) celda.Raiz.SetActive(activa);
+                if (!activa) continue;
+
+                var unidad = seleccion[i];
+                var cara = unidad != null && unidad.datos != null && tema != null
+                    ? tema.RetratoDe(unidad.datos.tipo, unidad.faccion)
+                    : null;
+
+                celda.Cara.sprite = cara;
+                celda.Cara.enabled = cara != null;
+            }
+
+            // El total va siempre, quepan o no todos los retratos: es el dato que el jugador
+            // necesita para saber con cuánta gente está a punto de hacer algo.
+            if (_total != null) _total.text = "×" + seleccion.Count;
+        }
+
+        void RefrescarVidasRejilla(IReadOnlyList<Unidad> seleccion)
+        {
+            int visibles = Mathf.Min(seleccion.Count, _celdas.Count);
+
+            for (int i = 0; i < visibles; i++)
+            {
+                var unidad = seleccion[i];
+                if (unidad == null || unidad.datos == null) continue;
+
+                float f = Mathf.Clamp01((float)unidad.Vida / Mathf.Max(1, unidad.datos.vidaMaxima));
+                var relleno = _celdas[i].Relleno;
+
+                if (relleno != null && !Mathf.Approximately(relleno.fillAmount, f))
+                    relleno.fillAmount = f;
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Construcción
+        // -----------------------------------------------------------------
+
+        void Construir()
+        {
+            if (GetComponent<Canvas>() == null) return;
+
+            _raiz = Nodo("Panel", (RectTransform)transform);
+
+            // Pivote en la base y anclaje al borde inferior: así el panel se apoya en el
+            // borde de la pantalla en vez de quedarse a caballo, que es lo que pasaba con
+            // el pivote centrado — la mitad de la caja caía fuera del encuadre.
+            _raiz.anchorMin = new Vector2(0.5f, 0f);
+            _raiz.anchorMax = new Vector2(0.5f, 0f);
+            _raiz.pivot = new Vector2(0.5f, 0f);
+            _raiz.sizeDelta = tamanoTotal;
+            _raiz.anchoredPosition = new Vector2(0f, margenInferior);
+
+            _opacidad = _raiz.gameObject.AddComponent<CanvasGroup>();
+            _opacidad.blocksRaycasts = false;
+            _opacidad.interactable = false;
+
+            // Orden de creación = orden de dibujo. El listón primero para que asome por
+            // detrás de la madera.
+            _liston = Caja("Liston", _raiz, null, true).GetComponent<Image>();
+            Colocar((RectTransform)_liston.transform, Vector2.zero,
+                    new Vector2(tamanoTotal.x, tamanoCaja.y * 0.65f));
+
+            var caja = Caja("Caja", _raiz, tema != null ? tema.panelFondo : null, true);
+            Colocar(caja, Vector2.zero, tamanoCaja);
+
+            float mitadCaja = tamanoCaja.x * 0.5f;
+            const float MargenCaja = 36f;
+
+            // Cara suelta, sin marco: pegada al borde izquierdo de la madera.
+            var cara = Caja("Cara", caja, null, false);
+            Colocar(cara, new Vector2(-mitadCaja + MargenCaja + ladoCara * 0.5f, 6f),
+                    new Vector2(ladoCara, ladoCara));
+            _cara = cara.GetComponent<Image>();
+            _cara.preserveAspect = true;
+
+            float izquierdaAzul = -mitadCaja + MargenCaja + ladoCara + 12f;
+            float derechaAzul = mitadCaja - MargenCaja;
+            float anchoAzul = derechaAzul - izquierdaAzul;
+            float altoAzul = tamanoCaja.y - 62f;
+
+            var azul = Caja("CajaColor", caja, tema != null ? tema.CajaDe(0) : null, true);
+            Colocar(azul, new Vector2((izquierdaAzul + derechaAzul) * 0.5f, -6f),
+                    new Vector2(anchoAzul, altoAzul));
+            _cajaGrande = azul.GetComponent<Image>();
+
+            ConstruirIndividual(azul, anchoAzul, altoAzul);
+            ConstruirGrupo(azul, anchoAzul, altoAzul);
+
+            // El listón del nombre se crea el último: monta por encima del borde superior
+            // de la caja azul, y así ninguna de las dos vistas lo tapa.
+            ConstruirNombre(azul, anchoAzul, altoAzul);
+        }
+
+        void ConstruirNombre(RectTransform azul, float ancho, float alto)
+        {
+            var liston = Caja("ListonNombre", azul, null, true);
+            Colocar(liston, new Vector2(0f, alto * 0.5f - 36f), new Vector2(ancho * 0.8f, 48f));
+            _listonNombre = liston.GetComponent<Image>();
+
+            _nombre = Etiqueta("Nombre", liston, 28, TextAnchor.MiddleCenter, FontStyle.Bold, true);
+            Estirar((RectTransform)_nombre.transform);
+
+            var rtNombre = (RectTransform)_nombre.transform;
+            rtNombre.offsetMin = new Vector2(0f, subirNombre);
+            rtNombre.offsetMax = new Vector2(0f, subirNombre);
+        }
+
+        void ConstruirIndividual(RectTransform azul, float ancho, float alto)
+        {
+            _vistaIndividual = new GameObject("Individual", typeof(RectTransform));
+            var raiz = (RectTransform)_vistaIndividual.transform;
+            raiz.SetParent(azul, false);
+            Estirar(raiz);
+
+            float y = -alto * 0.5f + 55f;
+            float altoFila = 82f;
+            float util = ancho - 28f;
+            float anchoVida = util * 0.46f;
+            float anchoStats = util - anchoVida - 16f;
+            float izquierda = -util * 0.5f;
+
+            // --- Vida
+            var cajaVida = CajaChica("CajaVida", raiz);
+            Colocar(cajaVida, new Vector2(izquierda + anchoVida * 0.5f, y),
+                    new Vector2(anchoVida, altoFila));
+
+            // La barra se estira para llenar la caja a lo ancho y se aplasta a lo alto. Se
+            // rompe la proporción del sprite a propósito: dejar que el alto salga del ancho
+            // (112×48) la hacía desbordar la caja por arriba y por abajo.
+            float anchoBarra = anchoVida - 26f;
+            float altoBarra = altoFila - 22f;
+
+            var barra = Caja("Barra", cajaVida, tema != null ? tema.barraGrandeMarco : null, false);
+            Colocar(barra, Vector2.zero, new Vector2(anchoBarra, altoBarra));
+
+            _rellenoVida = Relleno(barra, tema != null ? tema.barraGrandeRelleno : null,
+                                   anchoBarra / BarraGrandeAncho,
+                                   BarraGrandeCavidadX, BarraGrandeCavidadAncho, altoBarra);
+
+            _vida = Etiqueta("TextoVida", barra, 18, TextAnchor.MiddleCenter, FontStyle.Bold);
+            Estirar((RectTransform)_vida.transform);
+
+            // --- Estadísticas
+            var cajaStats = CajaChica("CajaStats", raiz);
+            Colocar(cajaStats, new Vector2(izquierda + anchoVida + 16f + anchoStats * 0.5f, y),
+                    new Vector2(anchoStats, altoFila));
+
+            float paso = (anchoStats - 28f) / 3f;
+            float x0 = -(anchoStats - 28f) * 0.5f + paso * 0.5f;
+
+            _ataque = Estadistica("Ataque", cajaStats, tema != null ? tema.iconoAtaque : null,
+                                  x0, paso);
+            _velocidad = Estadistica("Velocidad", cajaStats, tema != null ? tema.iconoVelocidad : null,
+                                     x0 + paso, paso);
+            _oro = Estadistica("Coste", cajaStats, tema != null ? tema.iconoOro : null,
+                               x0 + paso * 2f, paso);
+        }
+
+        void ConstruirGrupo(RectTransform azul, float ancho, float alto)
+        {
+            _vistaGrupo = new GameObject("Grupo", typeof(RectTransform));
+            var raiz = (RectTransform)_vistaGrupo.transform;
+            raiz.SetParent(azul, false);
+            Estirar(raiz);
+
+            float y = -alto * 0.5f + 55f;
+            float altoFila = 82f;
+            float anchoCaja = ancho - 28f;
+
+            var caja = CajaChica("CajaUnidades", raiz);
+            Colocar(caja, new Vector2(0f, y), new Vector2(anchoCaja, altoFila));
+
+            // El total ocupa el hueco de la derecha; los retratos se reparten el resto.
+            const float AnchoTotal = 52f;
+            float util = anchoCaja - 24f - AnchoTotal;
+
+            int n = Mathf.Max(1, retratosVisibles);
+            float paso = util / n;
+            float ladoRetrato = Mathf.Min(paso - 6f, 46f);
+            float altoBarra = ladoRetrato * BarraChicaAlto / BarraChicaAncho;
+            float x0 = -anchoCaja * 0.5f + 12f + paso * 0.5f;
+
+            for (int i = 0; i < n; i++)
+            {
+                var celda = new Celda { Raiz = new GameObject($"Celda{i}", typeof(RectTransform)) };
+
+                var rt = (RectTransform)celda.Raiz.transform;
+                rt.SetParent(caja, false);
+                Colocar(rt, new Vector2(x0 + i * paso, 0f),
+                        new Vector2(ladoRetrato, ladoRetrato + altoBarra + 2f));
+
+                var cara = Caja("Cara", rt, null, false);
+                Colocar(cara, new Vector2(0f, altoBarra * 0.5f + 1f),
+                        new Vector2(ladoRetrato, ladoRetrato));
+                celda.Cara = cara.GetComponent<Image>();
+                celda.Cara.preserveAspect = true;
+
+                var barra = Caja("Barra", rt, tema != null ? tema.barraChicaMarco : null, false);
+                Colocar(barra, new Vector2(0f, -ladoRetrato * 0.5f),
+                        new Vector2(ladoRetrato, altoBarra));
+
+                celda.Relleno = Relleno(barra, tema != null ? tema.barraChicaRelleno : null,
+                                        ladoRetrato / BarraChicaAncho,
+                                        BarraChicaCavidadX, BarraChicaCavidadAncho, altoBarra);
+
+                _celdas.Add(celda);
+            }
+
+            _total = Etiqueta("Total", caja, 20, TextAnchor.MiddleCenter, FontStyle.Bold);
+            Colocar((RectTransform)_total.transform,
+                    new Vector2(anchoCaja * 0.5f - 12f - AnchoTotal * 0.5f, 0f),
+                    new Vector2(AnchoTotal, 30f));
+        }
+
+        // -----------------------------------------------------------------
+        // Piezas
+        // -----------------------------------------------------------------
+
+        /// <summary>Caja pequeña del bando. Se registra para poder reteñirla al cambiar.</summary>
+        RectTransform CajaChica(string nombre, RectTransform padre)
+        {
+            var rt = Caja(nombre, padre, tema != null ? tema.CajaChicaDe(0) : null, true);
+            _cajasChicas.Add(rt.GetComponent<Image>());
+            return rt;
+        }
+
+        static RectTransform Nodo(string nombre, RectTransform padre)
+        {
+            var go = new GameObject(nombre, typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(padre, false);
+            return rt;
+        }
+
+        /// <summary>
+        /// Imagen del panel. En modo <c>Sliced</c> las esquinas conservan su tamaño y solo
+        /// se estira el centro: es lo que permite que una misma caja de 154 px sirva para
+        /// un recuadro de cualquier proporción sin deformar el marco pintado.
+        /// </summary>
+        static RectTransform Caja(string nombre, RectTransform padre, Sprite sprite, bool rebanada)
+        {
+            var go = new GameObject(nombre, typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(padre, false);
+
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.enabled = sprite != null;
+            img.raycastTarget = false;
+            if (rebanada) img.type = Image.Type.Sliced;
+
+            return rt;
+        }
+
+        /// <summary>
+        /// Relleno recortable colocado exactamente sobre la cavidad interior del marco.
+        ///
+        /// La cavidad se mide en píxeles del sprite y se multiplica por la escala a la que
+        /// se está dibujando el marco. Así la barra encaja igual de bien a cualquier tamaño
+        /// y no hay que recalcular nada a mano si se cambian las medidas del panel.
+        /// </summary>
+        static Image Relleno(RectTransform marco, Sprite sprite, float escala,
+                             float cavidadX, float cavidadAncho, float alto)
+        {
+            var rt = Caja("Relleno", marco, sprite, false);
+
+            // Ancla y pivote en el borde izquierdo del marco. El pivote va antes que la
+            // posición: cambiarlo después desplazaría el rectángulo ya colocado.
+            rt.anchorMin = new Vector2(0f, 0.5f);
+            rt.anchorMax = new Vector2(0f, 0.5f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.sizeDelta = new Vector2(cavidadAncho * escala, alto);
+            rt.anchoredPosition = new Vector2(cavidadX * escala, 0f);
+
+            var img = rt.GetComponent<Image>();
+            img.type = Image.Type.Filled;
+            img.fillMethod = Image.FillMethod.Horizontal;
+            img.fillOrigin = (int)Image.OriginHorizontal.Left;
+            img.fillAmount = 1f;
+
+            return img;
+        }
+
+        Text Etiqueta(string nombre, RectTransform padre, int tamano,
+                      TextAnchor alineacion, FontStyle estilo, bool titulo = false)
+        {
+            var go = new GameObject(nombre, typeof(RectTransform), typeof(Text));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(padre, false);
+
+            var texto = go.GetComponent<Text>();
+            texto.font = titulo ? _fuenteTitulo : _fuenteTexto;
+            texto.fontSize = tamano;
+            texto.fontStyle = estilo;
+            texto.alignment = alineacion;
+            texto.color = colorTexto;
+            texto.raycastTarget = false;
+            texto.horizontalOverflow = HorizontalWrapMode.Overflow;
+            texto.verticalOverflow = VerticalWrapMode.Overflow;
+
+            return texto;
+        }
+
+        Text Estadistica(string nombre, RectTransform padre, Sprite icono, float x, float ancho)
+        {
+            var ranura = Nodo(nombre, padre);
+            Colocar(ranura, new Vector2(x, 0f), new Vector2(ancho, 40f));
+
+            var img = Caja("Icono", ranura, icono, false);
+            Colocar(img, new Vector2(-ancho * 0.5f + 20f, 0f), new Vector2(36f, 36f));
+            img.GetComponent<Image>().preserveAspect = true;
+
+            // El texto arranca donde acaba el icono. Antes se solapaban y el número
+            // quedaba escondido detrás del dibujo.
+            var texto = Etiqueta("Valor", ranura, 20, TextAnchor.MiddleLeft, FontStyle.Bold);
+            Colocar((RectTransform)texto.transform,
+                    new Vector2(19f, 0f), new Vector2(ancho - 38f, 28f));
+
+            return texto;
+        }
+
+        static void Colocar(RectTransform rt, Vector2 posicion, Vector2 tamano)
+        {
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = tamano;
+            rt.anchoredPosition = posicion;
+        }
+
+        static void Estirar(RectTransform rt)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+    }
+}

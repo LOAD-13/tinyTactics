@@ -179,6 +179,36 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-10 · El relieve se dibuja a mano; el ruido solo propone
+
+**Decisión.** Las alturas y las rampas se guardan en un asset `RelieveMapa` que se dibuja con
+un pincel propio en la vista de escena. Si ese asset existe y encaja con el tamaño del mapa, el
+generador lo copia tal cual en vez de calcular ruido.
+
+**Por qué.** Esto es una excepción deliberada al ADR-09, y conviene entender por qué no lo
+contradice. La costa, los recursos y la decoración son **textura**: da igual el árbol concreto,
+lo que importa es la distribución, y ahí el ruido acierta. Un acantilado no es textura: es un
+**embudo**. Decide por dónde pasa un ataque, qué posición se puede defender con la mitad de
+unidades y si una expansión es tomable. Eso es diseño de nivel, y el ruido no tiene criterio.
+
+También resuelve un problema práctico: regenerar la escena es una operación cotidiana —se hace
+cada vez que cambia el generador o los prefabs— y sin el asset, cada regeneración cambiaba el
+escenario. No se puede balancear contra un mapa que se mueve.
+
+**Qué queda fuera del asset.** Solo alturas y rampas. Todo lo demás sigue saliendo de la
+semilla, que es determinista: mismo mapa, mismo terreno. El asset es un **parche encima**, no
+una copia del mapa, y por eso ocupa 50 KB en vez de varios megas.
+
+**Consecuencia buscada.** El pincel es el germen del editor de mapas de E13 (semanas 12-13).
+Al llegar allí, el trabajo de pintar sobre la escena y persistir a un asset ya estará hecho y
+probado; faltará extenderlo a recursos y puntos de aparición.
+
+**Alternativa descartada.** Ajustar los parámetros del ruido hasta que salieran mesetas
+razonables. Se probó: mueve el problema de sitio, porque un umbral que funciona en un mapa no
+funciona en otro, y sigue sin poder decidir *dónde* va la subida.
+
+---
+
 ## 3. Estructura de carpetas
 
 ```
