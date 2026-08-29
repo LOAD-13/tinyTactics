@@ -54,6 +54,18 @@ namespace TinyTactics.Interfaz
         public Sprite iconoOro;
         public Sprite iconoVelocidad;
 
+        [Header("Panel de acciones")]
+        [Tooltip("Botón cuadrado del pack, reteñido al color de cada facción.")]
+        public Sprite[] botones = new Sprite[5];
+
+        public Sprite iconoMover;
+        public Sprite iconoDetener;
+        public Sprite iconoAtaqueAuto;
+        public Sprite iconoCurar;
+        public Sprite iconoConstruir;
+
+        public Sprite BotonDe(int faccion) => Elegir(botones, faccion);
+
         [Header("Retratos")]
         [Tooltip("Las 25 caras del pack: 5 tipos de unidad × 5 colores de facción.")]
         public Sprite[] retratos = new Sprite[25];
@@ -71,18 +83,21 @@ namespace TinyTactics.Interfaz
         /// <summary>
         /// Columna de la hoja de retratos que le corresponde a cada tipo.
         ///
-        /// El pack no los ordena como nuestro GDD: la primera columna es el yelmo con
-        /// penacho y escudo, la última la cara sin casco. Este mapeo es el único sitio
-        /// donde esa diferencia existe.
+        /// El pack los ordena como sus carpetas de unidades —Warrior, Lancer, Archer,
+        /// Monk— y deja al Pawn el último, mientras que nuestro enum empieza por el Pawn.
+        /// Este mapeo es el único sitio donde esa diferencia existe.
+        ///
+        /// Comprobado en pantalla: la primera versión cruzaba lancero, arquero y monje
+        /// porque supuse el orden mirando los cascos en vez de contrastarlo con el juego.
         /// </summary>
         static int ColumnaDe(TipoUnidad tipo)
         {
             switch (tipo)
             {
                 case TipoUnidad.Guerrero: return 0;
-                case TipoUnidad.Monje: return 1;
-                case TipoUnidad.Lancero: return 2;
-                case TipoUnidad.Arquero: return 3;
+                case TipoUnidad.Lancero: return 1;
+                case TipoUnidad.Arquero: return 2;
+                case TipoUnidad.Monje: return 3;
                 default: return 4; // Pawn
             }
         }

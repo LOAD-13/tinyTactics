@@ -26,7 +26,9 @@ namespace TinyTactics.Entrada
         [Range(4f, 80f)] public float margenBorde = 20f;
 
         [Header("Zoom")]
-        public float zoomMinimo = 4f;
+        [Tooltip("Medido: a 4 solo se ven 16x8 tiles y el juego deja de leerse. 8 es el " +
+                 "encuadre util mas cercano en un mapa de 224.")]
+        public float zoomMinimo = 8f;
         public float zoomMaximo = 20f;
 
         [Tooltip("Unidades de tamaño ortográfico que cambia por cada muesca de la rueda.")]
@@ -132,16 +134,24 @@ namespace TinyTactics.Entrada
             _posicionObjetivo += (Vector3)(direccion * velocidad * Time.unscaledDeltaTime);
         }
 
+        /// <summary>
+        /// Paneo con las flechas. WASD ya no mueve la cámara.
+        ///
+        /// Chocaba con los comandos: la S de «abajo» era también la de Detener, así que
+        /// bajar la vista paraba en seco a todo lo seleccionado, y la A de «izquierda»
+        /// disparaba Atacar. Es el reparto de cualquier RTS — flechas para la cámara,
+        /// letras para las órdenes — y el borde de la pantalla sigue paneando igual.
+        /// </summary>
         Vector2 LeerTeclado()
         {
             var teclado = Keyboard.current;
             if (teclado == null) return Vector2.zero;
 
             Vector2 d = Vector2.zero;
-            if (teclado.wKey.isPressed || teclado.upArrowKey.isPressed) d.y += 1f;
-            if (teclado.sKey.isPressed || teclado.downArrowKey.isPressed) d.y -= 1f;
-            if (teclado.dKey.isPressed || teclado.rightArrowKey.isPressed) d.x += 1f;
-            if (teclado.aKey.isPressed || teclado.leftArrowKey.isPressed) d.x -= 1f;
+            if (teclado.upArrowKey.isPressed) d.y += 1f;
+            if (teclado.downArrowKey.isPressed) d.y -= 1f;
+            if (teclado.rightArrowKey.isPressed) d.x += 1f;
+            if (teclado.leftArrowKey.isPressed) d.x -= 1f;
             return d;
         }
 
@@ -166,9 +176,15 @@ namespace TinyTactics.Entrada
 
             Vector2 n = new Vector2(p.x / ancho, p.y / alto);
 
-            // Fuera de la ventana no se panea: si no, la cámara se dispara sola
-            // al cambiar de aplicación. Se deja holgura para tolerar el desfase.
-            if (n.x < -0.05f || n.y < -0.05f || n.x > 1.05f || n.y > 1.05f)
+            // El cursor tiene que estar DENTRO de la vista. Sin margen de tolerancia.
+            //
+            // Antes se admitía un 5 % de holgura para "tolerar el desfase", y eso causaba
+            // el problema de siempre: al darle a Play con el ratón sobre la Jerarquía —que
+            // está a la izquierda de la vista de juego— la coordenada normalizada salía
+            // ligeramente negativa, caía dentro de la holgura, y la cámara empezaba a
+            // panear hacia la izquierda sola. Por eso el juego arrancaba mirando bastante
+            // más a la izquierda de donde quedó colocada la cámara en la escena.
+            if (n.x < 0f || n.y < 0f || n.x > 1f || n.y > 1f)
                 return Vector2.zero;
 
             float margen = Mathf.Clamp01(margenBorde / ancho);
