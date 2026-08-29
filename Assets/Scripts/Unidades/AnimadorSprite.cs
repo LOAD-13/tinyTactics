@@ -29,10 +29,23 @@ namespace TinyTactics.Unidades
         [Tooltip("Variación aleatoria de velocidad por instancia, en porcentaje.")]
         [Range(0f, 0.5f)] public float dispersion = 0.15f;
 
+        [Tooltip("Al desactivarlo, la tira se reproduce una vez y se queda en el último frame.")]
+        public bool enBucle = true;
+
+        /// <summary>
+        /// Aviso de que una tira sin bucle llegó al final.
+        ///
+        /// Es lo que permite que un golpe dure lo que dura su animación en vez de un
+        /// número inventado: la máquina de estados se suscribe y vuelve a reposo cuando
+        /// el dibujo termina, no cuando expira un temporizador que hay que mantener a mano.
+        /// </summary>
+        public event System.Action AlTerminar;
+
         SpriteRenderer _renderizador;
         float _reloj;
         int _indice;
         float _factorDispersion = 1f;
+        bool _terminado;
 
         void Awake()
         {
@@ -50,7 +63,7 @@ namespace TinyTactics.Unidades
 
         void Update()
         {
-            if (frames == null || frames.Length < 2) return;
+            if (frames == null || frames.Length < 2 || _terminado) return;
 
             _reloj += Time.deltaTime * velocidad * _factorDispersion;
 
@@ -58,6 +71,14 @@ namespace TinyTactics.Unidades
             while (_reloj >= 1f)
             {
                 _reloj -= 1f;
+
+                if (!enBucle && _indice >= frames.Length - 1)
+                {
+                    _terminado = true;
+                    AlTerminar?.Invoke();
+                    return;
+                }
+
                 _indice = (_indice + 1) % frames.Length;
                 _renderizador.sprite = frames[_indice];
             }
@@ -67,11 +88,16 @@ namespace TinyTactics.Unidades
         /// Configura la animación desde código. Sirve tanto al generar el mapa como
         /// para cambiar de animación en caliente (reposo ↔ caminar).
         /// </summary>
-        public void Configurar(Sprite[] nuevosFrames, float fps, int inicio)
+        public void Configurar(Sprite[] nuevosFrames, float fps, int inicio) =>
+            Configurar(nuevosFrames, fps, inicio, true);
+
+        public void Configurar(Sprite[] nuevosFrames, float fps, int inicio, bool repite)
         {
             frames = nuevosFrames;
             velocidad = fps;
             frameInicial = inicio;
+            enBucle = repite;
+            _terminado = false;
 
             // Al cambiar de tira hay que reencuadrar el índice: la nueva puede tener
             // menos frames que la anterior y quedaríamos fuera de rango.
@@ -80,6 +106,11 @@ namespace TinyTactics.Unidades
                 : 0;
 
             _reloj = 0f;
+
+            // Pintar ya el primer frame. Sin esto, una tira de un golpe se vería un
+            // instante con el sprite de la animación anterior.
+            if (_renderizador != null && frames != null && frames.Length > 0)
+                _renderizador.sprite = frames[_indice];
         }
     }
 }
