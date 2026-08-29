@@ -11,6 +11,81 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 04 — Unidades y animación
+**Entrega:** domingo 30/08/2026 · **Expo:** lunes 31/08/2026 · **Expone:** Raúl
+**Tag:** _(pendiente)_ `v0.4.0-s04`
+
+### Lo prometido
+HU-019 animador de estados · HU-020 máquina de estados · HU-021 las cinco unidades en los
+cinco colores · HU-022 muerte y desaparición · HU-023 ataque visible · HU-024 lancero
+direccional · HU-025 panel de acciones.
+
+### Lo entregado
+Las siete. Además, tres cosas que no estaban en la lista y salieron de probar el juego:
+efectos de flecha y de curación, cooldown del monje, y avisos de comando al pasar el ratón.
+
+### Lo que costó de verdad
+
+**El fallo de la semana: la unidad moría y resucitaba en el mismo fotograma.** Al golpear al
+poste de entrenamiento, el daño devuelto la mataba a mitad de `Update`; tres líneas más abajo,
+el mismo `Update` llamaba a `Aplicar(Decidir())`, que devolvía *Reposo* y la revivía. Quedaban
+de pie con cero de vida, sin poder seleccionarse y sin desvanecerse nunca.
+
+Lo revelador es que **también escondió los otros fallos**: como la muerte quedaba a medias, ni
+la nube de polvo ni la flecha ni el destello de curación se llegaban a ver, y se reportaron
+como tres errores distintos cuando eran síntomas del mismo.
+
+**Lección:** una máquina de estados necesita blindar el estado terminal *dentro* de la
+transición, no solo en quien la llama. `Aplicar` ahora se niega a sacar a nadie de *Muriendo*.
+
+**Los atajos de teclado pisaban la cámara.** La `S` de «panear abajo» era la misma que la de
+Detener, así que bajar la vista paraba en seco a todo lo seleccionado; la `A` de «izquierda»
+disparaba Atacar. Se resolvió quitando WASD del paneo y dejando solo las flechas, que es el
+reparto de cualquier RTS.
+
+**El ataque automático no atacaba, por dos motivos a la vez.** El primero, un orden de
+operaciones: se encendía la vigilancia y acto seguido la orden de movimiento llamaba a
+`Cancelar()`, que la apagaba. El segundo, más de fondo: el índice espacial responde con un
+bloque de 3×3 cubos de dos unidades, o sea que **solo garantiza radio 2**, y se le estaba
+pidiendo radio 5,5. Se añadió una consulta que agranda el bloque hasta cubrir el radio pedido.
+
+**Un `CanvasGroup` que habría dejado los botones muertos.** El panel tenía `blocksRaycasts` e
+`interactable` en `false` de cuando era decorativo. Un `CanvasGroup` así anula el raycast de
+todos sus hijos: los botones se habrían dibujado perfectos y ninguno habría respondido, sin un
+solo error en consola. Se detectó leyendo el código, no ejecutándolo.
+
+**Los retratos estaban cruzados** entre lancero, arquero y monje. Otra vez por deducir en vez
+de comprobar: supuse el orden mirando los cascos del pack. El orden real es el de sus carpetas
+— Warrior, Lancer, Archer, Monk — con el Pawn al final.
+
+### Decisiones tomadas
+
+- **El pack no trae animación de muerte.** Comprobado buscando «death», «die» y «dead» en todo
+  el paquete. Se resuelve sin arte nuevo: la unidad se apaga a gris, se desvanece y suelta una
+  nube de polvo de `Particle FX`.
+- **El golpe se cobra al terminar la animación**, no al emitir la orden. Es lo que hace que el
+  ritmo lo marque el dibujo y no los clics del jugador.
+- **Una orden de ataque persiste**: la unidad sigue golpeando sola hasta que el objetivo cae o
+  llega otra orden. Repetir el clic sobre el mismo objetivo no reinicia nada.
+- **Sin fuego amigo, nunca.** Es una regla del juego, no una comprobación defensiva.
+- **El lancero direccional sale de cinco tiras más espejo.** El pack dibuja el lado derecho en
+  cinco ángulos; las otras tres orientaciones se obtienen volteando el sprite.
+- **El marco de comandos es independiente del de la unidad.** Los comandos son del jugador, no
+  de la unidad seleccionada; meterlos en la misma caja los hacía parecer parte de la ficha.
+- **Una rama por épica** a partir de ahora. Razonado en `GITFLOW.md` §5.4.
+
+### Andamio que hay que retirar
+- El **poste de entrenamiento** junto a cada base y su asset `MunecoDePruebas`. Existe solo
+  para poder ver morir a una unidad propia sin enemigos reales. Se borra con la épica E06.
+- La **escuadra de diez unidades por base**. En el juego real se empieza con dos pawns y todo
+  lo demás se entrena: se cambia en la semana 06.
+
+### Pendiente
+- Combate de verdad: alcance en la persecución, cadencia, respuesta del atacado (E06).
+- Que el botón Construir haga algo (E05/E06).
+
+---
+
 ## Semana 03 — Núcleo de simulación y desniveles
 **Entrega:** domingo 23/08/2026 · **Expo:** lunes 24/08/2026 · **Expone:** Kiara
 **Tag:** _(pendiente)_ `v0.3.0-s03`

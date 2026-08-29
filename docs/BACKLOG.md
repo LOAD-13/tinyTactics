@@ -13,7 +13,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 |---|---|---|---|
 | `E01` | Fundación del proyecto | 02 | 🟢 Cerrada |
 | `E02` | Núcleo de simulación — grilla, A*, movimiento, selección, órdenes | 03 | 🟢 Cerrada |
-| `E03` | Unidades y animación | 04 | ⚪ Pendiente |
+| `E03` | Unidades y animación | 04 | 🟢 Cerrada |
 | `E04` | Economía | 05 | ⚪ Pendiente |
 | `E05` | Construcción y producción | 06 | ⚪ Pendiente |
 | `E06` | Combate | 07-08 | ⚪ Pendiente |
@@ -383,9 +383,110 @@ el mapa desde la definición, que al ser determinista da el mismo terreno que en
 
 ---
 
-### Semana 04 — Unidades y animación (E03)
-Animador propio por sprite-swap · FSM de unidad (idle/mover/atacar/morir) · las 4 unidades militares ·
-las 5 facciones por color · ScriptableObject de stats.
+# Semana 04 — Unidades y animación (E03)
+
+> ✅ **Épica cerrada.** Las siete HUs entregadas en el tag `v0.4.0-s04`, incluidas HU-024 y
+> HU-025 que estaban marcadas como bloque B. El detalle honesto de lo que costó está en
+> [`BITACORA.md`](BITACORA.md), y la decisión de fondo en el [ADR-11](ARQUITECTURA.md).
+
+**Meta de la semana:** que las cinco unidades existan de verdad — con sus estadísticas, sus
+animaciones y sus cuatro estados — y que se pueda ver a una morir.
+
+> **Una sola rama para la épica:** `feat/E03-unidades-y-animacion`. La política cambió en la
+> semana 04 y está razonada en [`GITFLOW.md`](GITFLOW.md) §5.4.
+
+| HU | Título | Bloque |
+|---|---|---|
+| HU-019 | Animador de varios estados con tiras de una sola pasada | A |
+| HU-020 | Máquina de estados de unidad | A |
+| HU-021 | Las cinco unidades en los cinco colores | A |
+| HU-022 | Muerte y desaparición | A |
+| HU-023 | Ataque visible con daño de prueba | A |
+| HU-024 | Lancero direccional | B |
+| HU-025 | Panel de acciones | B |
+
+### HU-019 · Animador de varios estados
+**Épica:** E03 · **Semana:** 04
+
+- [ ] La tabla de animaciones vive en el `ScriptableObject`, una entrada por estado.
+- [ ] Una tira puede declararse sin bucle: se reproduce una vez y se queda en el último frame.
+- [ ] El animador avisa cuando una tira sin bucle termina.
+
+**Nota técnica.** El aviso de fin es lo que permite que un golpe dure lo que dura su dibujo.
+Un temporizador con un número fijo habría que mantenerlo a mano cada vez que se cambie el fps.
+
+---
+
+### HU-020 · Máquina de estados de unidad
+**Épica:** E03 · **Semana:** 04
+
+- [ ] Cuatro estados: reposo, moviendo, atacando, muriendo.
+- [ ] Un solo componente decide el estado; `MovimientoUnidad` deja de tocar la animación.
+- [ ] Un golpe no se interrumpe a mitad aunque la unidad reciba otra orden.
+- [ ] Morir gana a todo y es terminal.
+
+---
+
+### HU-021 · Las cinco unidades en los cinco colores
+**Épica:** E03 · **Semana:** 04
+
+- [ ] Un asset de datos por tipo, con las estadísticas de la tabla §4 del GDD.
+- [ ] Las rutas de animación llevan `{color}`: una entrada sirve para las cinco facciones.
+- [ ] El panel de unidad muestra el retrato correcto de cada tipo.
+- [ ] Si falta una tira, se avisa por consola y no se crea la unidad a medias.
+
+---
+
+### HU-022 · Muerte y desaparición
+**Épica:** E03 · **Semana:** 04
+
+- [ ] Al llegar a cero de vida la unidad se apaga a gris, se desvanece y se retira.
+- [ ] Suelta una nube de polvo al caer.
+- [ ] El marcador de selección y la barra de vida se apagan al morir.
+- [ ] Sale de la selección y del índice espacial sin dejar referencias colgando.
+
+**Nota técnica.** El pack **no trae animación de muerte** para ninguna unidad; se comprobó
+buscando «death», «die» y «dead» en todo el paquete. Se resuelve sin arte nuevo.
+
+---
+
+### HU-023 · Ataque visible con daño de prueba
+**Épica:** E03 · **Semana:** 04
+
+- [ ] Clic derecho sobre un objetivo enemigo emite una orden de atacar.
+- [ ] La unidad se gira hacia la víctima antes de golpear.
+- [ ] El golpe resta vida y se ve bajar la barra y el panel.
+- [ ] Junto a cada base hay un muñeco de pruebas contra el que practicar.
+
+> ⚠️ **Esto no es combate.** No hay búsqueda automática de objetivo, ni persecución, ni
+> cadencia, ni comprobación de alcance, ni respuesta del atacado. Todo eso es la épica E06,
+> semanas 07 y 08. Lo de esta semana existe para que la animación y la muerte se puedan ver.
+> El muñeco de pruebas es andamio y se retira cuando haya enemigos de verdad.
+
+---
+
+### HU-024 · Lancero direccional *(bloque B)*
+**Épica:** E03 · **Semana:** 04
+
+- [ ] El lancero ataca en ocho orientaciones, a partir de las cinco tiras del pack más espejo.
+
+---
+
+### HU-025 · Panel de acciones *(bloque B)*
+**Épica:** E03 · **Semana:** 04
+
+- [ ] Rejilla de botones a la derecha del panel con las acciones de lo seleccionado.
+- [ ] Esta semana: Atacar (A), Mover (M), Detener (S).
+- [ ] Los atajos de teclado hacen lo mismo que el botón.
+- [ ] Pulsar Atacar deja el puntero en modo objetivo hasta el siguiente clic.
+
+**De dónde sale.** Del menú de comandos de Warcraft III: panel inferior derecho con los
+comandos de lo que esté seleccionado. La rejilla se diseña ya con hueco para las acciones
+que llegan después — Construir en la semana 06 y las de producción de edificios.
+
+---
+
+### Semana 05 — Economía · HITO 1 · PC1 (E04)
 
 ### Semana 05 — Economía · HITO 1 · PC1 (E04)
 Nodos de recurso en el mapa · pawn recolecta oro · pawn recolecta madera · ciclo de retorno al castillo ·
@@ -394,6 +495,16 @@ almacén de recursos por facción · HUD con contadores.
 ### Semana 06 — Construcción y producción (E05)
 Modo de colocación con silueta · validación de terreno · pawn construye · sistema de población ·
 casa sube el límite · castillo entrena pawns · cola de producción.
+
+> **Interfaz de producción.** Al seleccionar un edificio, el panel de acciones (HU-025) muestra
+> qué puede fabricar con su coste, y al pulsar encola la unidad con su tiempo de espera y una
+> barra de progreso. Al seleccionar un pawn, muestra qué puede construir. Es el mismo panel
+> que se estrena en la semana 04: por eso su rejilla se diseña desde el principio con hueco
+> para acciones que todavía no existen.
+
+> **La escuadra inicial de 10 unidades por base es andamio de pruebas.** En el juego real se
+> empieza con **dos pawns**, como en Warcraft, y todo lo demás se entrena. Se cambia aquí,
+> cuando el castillo sepa producir.
 
 ### Semana 07 — Combate cuerpo a cuerpo (E06)
 Componente de salud y muerte · barras de vida · targeting con grilla espacial · ataque del guerrero ·
@@ -436,6 +547,12 @@ Plan de pruebas · sesiones de juego de los 3 integrantes · ajuste de stats y d
 calibración de dificultades · corrección de bugs · VFX del pack.
 
 ### E13 — Editor de mapas *(semanas 12-13)*
+
+> **Mesetas de varios niveles.** El pincel de relieve solo distingue llano y meseta. La grilla
+> ya guarda la altura como número y el pathfinding ya permite un escalón, así que subir a dos
+> alturas es cuestión de generalizar el pintado: la pared se dibuja donde el vecino de arriba
+> sea más alto, no solo donde el de abajo sea cero. Queda anotado aquí y no en la semana 04
+> porque el relieve de un nivel ya está entregado y funcionando.
 
 Ventana de editor para **pintar mapas a mano**: terreno, desniveles, recursos y posiciones
 iniciales, con guardado y carga.

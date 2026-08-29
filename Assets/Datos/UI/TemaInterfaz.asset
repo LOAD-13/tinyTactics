@@ -51,6 +51,17 @@ MonoBehaviour:
   iconoAtaque: {fileID: 21300000, guid: 23450567bedfb472eb6f8efd4ad515da, type: 3}
   iconoOro: {fileID: 21300000, guid: 7a0f4fab77b344f7b9386a7c87e492b1, type: 3}
   iconoVelocidad: {fileID: 21300000, guid: fae718ae59ba4491e94b6063a1d127ab, type: 3}
+  botones:
+  - {fileID: 21300000, guid: c53b42628d261ec428f78efc52edc8af, type: 3}
+  - {fileID: 21300000, guid: f4405bcb4f2419c459517ae8ba840999, type: 3}
+  - {fileID: 21300000, guid: 271fdacb5a0eccf41b871633f32503c4, type: 3}
+  - {fileID: 21300000, guid: dd27349588aca3c4ba73a8809f71ba6d, type: 3}
+  - {fileID: 21300000, guid: a6726323eebecd94dbc289ed558e318c, type: 3}
+  iconoMover: {fileID: 21300000, guid: fae718ae59ba4491e94b6063a1d127ab, type: 3}
+  iconoDetener: {fileID: 21300000, guid: ca89e4a7c1618426e8458f6eb7fc1444, type: 3}
+  iconoAtaqueAuto: {fileID: 21300000, guid: a1ce5e93205074fa0b03cc1070dbdeca, type: 3}
+  iconoCurar: {fileID: 21300000, guid: fbee8984e8c234190b7c5f6e10dbd4a7, type: 3}
+  iconoConstruir: {fileID: 21300000, guid: 1c0647c9dba61414898ffc20ac2d2e5b, type: 3}
   retratos:
   - {fileID: 21300000, guid: 8831145787b65e240a36d4d272a9710e, type: 3}
   - {fileID: 21300000, guid: 2658d317719bf1b4fbb16c5259996cf0, type: 3}

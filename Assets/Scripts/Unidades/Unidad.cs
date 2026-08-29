@@ -57,10 +57,33 @@ namespace TinyTactics.Unidades
             if (_anillo != null) _anillo.gameObject.SetActive(visible);
         }
 
+        /// <summary>Devuelve vida sin pasarse del máximo.</summary>
+        public void Curar(int cantidad)
+        {
+            if (_vida == 0 || cantidad <= 0) return;
+
+            int maximo = datos != null ? datos.vidaMaxima : 60;
+            _vida = Mathf.Min(maximo, _vida + cantidad);
+        }
+
         public void RecibirDano(int cantidad)
         {
+            if (_vida == 0 || cantidad <= 0) return;
+
+            // El muñeco de pruebas aguanta lo que le echen: está para que le peguen, no
+            // para morirse. Quien tiene que caer es el atacante.
+            if (datos != null && datos.invulnerable) return;
+
             _vida = Mathf.Max(0, _vida - cantidad);
-            if (_vida == 0) gameObject.SetActive(false);
+            if (_vida > 0) return;
+
+            // Morir es un estado, no un interruptor. Antes esto apagaba el objeto de golpe
+            // y la unidad desaparecía en un frame; ahora la máquina de estados se encarga
+            // del desvanecido y de retirarla cuando termina.
+            var maquina = GetComponent<MaquinaDeEstados>();
+
+            if (maquina != null) maquina.Morir();
+            else gameObject.SetActive(false);
         }
 
         /// <summary>Configura la unidad desde el generador de la escena.</summary>

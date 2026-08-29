@@ -10,32 +10,32 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d5591efc081ed64492eff36fb7d5719, type: 3}
-  m_Name: Pawn
+  m_Name: Guerrero
   m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosUnidad
-  tipo: 0
-  nombreVisible: Pawn
-  vidaMaxima: 60
-  dano: 5
-  alcance: 0.5
+  tipo: 1
+  nombreVisible: Guerrero
+  vidaMaxima: 140
+  dano: 18
+  alcance: 0.8
   invulnerable: 0
-  velocidad: 3
-  radio: 0.42
-  carnePorSegundo: 0.1
-  oro: 50
-  madera: 0
+  velocidad: 2.6
+  radio: 0.44
+  carnePorSegundo: 0.2
+  oro: 90
+  madera: 10
   clips:
   - estado: 0
-    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Idle.png
+    ruta: Assets/Tiny Swords/Units/{color} Units/Warrior/Warrior_Idle.png
     fps: 7
     direccion: 0
     enBucle: 1
   - estado: 1
-    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Run.png
+    ruta: Assets/Tiny Swords/Units/{color} Units/Warrior/Warrior_Run.png
     fps: 11
     direccion: 0
     enBucle: 1
   - estado: 2
-    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Interact Axe.png
+    ruta: Assets/Tiny Swords/Units/{color} Units/Warrior/Warrior_Attack1.png
     fps: 12
     direccion: 0
     enBucle: 0

@@ -29,8 +29,56 @@ namespace TinyTactics.Nucleo
 
         public override void Aplicar(Unidad unidad)
         {
+            // Moverse cancela el objetivo: si no, la unidad daría dos pasos y volvería
+            // corriendo a pegarle a lo que estuviera atacando antes.
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.Cancelar();
+
             var movimiento = unidad.GetComponent<MovimientoUnidad>();
             if (movimiento != null) movimiento.IrA(Destino);
+        }
+    }
+
+    /// <summary>
+    /// Atacar a un objetivo.
+    ///
+    /// Esta semana solo reproduce la animación del golpe: el daño, el alcance y la
+    /// respuesta del que lo recibe son la épica E06. Se modela ya como orden y no como
+    /// una llamada suelta porque el punto del ADR-01 es que toda acción entre por el
+    /// mismo sitio — cuando llegue el combate real, lo único que cambia es lo que hace
+    /// <see cref="Aplicar"/>, no quién la emite.
+    /// </summary>
+    public class OrdenAtacar : Orden
+    {
+        public Unidad Objetivo;
+
+        public override void Aplicar(Unidad unidad)
+        {
+            // La orden se limita a encargar el trabajo. Quien decide si hay que acercarse
+            // primero, cuándo llega y qué le pasa al objetivo es la máquina de estados:
+            // una orden puede tardar, y el ADR-01 no dice que tenga que resolverse en el
+            // mismo fotograma, solo que todo entre por aquí.
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.OrdenarAtaque(Objetivo);
+        }
+    }
+
+    /// <summary>
+    /// Curar a un aliado. Solo hace algo en unidades con daño negativo — el monje.
+    ///
+    /// Se resuelve por el mismo camino que el ataque porque para la máquina de estados es
+    /// el mismo gesto: acercarse hasta el alcance y aplicar un efecto. Solo cambia el signo.
+    /// </summary>
+    public class OrdenCurar : Orden
+    {
+        public Unidad Objetivo;
+
+        public override void Aplicar(Unidad unidad)
+        {
+            if (unidad.datos == null || unidad.datos.dano >= 0) return;
+
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.OrdenarAtaque(Objetivo);
         }
     }
 
@@ -39,6 +87,9 @@ namespace TinyTactics.Nucleo
     {
         public override void Aplicar(Unidad unidad)
         {
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.Cancelar();
+
             var movimiento = unidad.GetComponent<MovimientoUnidad>();
             if (movimiento != null) movimiento.Detener();
         }

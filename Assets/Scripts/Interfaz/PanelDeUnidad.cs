@@ -28,7 +28,7 @@ namespace TinyTactics.Interfaz
 
         [Header("Medidas (píxeles de la resolución de referencia, 1920×1080)")]
         [Tooltip("Ancho total incluyendo lo que asoma el listón por los lados.")]
-        public Vector2 tamanoTotal = new Vector2(840f, 230f);
+        public Vector2 tamanoTotal = new Vector2(1080f, 230f);   // solo informativo: el ancho real se calcula
 
         [Tooltip("Caja de madera. Más estrecha que el total: la diferencia es el listón.")]
         public Vector2 tamanoCaja = new Vector2(740f, 230f);
@@ -37,6 +37,11 @@ namespace TinyTactics.Interfaz
         public float margenInferior = 16f;
 
         public float ladoCara = 178f;
+
+        [Tooltip("Ancho del marco de comandos, el de la derecha.")]
+        public float anchoComandos = 290f;
+
+        const float SeparacionMarcos = 8f;
 
         [Tooltip("Ajuste fino del nombre dentro del listón. La fuente gótica cae baja.")]
         public float subirNombre = 5f;
@@ -198,7 +203,11 @@ namespace TinyTactics.Interfaz
 
                 if (individual) RefrescarFicha(seleccion[0]);
                 else RefrescarRejilla(seleccion);
+
+                RefrescarAcciones(seleccion);
             }
+
+            RefrescarEspera(seleccion);
 
             if (individual) RefrescarVida(seleccion[0]);
             else RefrescarVidasRejilla(seleccion);
@@ -279,6 +288,9 @@ namespace TinyTactics.Interfaz
                     _listonNombre.sprite = tema.ListonNombreDe(primera.faccion);
                     _listonNombre.enabled = _listonNombre.sprite != null;
                 }
+
+                if (_listonAviso != null)
+                    _listonAviso.sprite = tema.ListonNombreDe(primera.faccion);
 
                 if (_cajaGrande != null)
                 {
@@ -402,21 +414,40 @@ namespace TinyTactics.Interfaz
             _raiz.anchorMin = new Vector2(0.5f, 0f);
             _raiz.anchorMax = new Vector2(0.5f, 0f);
             _raiz.pivot = new Vector2(0.5f, 0f);
-            _raiz.sizeDelta = tamanoTotal;
+            // El listón asoma por detrás de los dos marcos juntos.
+            _raiz.sizeDelta = new Vector2(
+                tamanoCaja.x + SeparacionMarcos + anchoComandos + 90f, tamanoCaja.y);
             _raiz.anchoredPosition = new Vector2(0f, margenInferior);
 
             _opacidad = _raiz.gameObject.AddComponent<CanvasGroup>();
-            _opacidad.blocksRaycasts = false;
-            _opacidad.interactable = false;
+
+            // Los dos en true, y no es un descuido heredado: un CanvasGroup con
+            // blocksRaycasts o interactable en false anula el raycast y la interacción de
+            // TODOS sus hijos. Con los valores anteriores los botones de comandos habrían
+            // quedado dibujados pero muertos, sin ningún error que lo delatara.
+            _opacidad.blocksRaycasts = true;
+            _opacidad.interactable = true;
 
             // Orden de creación = orden de dibujo. El listón primero para que asome por
             // detrás de la madera.
             _liston = Caja("Liston", _raiz, null, true).GetComponent<Image>();
             Colocar((RectTransform)_liston.transform, Vector2.zero,
-                    new Vector2(tamanoTotal.x, tamanoCaja.y * 0.65f));
+                    new Vector2(_raiz.sizeDelta.x, tamanoCaja.y * 0.65f));
+
+            // Dos marcos pegados pero independientes, como el menú de comandos de
+            // Warcraft: la ficha de la unidad a la izquierda y los comandos en su propia
+            // caja a la derecha. Meterlos en el mismo marco hacía que la rejilla pareciera
+            // parte de la ficha, y no lo es: los comandos son del jugador, no de la unidad.
+            float anchoContenido = tamanoCaja.x + SeparacionMarcos + anchoComandos;
 
             var caja = Caja("Caja", _raiz, tema != null ? tema.panelFondo : null, true);
-            Colocar(caja, Vector2.zero, tamanoCaja);
+            Colocar(caja, new Vector2(-anchoContenido * 0.5f + tamanoCaja.x * 0.5f, 0f),
+                    tamanoCaja);
+
+            var comandos = Caja("CajaComandos", _raiz,
+                                tema != null ? tema.panelFondo : null, true);
+            Colocar(comandos, new Vector2(anchoContenido * 0.5f - anchoComandos * 0.5f, 0f),
+                    new Vector2(anchoComandos, tamanoCaja.y));
 
             float mitadCaja = tamanoCaja.x * 0.5f;
             const float MargenCaja = 36f;
@@ -440,6 +471,7 @@ namespace TinyTactics.Interfaz
 
             ConstruirIndividual(azul, anchoAzul, altoAzul);
             ConstruirGrupo(azul, anchoAzul, altoAzul);
+            ConstruirAcciones(comandos, anchoComandos - MargenCaja * 2f, altoAzul);
 
             // El listón del nombre se crea el último: monta por encima del borde superior
             // de la caja azul, y así ninguna de las dos vistas lo tapa.
@@ -565,6 +597,223 @@ namespace TinyTactics.Interfaz
             Colocar((RectTransform)_total.transform,
                     new Vector2(anchoCaja * 0.5f - 12f - AnchoTotal * 0.5f, 0f),
                     new Vector2(AnchoTotal, 30f));
+        }
+
+        // -----------------------------------------------------------------
+        // Panel de acciones
+        // -----------------------------------------------------------------
+
+        /// <summary>Qué hace un botón de la rejilla de comandos.</summary>
+        public enum Accion { Atacar, AtacarAuto, Mover, Detener, Curar, Construir }
+
+        class Boton
+        {
+            public GameObject Raiz;
+            public Image Fondo;
+            public Image Icono;
+            public Text Espera;
+            public Accion Accion;
+        }
+
+        readonly List<Boton> _botones = new List<Boton>();
+
+        void ConstruirAcciones(RectTransform caja, float ancho, float alto)
+        {
+            var marco = CajaChica("CajaAcciones", caja);
+            Colocar(marco, new Vector2(0f, -6f), new Vector2(ancho, alto));
+
+            // Aviso de lo que hace cada botón. Va sobre el marco de comandos, no dentro:
+            // dentro taparía la propia rejilla justo cuando la estás mirando.
+            var listonAviso = Caja("ListonAviso", caja, null, true);
+            Colocar(listonAviso, new Vector2(0f, alto * 0.5f - 8f), new Vector2(ancho + 40f, 44f));
+            _listonAviso = listonAviso.GetComponent<Image>();
+
+            _aviso = Etiqueta("Aviso", listonAviso, 22, TextAnchor.MiddleCenter, FontStyle.Bold);
+            Estirar((RectTransform)_aviso.transform);
+
+            // Crema y con contorno, no negro como el resto del panel: el listón es de un
+            // tono oscuro y el texto negro encima se perdía. El contorno lo despega del
+            // fondo sin depender de que el color del bando sea claro u oscuro.
+            _aviso.color = new Color(1f, 0.97f, 0.88f);
+
+            var contorno = _aviso.gameObject.AddComponent<Outline>();
+            contorno.effectColor = new Color(0.05f, 0.04f, 0.03f, 0.9f);
+            contorno.effectDistance = new Vector2(1.6f, -1.6f);
+
+            MostrarAviso(null);
+
+            // Tres columnas por dos filas. Warcraft usa cuatro por tres; con seis basta
+            // para lo que hay hoy y para construir, que es lo próximo.
+            const int Columnas = 3;
+            const float Lado = 62f;
+            const float Paso = 70f;
+
+            var orden = new[]
+            {
+                Accion.Atacar, Accion.AtacarAuto, Accion.Detener,
+                Accion.Mover, Accion.Curar, Accion.Construir,
+            };
+
+            float x0 = -(Columnas - 1) * Paso * 0.5f;
+            float y0 = Paso * 0.5f;
+
+            for (int i = 0; i < orden.Length; i++)
+            {
+                var boton = new Boton { Accion = orden[i] };
+
+                boton.Raiz = new GameObject(orden[i].ToString(), typeof(RectTransform));
+                var rt = (RectTransform)boton.Raiz.transform;
+                rt.SetParent(marco, false);
+                Colocar(rt, new Vector2(x0 + (i % Columnas) * Paso, y0 - (i / Columnas) * Paso),
+                        new Vector2(Lado, Lado));
+
+                var fondo = Caja("Fondo", rt, tema != null ? tema.BotonDe(0) : null, true);
+                Estirar(fondo);
+                boton.Fondo = fondo.GetComponent<Image>();
+
+                // Este sí recibe clics: el resto del panel los tiene desactivados.
+                boton.Fondo.raycastTarget = true;
+
+                var icono = Caja("Icono", rt, IconoDe(orden[i]), false);
+                Colocar(icono, Vector2.zero, new Vector2(Lado * 0.62f, Lado * 0.62f));
+                boton.Icono = icono.GetComponent<Image>();
+                boton.Icono.preserveAspect = true;
+
+                boton.Espera = Etiqueta("Espera", rt, 20, TextAnchor.MiddleCenter, FontStyle.Bold);
+                Estirar((RectTransform)boton.Espera.transform);
+                boton.Espera.enabled = false;
+
+                boton.Raiz.AddComponent<AvisoDeBoton>()
+                     .Configurar(TextoDe(orden[i]), MostrarAviso);
+
+                var interactivo = boton.Raiz.AddComponent<Button>();
+                interactivo.targetGraphic = boton.Fondo;
+
+                var copia = orden[i];
+                interactivo.onClick.AddListener(() =>
+                {
+                    var selector = SelectorDeUnidades.Actual;
+                    if (selector != null) selector.PedirAccion(copia);
+                });
+
+                _botones.Add(boton);
+            }
+        }
+
+        Image _listonAviso;
+        Text _aviso;
+
+        /// <summary>Qué se lee al pasar el ratón por encima de cada comando.</summary>
+        static string TextoDe(Accion accion)
+        {
+            switch (accion)
+            {
+                case Accion.Atacar: return "Atacar  ·  A";
+                case Accion.AtacarAuto: return "Atacar al avanzar  ·  T";
+                case Accion.Mover: return "Mover  ·  M";
+                case Accion.Detener: return "Detener  ·  S";
+                case Accion.Curar: return "Curar";
+                default: return "Construir  ·  semana 06";
+            }
+        }
+
+        /// <summary>
+        /// Enseña u oculta el aviso. Con texto nulo se apaga el listón entero en vez de
+        /// dejar una cinta vacía flotando sobre los comandos.
+        /// </summary>
+        void MostrarAviso(string texto)
+        {
+            bool hay = !string.IsNullOrEmpty(texto);
+
+            if (_aviso != null)
+            {
+                _aviso.enabled = hay;
+                if (hay) _aviso.text = texto;
+            }
+
+            if (_listonAviso != null) _listonAviso.enabled = hay && _listonAviso.sprite != null;
+        }
+
+        Sprite IconoDe(Accion accion)
+        {
+            if (tema == null) return null;
+
+            switch (accion)
+            {
+                case Accion.Atacar: return tema.iconoAtaque;
+                case Accion.AtacarAuto: return tema.iconoAtaqueAuto;
+                case Accion.Mover: return tema.iconoMover;
+                case Accion.Detener: return tema.iconoDetener;
+                case Accion.Curar: return tema.iconoCurar;
+                default: return tema.iconoConstruir;
+            }
+        }
+
+        /// <summary>
+        /// Qué botones tienen sentido para lo que hay seleccionado.
+        ///
+        /// Curar solo aparece si hay un monje, y construir solo si hay un pawn. Un botón
+        /// que no hace nada enseña al jugador a ignorar la rejilla entera.
+        /// </summary>
+        void RefrescarAcciones(IReadOnlyList<Unidad> seleccion)
+        {
+            bool hayCurandero = false;
+            bool hayConstructor = false;
+
+            for (int i = 0; i < seleccion.Count; i++)
+            {
+                var d = seleccion[i] != null ? seleccion[i].datos : null;
+                if (d == null) continue;
+
+                if (d.dano < 0) hayCurandero = true;
+                if (d.tipo == TipoUnidad.Pawn) hayConstructor = true;
+            }
+
+            var color = tema != null ? tema.BotonDe(_faccionPintada) : null;
+
+            for (int i = 0; i < _botones.Count; i++)
+            {
+                var b = _botones[i];
+
+                bool visible = b.Accion != Accion.Curar && b.Accion != Accion.Construir;
+                if (b.Accion == Accion.Curar) visible = hayCurandero;
+                if (b.Accion == Accion.Construir) visible = hayConstructor;
+
+                if (b.Raiz.activeSelf != visible) b.Raiz.SetActive(visible);
+                if (color != null && b.Fondo.sprite != color) b.Fondo.sprite = color;
+            }
+        }
+
+        /// <summary>Cuenta atrás sobre el botón de curar. Se refresca cada frame.</summary>
+        void RefrescarEspera(IReadOnlyList<Unidad> seleccion)
+        {
+            float espera = 0f;
+
+            for (int i = 0; i < seleccion.Count; i++)
+            {
+                var u = seleccion[i];
+                if (u == null || u.datos == null || u.datos.dano >= 0) continue;
+
+                var maquina = u.GetComponent<MaquinaDeEstados>();
+                if (maquina != null) espera = Mathf.Max(espera, maquina.EsperaRestante);
+            }
+
+            for (int i = 0; i < _botones.Count; i++)
+            {
+                if (_botones[i].Accion != Accion.Curar) continue;
+
+                var texto = _botones[i].Espera;
+                bool enEspera = espera > 0.05f;
+
+                if (texto.enabled != enEspera) texto.enabled = enEspera;
+                if (enEspera) texto.text = Mathf.CeilToInt(espera).ToString();
+
+                // El icono se apaga mientras corre la espera: se lee de un vistazo.
+                var icono = _botones[i].Icono;
+                var c = icono.color;
+                c.a = enEspera ? 0.35f : 1f;
+                icono.color = c;
+            }
         }
 
         // -----------------------------------------------------------------

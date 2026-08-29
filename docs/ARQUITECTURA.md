@@ -179,6 +179,37 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-11 · Una máquina de estados por unidad, y el estado terminal se blinda dentro
+
+**Decisión.** Cada unidad tiene un único componente dueño de su estado —reposo, moviendo,
+atacando, muriendo— que decide las transiciones y le dice al animador qué dibujar. Ningún otro
+componente toca la animación.
+
+**Por qué.** Antes la animación se decidía en `MovimientoUnidad`, que alternaba entre reposo y
+caminar por su cuenta. Con dos estados el apaño funciona; con cuatro deja de escalar, porque
+nadie sabe quién manda cuando una unidad muere mientras camina. Un solo dueño y una sola
+función de transición hacen que la respuesta sea siempre localizable.
+
+**La parte que costó una tarde.** *Morir* es un estado terminal, y hay que blindarlo **dentro
+de la transición**, no solo en quien la llama. El daño puede aplicarse a mitad de `Update` y
+matar a la unidad; si la propia función de transición no lo respeta, el mismo fotograma la
+devuelve a *reposo* y queda una unidad de pie con cero de vida que no se puede seleccionar ni
+desaparece nunca. Es un fallo silencioso: no lanza excepción y además esconde otros.
+
+**La duración del golpe sale de la animación.** El animador avisa cuando una tira sin bucle
+llega al final, y la máquina vuelve a reposo con ese aviso. La alternativa —un temporizador con
+un número fijo— habría que mantenerla a mano cada vez que se ajuste un fps.
+
+**Consecuencia para el combate.** Cuando llegue la épica E06, lo que cambia es *qué hace* el
+estado atacando, no quién lo enciende: la orden ya entra por la autoridad (ADR-01) y la máquina
+ya sabe acercarse hasta el alcance y golpear al ritmo del dibujo.
+
+**Alternativa descartada.** El componente `Animator` de Unity, que además de resolver esto
+traería su propio grafo de estados. Prohibido por el ADR-03 por coste a escala, y aquí tampoco
+haría falta: cuatro estados no justifican una máquina visual.
+
+---
+
 ### ADR-10 · El relieve se dibuja a mano; el ruido solo propone
 
 **Decisión.** Las alturas y las rampas se guardan en un asset `RelieveMapa` que se dibuja con

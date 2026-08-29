@@ -641,8 +641,21 @@ namespace TinyTactics.EditorHerramientas
         // Unidades
         // -----------------------------------------------------------------
 
-        const int UnidadesPorBase = 8;
-        const string RutaDatosPawn = "Assets/Datos/Unidades/Pawn.asset";
+        /// <summary>
+        /// Composicion de la escuadra inicial de cada bando.
+        ///
+        /// No es equilibrio de juego: las unidades todavia no se entrenan (eso es E05) ni
+        /// pelean (E06). Es una escuadra de demostracion, elegida para que en la escena se
+        /// vean los cinco tipos a la vez y se pueda comprobar que cada uno anima lo suyo.
+        /// </summary>
+        static readonly TipoUnidad[] EscuadraInicial =
+        {
+            TipoUnidad.Pawn, TipoUnidad.Pawn,
+            TipoUnidad.Guerrero, TipoUnidad.Guerrero,
+            TipoUnidad.Lancero, TipoUnidad.Lancero,
+            TipoUnidad.Arquero, TipoUnidad.Arquero,
+            TipoUnidad.Monje, TipoUnidad.Monje,
+        };
 
         /// <summary>
         /// Tema de interfaz de la generacion en curso. Es un campo estatico y no un
@@ -651,31 +664,85 @@ namespace TinyTactics.EditorHerramientas
         /// </summary>
         static TemaInterfaz _tema;
 
-        static DatosUnidad ObtenerDatosPawn()
+        /// <summary>
+        /// Poste de entrenamiento delante de la escuadra: una oveja roja e indestructible.
+        ///
+        /// Es andamio de pruebas, no diseño de juego. Está aquí porque sin enemigos reales
+        /// —que llegan con la épica E06— no habría manera de ver la animación de ataque ni
+        /// la de muerte, y las dos se entregan esta semana. Se borra este método entero
+        /// cuando haya con quién pelear de verdad.
+        /// </summary>
+        static void CrearMuneco(Transform grupo, Vector2Int celda, int alto)
         {
-            AsegurarCarpeta("Assets/Datos/Unidades");
+            var datos = CatalogoDeUnidades.ObtenerMuneco();
 
-            var datos = AssetDatabase.LoadAssetAtPath<DatosUnidad>(RutaDatosPawn);
-            if (datos != null) return datos;
+            var tiras = CatalogoDeUnidades.CargarTiras(
+                datos, CatalogoDeUnidades.FaccionNeutral, CargarSpritesOrdenados);
 
-            datos = ScriptableObject.CreateInstance<DatosUnidad>();
-            datos.tipo = TipoUnidad.Pawn;
-            datos.nombreVisible = "Pawn";
-            datos.vidaMaxima = 60;
-            datos.dano = 5;
-            datos.alcance = 0.5f;
-            datos.velocidad = 3f;
-            datos.radio = 0.42f;
-            datos.carnePorSegundo = 0.1f;
-            datos.oro = 50;
+            if (tiras == null) return;
 
-            AssetDatabase.CreateAsset(datos, RutaDatosPawn);
-            AssetDatabase.SaveAssets();
-            return datos;
+            var go = new GameObject("MunecoDePruebas");
+            go.transform.SetParent(grupo, false);
+            // Centrado y por debajo de las dos filas de la escuadra: a tiro de todas, y
+            // lo bastante lejos para que se vea a las de alcance largo acercarse.
+            go.transform.position = new Vector3(celda.x + 0.5f, celda.y - 7.5f, 0f);
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = tiras[0].frames[0];
+            sr.sortingOrder = alto - celda.y + 3;
+
+            // Teñida para que se distinga de las ovejas de verdad que pastan por el mapa.
+            sr.color = new Color(1f, 0.45f, 0.45f);
+
+            go.AddComponent<AnimadorSprite>();
+
+            var unidad = go.AddComponent<Unidad>();
+            unidad.Configurar(datos, CatalogoDeUnidades.FaccionNeutral);
+
+            // Sin MovimientoUnidad a propósito: es un poste, no una unidad.
+            go.AddComponent<MaquinaDeEstados>().Configurar(tiras, ObtenerPolvo(), ObtenerEfectoCura(), ObtenerFlecha());
+
+            ConstructorDeInterfaz.AnadirBarraDeVida(go, _tema, alto - celda.y + 3);
+        }
+
+        // Efectos compartidos. Se cargan una vez por generación, no por unidad.
+        static Sprite[] _polvo;
+        static Sprite[] _efectoCura;
+        static Sprite _flecha;
+
+        static Sprite[] ObtenerPolvo()
+        {
+            if (_polvo == null)
+                _polvo = CargarSpritesOrdenados(
+                    "Assets/Tiny Swords/Particle FX/Dust_01.png").ToArray();
+
+            return _polvo;
+        }
+
+        static Sprite[] ObtenerEfectoCura()
+        {
+            if (_efectoCura == null)
+                _efectoCura = CargarSpritesOrdenados(
+                    "Assets/Tiny Swords/Units/Extra/Heal Effect/Heal_Effect.png").ToArray();
+
+            return _efectoCura;
+        }
+
+        static Sprite ObtenerFlecha()
+        {
+            if (_flecha == null)
+            {
+                var frames = CargarSpritesOrdenados(
+                    "Assets/Tiny Swords/Units/Extra/Arrow/Arrow.png");
+
+                _flecha = frames.Count > 0 ? frames[0] : null;
+            }
+
+            return _flecha;
         }
 
         static void CrearUnidad(Transform padre, DatosUnidad datos, int faccion,
-                                Sprite[] reposo, Sprite[] caminar,
+                                MaquinaDeEstados.Tira[] tiras,
                                 Vector3 posicion, int orden, string nombre)
         {
             var go = new GameObject(nombre);
@@ -683,7 +750,7 @@ namespace TinyTactics.EditorHerramientas
             go.transform.position = posicion;
 
             var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = reposo[0];
+            sr.sprite = tiras[0].frames[0];
             sr.sortingOrder = orden;
 
             go.AddComponent<AnimadorSprite>();
@@ -691,8 +758,11 @@ namespace TinyTactics.EditorHerramientas
             var unidad = go.AddComponent<Unidad>();
             unidad.Configurar(datos, faccion);
 
-            var movimiento = go.AddComponent<MovimientoUnidad>();
-            movimiento.ConfigurarAnimacion(reposo, caminar != null && caminar.Length > 1 ? caminar : reposo);
+            go.AddComponent<MovimientoUnidad>();
+
+            // La máquina va después del movimiento: en Awake lo busca por GetComponent
+            // para saber si la unidad está andando.
+            go.AddComponent<MaquinaDeEstados>().Configurar(tiras, ObtenerPolvo(), ObtenerEfectoCura(), ObtenerFlecha());
 
             // Marcador y barra salen del pack, no de una textura dibujada por codigo.
             ConstructorDeInterfaz.AnadirMarcador(go, _tema, faccion, orden);
@@ -761,8 +831,8 @@ namespace TinyTactics.EditorHerramientas
                 go.AddComponent<AnimadorSprite>().Configurar(frames.ToArray(), 5f, 0);
         }
 
-        /// <summary>Nombres de color de facción, en el orden del pack Tiny Swords.</summary>
-        static readonly string[] ColoresFaccion = { "Blue", "Red", "Yellow", "Purple", "Black" };
+        /// <summary>Nombres de color de facción. La lista vive en el catálogo de unidades.</summary>
+        static string[] ColoresFaccion => CatalogoDeUnidades.Colores;
 
         /// <summary>
         /// Castillo y dos pawns en cada punto de aparición.
@@ -798,24 +868,26 @@ namespace TinyTactics.EditorHerramientas
                     sr.sortingOrder = alto - celda.y;
                 }
 
-                // Unidades reales: seleccionables y capaces de recibir órdenes.
-                var reposo = CargarSpritesOrdenados($"{DirRecursos}/Pawn/{color} Pawn/Pawn_Idle.png");
-                var caminar = CargarSpritesOrdenados($"{DirRecursos}/Pawn/{color} Pawn/Pawn_Run.png");
-                var datosPawn = ObtenerDatosPawn();
-
-                for (int p = 0; p < UnidadesPorBase; p++)
+                // Unidades reales: seleccionables, animadas y capaces de recibir órdenes.
+                for (int p = 0; p < EscuadraInicial.Length; p++)
                 {
-                    if (reposo.Count == 0) break;
+                    var tipo = EscuadraInicial[p];
+                    var datos = CatalogoDeUnidades.Obtener(tipo);
+
+                    var tiras = CatalogoDeUnidades.CargarTiras(datos, i, CargarSpritesOrdenados);
+                    if (tiras == null) continue;
 
                     // En fila doble delante del castillo, con algo de holgura para que
                     // el empuje blando no las tenga peleando desde el primer frame.
-                    float dx = (p % 4 - 1.5f) * 1.6f;
-                    float dy = -2.4f - (p / 4) * 1.5f;
+                    float dx = (p % 5 - 2f) * 1.7f;
+                    float dy = -2.4f - (p / 5) * 1.6f;
 
-                    CrearUnidad(grupo, datosPawn, i, reposo.ToArray(), caminar.ToArray(),
+                    CrearUnidad(grupo, datos, i, tiras,
                                 new Vector3(celda.x + 0.5f + dx, celda.y + dy, 0f),
-                                alto - celda.y + 2, $"Pawn_{p + 1}");
+                                alto - celda.y + 2, $"{tipo}_{p + 1}");
                 }
+
+                CrearMuneco(grupo, celda, alto);
             }
 
             // Marcadores de expansión: sin sprite, solo referencia para la IA y el diseño.
