@@ -30,6 +30,9 @@ namespace TinyTactics.EditorHerramientas
         static readonly RectInt CajaAzulGrande = new RectInt(19, 17, 154, 158);
         static readonly RectInt CajaAzulChica = new RectInt(19, 17, 90, 94);
 
+        // El boton pequeno del pack ya viene sin margenes: se usa entero.
+        static readonly RectInt CajaBoton = new RectInt(0, 0, 64, 64);
+
         // Recorte comun de los 25 retratos, calculado como la union de sus contornos. Se
         // usa el mismo para todos y no el de cada uno: recortando cada cara a su medida,
         // unas saldrian mas grandes que otras y la rejilla de grupo bailaria.
@@ -170,6 +173,18 @@ namespace TinyTactics.EditorHerramientas
             tema.barraChicaRelleno = Recortar($"{DirPack}/Bars/SmallBar_Fill.png",
                                               $"{CarpetaUI}/BarraChicaRelleno.png",
                                               CajaBarraChicaRelleno, Vector4.zero, PpuMundo);
+
+            tema.botones = new Sprite[5];
+            for (int f = 0; f < 5; f++)
+                tema.botones[f] = Recortar($"{DirPack}/Buttons/TinySquareBlueButton.png",
+                                           $"{CarpetaUI}/Boton{f}.png", CajaBoton,
+                                           Borde(14f), PpuInterfaz, TintesFaccion[f]);
+
+            tema.iconoMover = PrepararSprite($"{DirPack}/Icons/Icon_08.png", PpuInterfaz);
+            tema.iconoDetener = PrepararSprite($"{DirPack}/Icons/Icon_09.png", PpuInterfaz);
+            tema.iconoAtaqueAuto = PrepararSprite($"{DirPack}/Icons/Icon_06.png", PpuInterfaz);
+            tema.iconoCurar = PrepararSprite($"{DirPack}/Icons/Icon_07.png", PpuInterfaz);
+            tema.iconoConstruir = PrepararSprite($"{DirPack}/Icons/Icon_01.png", PpuInterfaz);
 
             tema.iconoAtaque = PrepararSprite($"{DirPack}/Icons/Icon_05.png", PpuInterfaz);
             tema.iconoOro = PrepararSprite($"{DirPack}/Icons/Icon_03.png", PpuInterfaz);
@@ -346,6 +361,15 @@ namespace TinyTactics.EditorHerramientas
 
             go.AddComponent<PanelDeUnidad>().tema = tema;
             go.AddComponent<CursorJuego>().tema = tema;
+
+            // Sin EventSystem los botones de uGUI no reciben un solo clic. No hacía falta
+            // hasta ahora porque toda la entrada se leía del ratón directamente.
+            if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+            {
+                new GameObject("EventSystem",
+                               typeof(UnityEngine.EventSystems.EventSystem),
+                               typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule));
+            }
 
             return go;
         }

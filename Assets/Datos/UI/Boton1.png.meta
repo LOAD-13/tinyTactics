@@ -1,17 +1,10 @@
 fileFormatVersion: 2
-guid: a1ce5e93205074fa0b03cc1070dbdeca
-AssetOrigin:
-  serializedVersion: 1
-  productId: 352566
-  packageName: Tiny Swords
-  packageVersion: 1.0
-  assetPath: Assets/Tiny Swords/UI Elements/Icons/Icon_06.png
-  uploadId: 844324
+guid: f4405bcb4f2419c459517ae8ba840999
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -5233972180137678507
-    second: Icon_06_0
+      213: 3031643053079824475
+    second: Boton1_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -59,7 +52,7 @@ TextureImporter:
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 100
-  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteBorder: {x: 14, y: 14, z: 14, w: 14}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 1
@@ -108,7 +101,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 0
+    textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -120,12 +113,12 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Icon_06_0
+      name: Boton1_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 64
+        x: 1
+        y: 1
+        width: 62
         height: 62
       alignment: 0
       pivot: {x: 0, y: 0}
@@ -135,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 559ed9e68023d57b0800000000000000
-      internalID: -5233972180137678507
+      spriteID: b588a906b4f821a20800000000000000
+      internalID: 3031643053079824475
       vertices: []
       indices: 
       edges: []
@@ -155,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Icon_06_0: -5233972180137678507
+      Boton1_0: 3031643053079824475
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
