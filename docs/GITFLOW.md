@@ -171,9 +171,19 @@ git push origin v0.3.0-s03
    > puede probar, un A* sin unidades tampoco, y unas unidades sin selección menos— y el
    > alcance creció en marcha con dos HUs que no estaban en el plan (HU-017 y HU-018).
    >
-   > **Lección para la semana 04:** trocear la épica en ramas mergeables *antes* de escribir la
-   > primera línea, y aceptar que una HU sin probar en aislamiento se mergea igual si el
-   > conjunto compila. Trece HUs en una rama no son revisables.
+   > **Corregido en la semana 04.** La conclusión que había aquí —trocear la épica en ramas
+   > mergeables— se revisó y se descartó. El motivo: la rama se borra al mergear, así que
+   > **la unidad de trazabilidad que sobrevive es el commit, no la rama**. Y con un solo
+   > desarrollador, un pull request por historia no tiene revisor: es ceremonia sin lector.
+   >
+   > **Política a partir de la épica E03: una rama por épica.** Lo que sí se mantiene es la
+   > disciplina de commits — uno por tema, con su alcance en el mensaje, de modo que el
+   > historial siga siendo legible y `git bisect` siga sirviendo. Cambia el envoltorio, no
+   > el rigor.
+   >
+   > | Épica | Rama |
+   > |---|---|
+   > | E03 · Unidades y animación | `feat/E03-unidades-y-animacion` |
 5. **Escenas y prefabs son YAML gigante y no se mergean bien.** Hoy el riesgo es bajo porque
    solo Joaquín programa, pero la disciplina se mantiene: preferir **prefabs** sobre meter
    todo en la escena. Si el día de mañana alguien más toca código, esta regla salva el proyecto.
