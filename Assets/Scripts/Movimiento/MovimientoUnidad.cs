@@ -30,18 +30,10 @@ namespace TinyTactics.Movimiento
 
         Unidad _unidad;
         SpriteRenderer _sprite;
-        AnimadorSprite _animador;
 
         List<Vector2Int> _ruta;
         int _indice;
         bool _esperandoRuta;
-        bool _caminabaAntes;
-
-        // [SerializeField] es imprescindible: el generador las asigna al construir la
-        // escena, y sin serializar se perderian al guardarla. En Play llegarian nulas
-        // y la unidad se moveria sin animacion de caminar.
-        [SerializeField] Sprite[] _framesReposo;
-        [SerializeField] Sprite[] _framesCaminar;
 
         static readonly List<Unidad> _vecinas = new List<Unidad>(32);
 
@@ -49,15 +41,6 @@ namespace TinyTactics.Movimiento
         {
             _unidad = GetComponent<Unidad>();
             _sprite = GetComponent<SpriteRenderer>();
-            _animador = GetComponent<AnimadorSprite>();
-        }
-
-        /// <summary>Las tiras de animación las inyecta el generador de la escena.</summary>
-        public void ConfigurarAnimacion(Sprite[] reposo, Sprite[] caminar)
-        {
-            _framesReposo = reposo;
-            _framesCaminar = caminar;
-            AplicarAnimacion(false);
         }
 
         // -----------------------------------------------------------------
@@ -96,8 +79,10 @@ namespace TinyTactics.Movimiento
 
         void Update()
         {
+            // La animación ya no se decide aquí. Este componente solo sabe si está en
+            // movimiento; quién dibuja qué lo resuelve MaquinaDeEstados leyendo esa
+            // propiedad. Con cuatro estados, repartir esa decisión era pedir un conflicto.
             Avanzar();
-            ActualizarAnimacion();
         }
 
         void LateUpdate()
@@ -186,29 +171,6 @@ namespace TinyTactics.Movimiento
             }
 
             transform.position = destino;
-        }
-
-        void ActualizarAnimacion()
-        {
-            bool camina = EnMovimiento;
-            if (camina == _caminabaAntes) return;
-
-            _caminabaAntes = camina;
-            AplicarAnimacion(camina);
-        }
-
-        void AplicarAnimacion(bool caminando)
-        {
-            if (_animador == null) return;
-
-            var frames = caminando ? _framesCaminar : _framesReposo;
-            if (frames == null || frames.Length == 0) return;
-
-            var datos = _unidad.datos;
-            float fps = datos == null ? 8f : (caminando ? datos.fpsCaminar : datos.fpsReposo);
-
-            _animador.Configurar(frames, fps, 0);
-            if (_sprite != null) _sprite.sprite = frames[0];
         }
     }
 }
