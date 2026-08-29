@@ -10,32 +10,32 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d5591efc081ed64492eff36fb7d5719, type: 3}
-  m_Name: Pawn
+  m_Name: Arquero
   m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosUnidad
-  tipo: 0
-  nombreVisible: Pawn
-  vidaMaxima: 60
-  dano: 5
-  alcance: 0.5
+  tipo: 3
+  nombreVisible: Arquero
+  vidaMaxima: 70
+  dano: 14
+  alcance: 5
   invulnerable: 0
-  velocidad: 3
-  radio: 0.42
-  carnePorSegundo: 0.1
-  oro: 50
-  madera: 0
+  velocidad: 2.9
+  radio: 0.4
+  carnePorSegundo: 0.15
+  oro: 85
+  madera: 20
   clips:
   - estado: 0
-    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Idle.png
+    ruta: Assets/Tiny Swords/Units/{color} Units/Archer/Archer_Idle.png
     fps: 7
     direccion: 0
     enBucle: 1
   - estado: 1
-    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Run.png
+    ruta: Assets/Tiny Swords/Units/{color} Units/Archer/Archer_Run.png
     fps: 11
     direccion: 0
     enBucle: 1
   - estado: 2
-    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Interact Axe.png
-    fps: 12
+    ruta: Assets/Tiny Swords/Units/{color} Units/Archer/Archer_Shoot.png
+    fps: 13
     direccion: 0
     enBucle: 0
