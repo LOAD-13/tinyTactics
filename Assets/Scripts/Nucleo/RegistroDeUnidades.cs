@@ -54,6 +54,32 @@ namespace TinyTactics.Nucleo
         }
 
         /// <summary>Vecinos en los nueve cubos que rodean un punto.</summary>
+        /// <summary>
+        /// Vecinas dentro de un radio concreto, no solo las del cubo de al lado.
+        ///
+        /// <see cref="Vecinas"/> mira un bloque de 3x3 cubos, o sea que solo garantiza
+        /// radio 2. Pedirle mas era pedirle lo que no puede dar: el ataque automatico
+        /// buscaba a 5,5 tiles y no encontraba nada mas alla de 2. Aqui el bloque se
+        /// agranda hasta cubrir el radio pedido.
+        /// </summary>
+        public static void VecinasEnRadio(Vector3 punto, float radio, List<Unidad> salida)
+        {
+            salida.Clear();
+
+            int alcance = Mathf.Max(1, Mathf.CeilToInt(radio / LadoCubo));
+            int cx = Mathf.FloorToInt(punto.x / LadoCubo);
+            int cy = Mathf.FloorToInt(punto.y / LadoCubo);
+
+            for (int dx = -alcance; dx <= alcance; dx++)
+            {
+                for (int dy = -alcance; dy <= alcance; dy++)
+                {
+                    if (_cubos.TryGetValue(Clave(cx + dx, cy + dy), out var lista))
+                        salida.AddRange(lista);
+                }
+            }
+        }
+
         public static void Vecinas(Vector3 punto, List<Unidad> salida)
         {
             salida.Clear();
