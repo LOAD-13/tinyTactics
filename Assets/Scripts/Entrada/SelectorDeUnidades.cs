@@ -36,6 +36,11 @@ namespace TinyTactics.Entrada
         readonly List<Unidad> _seleccionadas = new List<Unidad>();
         readonly List<Unidad> _temporal = new List<Unidad>();
 
+        // Lista aparte para la busqueda de enemigos. Compartir _temporal funciona hoy
+        // por el orden en que se llaman, pero es la clase de dependencia invisible que
+        // revienta en cuanto alguien mueve una linea.
+        readonly List<Unidad> _cercanas = new List<Unidad>();
+
         Camera _camara;
         Vector2 _inicioArrastre;
         bool _arrastrando;
@@ -95,8 +100,112 @@ namespace TinyTactics.Entrada
                 return;
             }
 
+            LeerAtajos();
             LeerBotonIzquierdo(raton);
             LeerBotonDerecho(raton);
+        }
+
+        // -----------------------------------------------------------------
+        // Panel de acciones
+        // -----------------------------------------------------------------
+
+        /// <summary>Acción pedida desde la rejilla de comandos, esperando su objetivo.</summary>
+        Interfaz.PanelDeUnidad.Accion? _apuntando;
+
+        /// <summary>¿El siguiente clic izquierdo elige objetivo en vez de seleccionar?</summary>
+        public bool Apuntando => _apuntando.HasValue;
+
+        /// <summary>
+        /// Recibe una orden del panel o de un atajo.
+        ///
+        /// Las que necesitan un punto en el mapa —atacar, mover— dejan el cursor "armado"
+        /// y esperan al siguiente clic. Las inmediatas se aplican y ya. Es el mismo
+        /// comportamiento del menú de comandos de Warcraft.
+        /// </summary>
+        public void PedirAccion(Interfaz.PanelDeUnidad.Accion accion)
+        {
+            if (_seleccionadas.Count == 0) return;
+
+            switch (accion)
+            {
+                case Interfaz.PanelDeUnidad.Accion.Detener:
+                    Autoridad.Emitir(new OrdenDetener { Faccion = faccionJugador }, _seleccionadas);
+                    _apuntando = null;
+                    return;
+
+                case Interfaz.PanelDeUnidad.Accion.Construir:
+                    // Sin funcionalidad hasta la semana 06. El botón está para que la
+                    // rejilla no cambie de forma cuando llegue.
+                    Debug.Log("[Tiny Tactics] Construir llega en la semana 06 (épica E05).");
+                    return;
+
+                default:
+                    _apuntando = accion;
+                    return;
+            }
+        }
+
+        void LeerAtajos()
+        {
+            var teclado = Keyboard.current;
+            if (teclado == null || _seleccionadas.Count == 0) return;
+
+            if (teclado.aKey.wasPressedThisFrame)
+                PedirAccion(Interfaz.PanelDeUnidad.Accion.Atacar);
+
+            if (teclado.tKey.wasPressedThisFrame)
+                PedirAccion(Interfaz.PanelDeUnidad.Accion.AtacarAuto);
+
+            if (teclado.mKey.wasPressedThisFrame)
+                PedirAccion(Interfaz.PanelDeUnidad.Accion.Mover);
+
+            if (teclado.sKey.wasPressedThisFrame)
+                PedirAccion(Interfaz.PanelDeUnidad.Accion.Detener);
+
+            if (teclado.escapeKey.wasPressedThisFrame) _apuntando = null;
+        }
+
+        /// <summary>Resuelve el clic que da objetivo a una acción armada.</summary>
+        void ResolverApuntado(Vector2 pantalla)
+        {
+            var accion = _apuntando.Value;
+            _apuntando = null;
+
+            Vector3 punto = PuntoEnMundo(pantalla);
+
+            if (accion == Interfaz.PanelDeUnidad.Accion.Curar)
+            {
+                var herido = UnidadEn(punto, true);
+                if (herido != null)
+                    Autoridad.Emitir(
+                        new OrdenCurar { Faccion = faccionJugador, Objetivo = herido },
+                        _seleccionadas);
+
+                return;
+            }
+
+            if (accion == Interfaz.PanelDeUnidad.Accion.Atacar)
+            {
+                var victima = UnidadEn(punto, false);
+                if (victima != null)
+                {
+                    Autoridad.Emitir(
+                        new OrdenAtacar { Faccion = faccionJugador, Objetivo = victima },
+                        _seleccionadas);
+
+                    return;
+                }
+
+                // Sobre suelo vacío, Atacar avanza atacando: es lo que hace Warcraft y
+                // evita que el clic se pierda. Nunca cae sobre un aliado — sin fuego amigo.
+                MoverA(punto, true);
+                return;
+            }
+
+            // Mover y atacar-automático van los dos a un punto del mapa; el segundo deja
+            // además la vigilancia encendida durante el trayecto.
+            bool vigilando = accion == Interfaz.PanelDeUnidad.Accion.AtacarAuto;
+            MoverA(punto, vigilando);
         }
 
         // -----------------------------------------------------------------
@@ -116,6 +225,13 @@ namespace TinyTactics.Entrada
             if (raton.leftButton.wasPressedThisFrame)
             {
                 if (SobreLaInterfaz(raton.position.ReadValue())) return;
+
+                // Con una accion armada, el clic izquierdo elige objetivo y no selecciona.
+                if (_apuntando.HasValue)
+                {
+                    ResolverApuntado(raton.position.ReadValue());
+                    return;
+                }
 
                 _inicioArrastre = raton.position.ReadValue();
                 _arrastrando = true;
@@ -144,8 +260,43 @@ namespace TinyTactics.Entrada
             if (mundo == null || mundo.Grilla == null) return;
 
             Vector3 punto = PuntoEnMundo(raton.position.ReadValue());
-            Vector2Int centro = mundo.Grilla.MundoACelda(punto);
 
+            // Clic derecho sobre un enemigo = atacar; sobre el suelo = moverse. Es el
+            // gesto contextual de cualquier RTS: un solo botón, dos órdenes distintas
+            // según lo que haya debajo.
+            var victima = UnidadEn(punto, false);
+            if (victima != null)
+            {
+                Autoridad.Emitir(
+                    new OrdenAtacar { Faccion = faccionJugador, Objetivo = victima },
+                    _seleccionadas);
+                return;
+            }
+
+            // Sobre un aliado, los que sepan curar curan. Los demás ignoran la orden, así
+            // que seleccionar un grupo mixto y hacer clic sobre un herido funciona: actúa
+            // el monje y el resto se queda quieto en vez de irse encima.
+            var aliado = UnidadEn(punto, true);
+            if (aliado != null && HayCurandero())
+            {
+                Autoridad.Emitir(
+                    new OrdenCurar { Faccion = faccionJugador, Objetivo = aliado },
+                    _seleccionadas);
+                return;
+            }
+
+            MoverA(punto, false);
+        }
+
+        /// <summary>
+        /// Manda al grupo a un punto. Con vigilancia, ademas atacan lo que se cruce.
+        /// </summary>
+        void MoverA(Vector3 punto, bool vigilando)
+        {
+            var mundo = MundoJuego.Actual;
+            if (mundo == null || mundo.Grilla == null) return;
+
+            Vector2Int centro = mundo.Grilla.MundoACelda(punto);
             if (!mundo.Grilla.CeldaTransitableCercana(centro, 12, out centro)) return;
 
             // Cada unidad recibe su propia celda alrededor del punto pedido: si todas
@@ -164,6 +315,13 @@ namespace TinyTactics.Entrada
                 Autoridad.Emitir(
                     new OrdenMover { Faccion = faccionJugador, Destino = destino },
                     _temporal);
+
+                // La vigilancia se enciende DESPUES de emitir el movimiento, no antes:
+                // OrdenMover llama a Cancelar() para soltar el objetivo anterior, y eso
+                // tambien apagaba la vigilancia que se acababa de activar. Por eso el
+                // ataque al avanzar caminaba hasta el punto sin pegarle a nada.
+                var maquina = unidad.GetComponent<Unidades.MaquinaDeEstados>();
+                if (maquina != null) maquina.Vigilar(vigilando);
             }
         }
 
@@ -230,6 +388,43 @@ namespace TinyTactics.Entrada
 
                 Anadir(u);
             }
+        }
+
+        /// <summary>¿Hay algún curandero entre lo seleccionado?</summary>
+        bool HayCurandero()
+        {
+            for (int i = 0; i < _seleccionadas.Count; i++)
+            {
+                var u = _seleccionadas[i];
+                if (u != null && u.datos != null && u.datos.dano < 0) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Unidad viva bajo el punto, del propio bando o de otro.</summary>
+        Unidad UnidadEn(Vector3 mundo, bool propia)
+        {
+            RegistroDeUnidades.Vecinas(mundo, _cercanas);
+
+            Unidad elegida = null;
+            float mejor = radioClic * radioClic;
+
+            for (int i = 0; i < _cercanas.Count; i++)
+            {
+                var u = _cercanas[i];
+                if (u == null || !u.Viva) continue;
+                if ((u.faccion == faccionJugador) != propia) continue;
+                if (propia && _seleccionadas.Contains(u)) continue;
+
+                float d2 = ((Vector2)(u.transform.position - mundo)).sqrMagnitude;
+                if (d2 > mejor) continue;
+
+                mejor = d2;
+                elegida = u;
+            }
+
+            return elegida;
         }
 
         /// <summary>Solo unidades vivas del propio bando. Las enemigas no se seleccionan.</summary>
