@@ -28,34 +28,41 @@ MonoBehaviour:
     ruta: Assets/Tiny Swords/Units/{color} Units/Lancer/Lancer_Idle.png
     fps: 8
     direccion: 0
+    recurso: 0
     enBucle: 1
   - estado: 1
     ruta: Assets/Tiny Swords/Units/{color} Units/Lancer/Lancer_Run.png
     fps: 11
     direccion: 0
+    recurso: 0
     enBucle: 1
   - estado: 2
     ruta: Assets/Tiny Swords/Units/{color} Units/Lancer/Lancer_Up_Attack.png
     fps: 10
     direccion: 1
+    recurso: 0
     enBucle: 0
   - estado: 2
     ruta: Assets/Tiny Swords/Units/{color} Units/Lancer/Lancer_UpRight_Attack.png
     fps: 10
     direccion: 2
+    recurso: 0
     enBucle: 0
   - estado: 2
     ruta: Assets/Tiny Swords/Units/{color} Units/Lancer/Lancer_Right_Attack.png
     fps: 10
     direccion: 3
+    recurso: 0
     enBucle: 0
   - estado: 2
     ruta: Assets/Tiny Swords/Units/{color} Units/Lancer/Lancer_DownRight_Attack.png
     fps: 10
     direccion: 4
+    recurso: 0
     enBucle: 0
   - estado: 2
     ruta: Assets/Tiny Swords/Units/{color} Units/Lancer/Lancer_Down_Attack.png
     fps: 10
     direccion: 5
+    recurso: 0
     enBucle: 0
