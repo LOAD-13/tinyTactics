@@ -41,6 +41,15 @@ namespace TinyTactics.Unidades
         /// </summary>
         public event System.Action AlTerminar;
 
+        /// <summary>
+        /// Salta cada vez que una tira <b>en bucle</b> completa una pasada.
+        ///
+        /// Es el equivalente de <see cref="AlTerminar"/> para las animaciones que se
+        /// repiten: sin esto no hay forma de saber cuántos hachazos ha dado un pawn, solo
+        /// cuánto rato lleva delante del árbol, que no es lo mismo.
+        /// </summary>
+        public event System.Action AlDarVuelta;
+
         SpriteRenderer _renderizador;
         float _reloj;
         int _indice;
@@ -81,6 +90,8 @@ namespace TinyTactics.Unidades
 
                 _indice = (_indice + 1) % frames.Length;
                 _renderizador.sprite = frames[_indice];
+
+                if (_indice == 0) AlDarVuelta?.Invoke();
             }
         }
 

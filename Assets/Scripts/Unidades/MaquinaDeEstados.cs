@@ -34,6 +34,7 @@ namespace TinyTactics.Unidades
         {
             public EstadoUnidad estado;
             public DireccionAtaque direccion = DireccionAtaque.Ninguna;
+            public TipoRecurso recurso = TipoRecurso.Ninguno;
             public Sprite[] frames;
             public float fps = 8f;
             public bool enBucle = true;
@@ -61,6 +62,16 @@ namespace TinyTactics.Unidades
 
         public EstadoUnidad Estado { get; private set; } = EstadoUnidad.Reposo;
         public bool Muerta => Estado == EstadoUnidad.Muriendo;
+
+        /// <summary>
+        /// Recurso con el que la unidad trabaja o que lleva encima.
+        ///
+        /// No es un dato del recolector sino de la máquina, porque cambia el <b>dibujo de
+        /// todos los estados a la vez</b>: un pawn cargado de madera se dibuja distinto
+        /// parado y andando. Si viviera fuera, el recolector tendría que reasignar tiras y
+        /// dejaría de ser cierto que la máquina es la única que toca al animador (ADR-11).
+        /// </summary>
+        public TipoRecurso Recurso { get; private set; } = TipoRecurso.Ninguno;
 
         Unidad _unidad;
         AnimadorSprite _animador;
@@ -97,6 +108,7 @@ namespace TinyTactics.Unidades
             if (_sprite != null) _colorInicial = _sprite.color;
 
             _animador.AlTerminar += AlTerminarAnimacion;
+            _animador.AlDarVuelta += AlDarVuelta;
             Aplicar(EstadoUnidad.Reposo, true);
 
             // Un efecto que falta no rompe nada y por eso pasa desapercibido. Se avisa una
@@ -112,10 +124,47 @@ namespace TinyTactics.Unidades
 
         void OnDestroy()
         {
-            if (_animador != null) _animador.AlTerminar -= AlTerminarAnimacion;
+            if (_animador != null)
+            {
+                _animador.AlTerminar -= AlTerminarAnimacion;
+                _animador.AlDarVuelta -= AlDarVuelta;
+            }
         }
 
         void AlTerminarAnimacion() => _animacionTerminada = true;
+
+        void AlDarVuelta()
+        {
+            // Las DOS condiciones. Con solo el estado, el contador seguía sumando después
+            // de cancelar: Cancelar apagaba la bandera pero el estado tardaba un fotograma
+            // en cambiar, y en ese hueco cabía un golpe regalado.
+            if (_trabajando && Estado == EstadoUnidad.Trabajando) _vueltasDeTrabajo++;
+        }
+
+        /// <summary>
+        /// Pasadas completas de la animación de trabajo desde que empezó.
+        ///
+        /// Se pone a cero en cuanto la unidad cambia de estado, y ese detalle es justo lo
+        /// que cierra un agujero: con un temporizador, interrumpir a un pawn y volver a
+        /// mandarlo conservaba el rato ya invertido, así que picar-parar-picar sacaba el
+        /// recurso en una fracción del tiempo. Contando golpes, un hachazo a medias no
+        /// cuenta y no hay forma de acumular progreso a trocitos.
+        /// </summary>
+        public int VueltasDeTrabajo => _vueltasDeTrabajo;
+
+        int _vueltasDeTrabajo;
+
+        /// <summary>
+        /// Pone el contador a cero. Lo llama quien encarga el trabajo al empezar cada tanda.
+        /// </summary>
+        /// <remarks>
+        /// El contador ya se borra solo en cada cambio de estado, así que esto es
+        /// redundante <i>si</i> todas las transiciones son correctas. Existe justamente
+        /// porque esa condición es difícil de garantizar de un vistazo: con este cerrojo, el
+        /// número de golpes que hacen falta no depende de haber trazado bien las seis rutas
+        /// por las que se puede interrumpir a un pawn.
+        /// </remarks>
+        public void ReiniciarGolpes() => _vueltasDeTrabajo = 0;
 
         // -----------------------------------------------------------------
 
@@ -165,6 +214,10 @@ namespace TinyTactics.Unidades
             if (_movimiento != null && _movimiento.EnMovimiento)
                 return EstadoUnidad.Moviendo;
 
+            // Trabajar va por debajo de moverse: el pawn que camina hacia el árbol está
+            // caminando, aunque el recolector ya haya encendido el trabajo.
+            if (_trabajando) return EstadoUnidad.Trabajando;
+
             return EstadoUnidad.Reposo;
         }
 
@@ -182,6 +235,7 @@ namespace TinyTactics.Unidades
 
             Estado = nuevo;
             _animacionTerminada = false;
+            _vueltasDeTrabajo = 0;
 
             var tira = Buscar(nuevo) ?? Buscar(EstadoUnidad.Reposo);
             if (tira == null || tira.frames == null || tira.frames.Length == 0) return;
@@ -189,11 +243,20 @@ namespace TinyTactics.Unidades
             // Desfase inicial solo en las animaciones que se repiten: un grupo de unidades
             // paradas al unísono se ve artificial, pero un golpe tiene que empezar por su
             // primer frame o se ve cortado.
-            int inicio = tira.enBucle ? Random.Range(0, tira.frames.Length) : 0;
+            //
+            // Trabajar queda fuera del desfase aunque se repita: sus vueltas se CUENTAN, y
+            // arrancar por la mitad haría que el primer hachazo valiera medio golpe.
+            bool desfasar = tira.enBucle && nuevo != EstadoUnidad.Trabajando;
+            int inicio = desfasar ? Random.Range(0, tira.frames.Length) : 0;
 
             _animador.Configurar(tira.frames, tira.fps, inicio, tira.enBucle);
         }
 
+        /// <summary>
+        /// La tira que toca dibujar, resolviendo en este orden: dirección, carga, y por
+        /// último el estado a secas. Cada escalón es una preferencia, no un requisito: si
+        /// una unidad no tiene versión cargada de un estado, se dibuja la normal.
+        /// </summary>
         Tira Buscar(EstadoUnidad estado)
         {
             if (_tiras == null) return null;
@@ -207,10 +270,56 @@ namespace TinyTactics.Unidades
                         return _tiras[i];
             }
 
+            if (Recurso != TipoRecurso.Ninguno)
+            {
+                for (int i = 0; i < _tiras.Length; i++)
+                    if (_tiras[i] != null && _tiras[i].estado == estado &&
+                        _tiras[i].recurso == Recurso)
+                        return _tiras[i];
+            }
+
+            for (int i = 0; i < _tiras.Length; i++)
+                if (_tiras[i] != null && _tiras[i].estado == estado &&
+                    _tiras[i].recurso == TipoRecurso.Ninguno)
+                    return _tiras[i];
+
             for (int i = 0; i < _tiras.Length; i++)
                 if (_tiras[i] != null && _tiras[i].estado == estado) return _tiras[i];
 
             return null;
+        }
+
+        // -----------------------------------------------------------------
+        // Recolección
+        // -----------------------------------------------------------------
+
+        bool _trabajando;
+
+        /// <summary>
+        /// Enciende o apaga la animación de trabajo. La llama el recolector, que es quien
+        /// decide; aquí solo se dibuja.
+        /// </summary>
+        public void Trabajar(bool activo)
+        {
+            if (Muerta || _trabajando == activo) return;
+
+            _trabajando = activo;
+            Aplicar(Decidir(), true);
+        }
+
+        /// <summary>
+        /// Cambia lo que la unidad lleva o trabaja y repinta.
+        ///
+        /// Se fuerza el repintado aunque el estado no cambie: pasar de andar con las manos
+        /// vacías a andar con un saco es el mismo estado y un dibujo distinto, así que sin
+        /// el <c>forzar</c> el pawn volvería del árbol sin la madera a cuestas.
+        /// </summary>
+        public void Cargar(TipoRecurso recurso)
+        {
+            if (Muerta || Recurso == recurso) return;
+
+            Recurso = recurso;
+            Aplicar(Estado, true);
         }
 
         DireccionAtaque _direccionActual = DireccionAtaque.Ninguna;
@@ -269,6 +378,15 @@ namespace TinyTactics.Unidades
             _persiguiendo = false;
             _golpePendiente = false;
             _vigilando = false;
+
+            if (!_trabajando) return;
+
+            _trabajando = false;
+
+            // Salir de «trabajando» AHORA y no en el siguiente Update. Mientras el estado
+            // siga siendo ese, el contador de golpes sigue vivo, y un fotograma de margen
+            // es todo lo que hace falta para acumular progreso a base de parar y reanudar.
+            Aplicar(Decidir(), false);
         }
 
         // -----------------------------------------------------------------
@@ -410,7 +528,9 @@ namespace TinyTactics.Unidades
 
             if (datos.dano < 0)
             {
-                objetivo.Curar(-datos.dano);
+                // Se cura por el valor efectivo, no por el de la ficha: un monje al que su
+                // bando no alimenta cura menos, igual que un guerrero pega menos.
+                objetivo.Curar(-_unidad.Dano);
                 _listoParaCurar = Time.time + esperaCura;
 
                 SoltarEfecto(_efectoCura, objetivo.transform.position, 14f, 1f);
@@ -432,7 +552,7 @@ namespace TinyTactics.Unidades
                 return;
             }
 
-            objetivo.RecibirDano(datos.dano);
+            objetivo.RecibirDano(_unidad.Dano);
         }
 
         /// <summary>

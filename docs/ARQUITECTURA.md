@@ -179,6 +179,58 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-13 · El progreso de una acción se cuenta en golpes, no en segundos
+
+**Decisión.** Lo que cuesta recolectar una carga se mide en **pasadas completas de la
+animación**, no en un temporizador. El animador avisa cada vez que una tira en bucle da la
+vuelta, la máquina de estados lleva la cuenta, y el contador se borra en cuanto la unidad
+cambia de estado.
+
+**Por qué.** La primera versión tenía **dos relojes independientes**: un cronómetro decidía
+cuándo salía el recurso y la animación del hacha corría por su cuenta como decoración. Dos
+relojes que no se hablan siempre se pueden desincronizar, y una desincronización en una
+mecánica de recursos es una ventaja explotable: parar y reanudar al pawn conservaba el rato ya
+invertido y sacaba la carga en una fracción del tiempo.
+
+Es además la misma regla que el [ADR-11](#adr-11) ya había fijado para el combate —*el golpe se
+cobra cuando la animación termina*— y que la recolección se había saltado.
+
+**Consecuencia.** Un golpe a medias no cuenta para nada, así que no hay forma de acumular
+progreso a trocitos. Y los datos de balance hablan en la unidad que el jugador ve: «seis
+hachazos», no «tres segundos».
+
+**Detalle que casi lo rompe.** Las animaciones en bucle arrancan en un fotograma al azar, a
+propósito, para que un grupo de unidades paradas no se vea sincronizado como un ejército de
+clones. Con el conteo activo, eso haría que el primer hachazo valiera medio golpe: *trabajando*
+queda fuera del desfase.
+
+---
+
+### ADR-12 · La profundidad de dibujo se recalcula en todo lo que se mueve
+
+**Decisión.** El orden de dibujo sale de la coordenada Y, con **diez subdivisiones por tile**.
+Lo quieto lo resuelve el generador una sola vez; todo lo que se mueve lleva un componente que
+lo recalcula en `LateUpdate`.
+
+**Por qué.** El orden se fijaba al crear cada objeto y no se volvía a tocar. Vale para un árbol
+y no vale para algo que anda: un pawn que rodeaba el castillo por detrás conservaba el orden que
+tenía al nacer y se seguía pintando delante del tejado, con aspecto de estar volando.
+
+**Por qué subdividido.** Sin subdividir, dos unidades dentro del mismo tile empatan, y un empate
+en `sortingOrder` deja el orden en manos del motor: dos unidades pegadas parpadean
+intercambiándose. Con diez pasos por tile la profundidad se resuelve a nivel de decímetro.
+**Todo** lo que se dibuja en el mundo usa la misma escala; mezclar dos escalas equivale a no
+ordenar.
+
+**Los edificios se ordenan por su base, no por su centro.** Un castillo mide tres tiles de alto:
+usando el centro de su dibujo, todo lo que pasara por delante de la puerta se dibujaba detrás
+del muro. Un edificio ocluye según **dónde se apoya**.
+
+**Coste.** Una resta y un redondeo por objeto móvil y fotograma, y solo se escribe en el
+renderizador cuando el número cambia de verdad — tocar `sortingOrder` rompe el lote de dibujado.
+
+---
+
 ### ADR-11 · Una máquina de estados por unidad, y el estado terminal se blinda dentro
 
 **Decisión.** Cada unidad tiene un único componente dueño de su estado —reposo, moviendo,

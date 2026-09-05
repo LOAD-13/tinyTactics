@@ -15,6 +15,8 @@ MonoBehaviour:
   cursorNormal: {fileID: 2800000, guid: e50602bb4737a4a8795f25305980c3b7, type: 3}
   cursorMano: {fileID: 2800000, guid: d5341ee0556844303a17dd8cb83e9727, type: 3}
   cursorProhibido: {fileID: 2800000, guid: 1cd1bf70615454fcc8312d17f6a27e16, type: 3}
+  cursorAccion: {fileID: 2800000, guid: 148e1ab80b2b14ce5858df57aeae24e0, type: 3}
+  puntoAccion: {x: 32, y: 32}
   puntoNormal: {x: 23, y: 18}
   puntoMano: {x: 27, y: 18}
   puntoProhibido: {x: 32, y: 31}
@@ -48,9 +50,13 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 192d6c1afbd735b4f931e2a9f58f0f77, type: 3}
   barraGrandeMarco: {fileID: 21300000, guid: 4a2c0aea75afc2c4cbb5e2236f2b2838, type: 3}
   barraGrandeRelleno: {fileID: 21300000, guid: e0548e6704c5aff4fb79d2f17b2e5e0e, type: 3}
+  barraGrandeRellenoAzul: {fileID: 21300000, guid: 157f201dd3d028f4684c1ee2847007f8, type: 3}
   iconoAtaque: {fileID: 21300000, guid: 23450567bedfb472eb6f8efd4ad515da, type: 3}
   iconoOro: {fileID: 21300000, guid: 7a0f4fab77b344f7b9386a7c87e492b1, type: 3}
   iconoVelocidad: {fileID: 21300000, guid: fae718ae59ba4491e94b6063a1d127ab, type: 3}
+  iconoRecursoOro: {fileID: 21300000, guid: b9b23c4ec748b4bc7bb3afb24a2ed197, type: 3}
+  iconoRecursoMadera: {fileID: 21300000, guid: a1c1e555a725e4b15b512516e3dec87c, type: 3}
+  iconoRecursoCarne: {fileID: 21300000, guid: 7ae60e0e3b7fd419aa2a0b999da0fb07, type: 3}
   botones:
   - {fileID: 21300000, guid: c53b42628d261ec428f78efc52edc8af, type: 3}
   - {fileID: 21300000, guid: f4405bcb4f2419c459517ae8ba840999, type: 3}
@@ -62,6 +68,7 @@ MonoBehaviour:
   iconoAtaqueAuto: {fileID: 21300000, guid: a1ce5e93205074fa0b03cc1070dbdeca, type: 3}
   iconoCurar: {fileID: 21300000, guid: fbee8984e8c234190b7c5f6e10dbd4a7, type: 3}
   iconoConstruir: {fileID: 21300000, guid: 1c0647c9dba61414898ffc20ac2d2e5b, type: 3}
+  iconoEntrenar: {fileID: 21300000, guid: 859e44a7cf53f4e889017843532b11d2, type: 3}
   retratos:
   - {fileID: 21300000, guid: 8831145787b65e240a36d4d272a9710e, type: 3}
   - {fileID: 21300000, guid: 2658d317719bf1b4fbb16c5259996cf0, type: 3}

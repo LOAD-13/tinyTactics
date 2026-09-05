@@ -82,6 +82,10 @@ namespace TinyTactics.Movimiento
             // La animación ya no se decide aquí. Este componente solo sabe si está en
             // movimiento; quién dibuja qué lo resuelve MaquinaDeEstados leyendo esa
             // propiedad. Con cuatro estados, repartir esa decisión era pedir un conflicto.
+            // La bandera se refresca antes de separarse: el empuje de este fotograma tiene
+            // que ver el estado de este fotograma, no el del anterior.
+            if (_unidad != null) _unidad.EnMarcha = EnMovimiento;
+
             Avanzar();
         }
 
@@ -131,6 +135,28 @@ namespace TinyTactics.Movimiento
         /// la hace determinista y barata. Los vecinos salen del índice espacial, nunca de
         /// recorrer la lista completa (ADR-04).
         /// </summary>
+        /// <summary>
+        /// Qué parte del solape le toca resolver a esta unidad, entre 0 y 1.
+        /// </summary>
+        /// <remarks>
+        /// El empuje era simétrico: las dos cedían la mitad, así que el que llegaba a un
+        /// punto desplazaba al que ya estaba plantado allí y el grupo entero se iba
+        /// reptando. Ahora <b>el que anda es el que se aparta</b>, y quien ya ha terminado
+        /// su camino apenas se mueve. Es la misma regla que aplica cualquier RTS y lo que
+        /// hace que una formación se quede donde la dejaste.
+        ///
+        /// El parado cede un poco —no cero— porque si no cediera nada, dos unidades que
+        /// acaben solapadas al detenerse a la vez se quedarían así para siempre.
+        /// </remarks>
+        float Reparto(Unidad otra)
+        {
+            bool yoAndo = EnMovimiento;
+            bool ellaAnda = otra.EnMarcha;
+
+            if (yoAndo == ellaAnda) return 0.5f;
+            return yoAndo ? 1f : 0.15f;
+        }
+
         void Separarse()
         {
             if (fuerzaEmpuje <= 0f) return;
@@ -154,7 +180,7 @@ namespace TinyTactics.Movimiento
                 if (distancia2 >= minimo * minimo || distancia2 < 1e-6f) continue;
 
                 float distancia = Mathf.Sqrt(distancia2);
-                desplazamiento += delta / distancia * (minimo - distancia);
+                desplazamiento += delta / distancia * (minimo - distancia) * Reparto(otra);
             }
 
             if (desplazamiento.sqrMagnitude < 1e-6f) return;

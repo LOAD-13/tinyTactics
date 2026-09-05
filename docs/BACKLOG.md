@@ -14,7 +14,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E01` | Fundación del proyecto | 02 | 🟢 Cerrada |
 | `E02` | Núcleo de simulación — grilla, A*, movimiento, selección, órdenes | 03 | 🟢 Cerrada |
 | `E03` | Unidades y animación | 04 | 🟢 Cerrada |
-| `E04` | Economía | 05 | ⚪ Pendiente |
+| `E04` | Economía | 05 | 🟢 Cerrada |
 | `E05` | Construcción y producción | 06 | ⚪ Pendiente |
 | `E06` | Combate | 07-08 | ⚪ Pendiente |
 | `E07` | Percepción — niebla y minimapa | 09 | ⚪ Pendiente |
@@ -486,25 +486,217 @@ que llegan después — Construir en la semana 06 y las de producción de edific
 
 ---
 
-### Semana 05 — Economía · HITO 1 · PC1 (E04)
+# Semana 05 — Economía (E04) · 🏁 HITO 1 · PC1
 
-### Semana 05 — Economía · HITO 1 · PC1 (E04)
-Nodos de recurso en el mapa · pawn recolecta oro · pawn recolecta madera · ciclo de retorno al castillo ·
-almacén de recursos por facción · HUD con contadores.
+> ✅ **Épica cerrada.** Las nueve HUs del bloque A entregadas en el tag `v0.5.0-s05`, más
+> HU-035 que era bloque B. Queda fuera HU-036. El detalle honesto de lo que costó está en
+> [`BITACORA.md`](BITACORA.md), y las dos decisiones de fondo en el ADR-12 y el ADR-13.
+
+**Meta de la semana:** cerrar el bucle económico. No basta con que un pawn pique piedra: hay
+que poder **recolectar oro, gastarlo en más pawns, y que esos pawns recolecten más**. Ese
+bucle es lo que separa un RTS de una maqueta con unidades que caminan.
+
+> **Una sola rama para la épica:** `feat/E04-economia`, según la política de `GITFLOW.md` §5.4.
+
+| HU | Título | Bloque |
+|---|---|---|
+| HU-026 | Nodo de recurso con agotamiento | A |
+| HU-027 | Almacén de recursos por facción | A |
+| HU-028 | El castillo como entidad seleccionable | A |
+| HU-029 | Ciclo de recolección del pawn | A |
+| HU-030 | Animaciones de trabajo y de carga | A |
+| HU-031 | Orden contextual de recolectar | A |
+| HU-032 | HUD de recursos | A |
+| HU-033 | Entrenar pawns en el castillo | A |
+| HU-034 | Sustento por carne | A |
+| HU-035 | Punto de reunión del castillo | B |
+| HU-036 | Resaltado del nodo bajo el cursor | B |
+
+> ⚠️ **La población queda fuera a propósito.** El GDD la fija en 5 iniciales y +5 por casa.
+> Meterla esta semana bloquearía la producción antes del primer pawn, porque la escuadra
+> inicial de pruebas ya son 10 unidades. Entra en la semana 06 junto con las casas, que es
+> cuando existe algo con lo que subir el tope. Esta semana el pawn solo cuesta oro.
+
+> **Orden de recorte si el domingo aprieta.** Primero HU-034 pierde la penalización y se queda
+> en el contador bajando; después HU-033 pierde la cola y entrena de uno en uno. HU-029 no se
+> recorta nunca: es el hito.
+
+---
+
+### HU-026 · Nodo de recurso con agotamiento
+**Épica:** E04 · **Semana:** 05
+
+**Como** jugador **quiero** que los árboles, las vetas y las ovejas se agoten **para** que la
+partida me obligue a salir de mi esquina a buscar más.
+
+**Criterios de aceptación**
+- [ ] Cada nodo declara su tipo, sus extracciones restantes y cuánto entrega por viaje.
+- [ ] Al llegar a cero: la veta desaparece, el árbol se convierte en tocón, la oveja desaparece.
+- [ ] El árbol agotado **deja de bloquear la grilla**: por el tocón se puede pasar.
+- [ ] Un nodo agotado deja de aceptar recolectores y los que lo trabajaban buscan otro cercano.
+- [ ] Los tres tipos se siembran desde el generador de escena, sin colocar nada a mano.
+
+**Nota técnica.** La liberación de celda en caliente no existe todavía: `GrillaMapa` solo sabe
+`MarcarObstaculo`. Sin lo contrario, un bosque talado se queda como muro invisible — el tipo de
+fallo que no da error por consola y solo se ve jugando.
+
+---
+
+### HU-027 · Almacén de recursos por facción
+**Épica:** E04 · **Semana:** 05
+
+**Como** sistema **quiero** una única fuente de verdad de lo que tiene cada bando **para** que
+HUD, producción y IA lean todos del mismo sitio.
+
+**Criterios de aceptación**
+- [ ] Oro, madera y carne por facción, con cantidades iniciales en un `ScriptableObject` (ADR-07).
+- [ ] Avisa por evento al cambiar: nadie consulta el almacén cada frame.
+- [ ] `PuedePagar` y `Cobrar` son la única vía de gasto; cobrar de más es imposible.
+- [ ] Ninguna cantidad puede quedar negativa.
+
+---
+
+### HU-028 · El castillo como entidad seleccionable
+**Épica:** E04 · **Semana:** 05
+
+**Como** jugador **quiero** poder clicar mi castillo **para** ver qué es y qué puede hacer.
+
+**Criterios de aceptación**
+- [ ] El castillo deja de ser un sprite suelto: conoce su facción y es un punto de entrega.
+- [ ] Clic izquierdo lo selecciona y muestra su ficha en el panel, con el castillo de retrato.
+- [ ] La caja de arrastre selecciona unidades, **nunca** edificios — como en cualquier RTS.
+- [ ] Un edificio seleccionado no obedece órdenes de mover ni de atacar.
+- [ ] Existe un registro por el que un pawn cargado encuentra el centro de entrega más cercano.
+
+**Fuera de alcance.** Vida, destrucción y el resto de edificios son E05 y E06.
+
+---
+
+### HU-029 · Ciclo de recolección del pawn
+**Épica:** E04 · **Semana:** 05
+
+**Como** jugador **quiero** mandar un pawn a un recurso y olvidarme **para** dedicar mi atención
+a otra cosa, que es de lo que va el género.
+
+**Criterios de aceptación**
+- [ ] El ciclo completo se repite solo: ir → trabajar → cargar el tope → volver → depositar → ir.
+- [ ] Al depositar, el almacén de su facción sube y el HUD lo refleja.
+- [ ] Si el nodo se agota con el pawn cargado, entrega primero y luego busca otro nodo del mismo tipo.
+- [ ] Una orden de mover o de atacar cancela la recolección limpiamente, sin dejarlo cargado a medias.
+- [ ] Varios pawns pueden trabajar el mismo nodo sin amontonarse ni bloquearse.
+
+**Nota técnica.** La decisión —qué nodo, cuándo está lleno, a qué castillo volver— vive en un
+componente propio, no en `MaquinaDeEstados`. La máquina sigue siendo la **única** que toca al
+animador (ADR-11); el recolector le pide estados, no dibuja.
+
+---
+
+### HU-030 · Animaciones de trabajo y de carga
+**Épica:** E04 · **Semana:** 05
+
+**Como** jugador **quiero** ver qué está haciendo cada pawn de un vistazo **para** leer mi
+economía sin abrir ningún panel.
+
+**Criterios de aceptación**
+- [ ] Pica con el pico en el oro, con el hacha en el árbol y con el cuchillo en la oveja.
+- [ ] Al volver cargado se le ve el saco: oro, madera o carne, según lo que lleve.
+- [ ] La carga cambia el dibujo **en reposo y andando**, no solo en uno de los dos.
+- [ ] Al depositar, el saco desaparece y vuelve al aspecto normal.
+
+**Nota técnica.** La tabla de clips pasa a indexarse por **estado × carga**. Es una extensión de
+`ClipDe(estado)`, no un rediseño: el pack ya trae las doce combinaciones por color.
+
+---
+
+### HU-031 · Orden contextual de recolectar
+**Épica:** E04 · **Semana:** 05
+
+**Criterios de aceptación**
+- [ ] Clic derecho sobre árbol, veta u oveja con un pawn seleccionado emite orden de recolectar.
+- [ ] Sobre el suelo sigue siendo mover y sobre un enemigo, atacar: un botón, tres órdenes.
+- [ ] Las unidades militares del grupo ignoran la orden en vez de irse encima del árbol.
+- [ ] Es una `Orden` serializable como todas las demás (ADR-01).
+
+---
+
+### HU-032 · HUD de recursos
+**Épica:** E04 · **Semana:** 05
+
+**Criterios de aceptación**
+- [ ] Tres contadores en pantalla —oro, madera y carne— con los iconos reales del pack.
+- [ ] Se actualizan por evento al depositar o al gastar, no cada frame.
+- [ ] Mantienen la estética de madera del panel de unidad; no es UI por defecto de Unity.
+- [ ] Se ven a cualquier resolución sin taparse con el panel de unidad.
+
+---
+
+### HU-033 · Entrenar pawns en el castillo
+**Épica:** E04 · **Semana:** 05
+
+**Como** jugador **quiero** gastar oro en más pawns **para** que mi economía crezca sola.
+
+**Criterios de aceptación**
+- [ ] Con el castillo seleccionado, la rejilla de comandos muestra «Entrenar pawn» con su coste.
+- [ ] Sin oro suficiente el botón no obedece y lo dice; con oro, cobra al encolar.
+- [ ] Una barra de progreso muestra cuánto falta.
+- [ ] El pawn aparece junto al castillo, vivo, seleccionable y listo para recibir órdenes.
+- [ ] Se pueden encolar varios y salen de uno en uno, en orden.
+
+**De dónde sale.** La rejilla de HU-025 se diseñó con hueco para esto. Adelanta trabajo de E05
+a propósito: sin producción, la economía de esta semana no cierra el bucle y el Hito 1 se queda
+en «un pawn pica piedra».
+
+---
+
+### HU-034 · Sustento por carne
+**Épica:** E04 · **Semana:** 05
+
+**Como** diseñador **quiero** que el ejército coma **para** que nadie pueda gastar todo en un
+único ataque y desentenderse de la economía.
+
+**Criterios de aceptación**
+- [ ] Cada unidad viva consume carne de forma continua, según su tipo.
+- [ ] A cero, las tropas pierden daño y velocidad hasta que se reponga la reserva.
+- [ ] El jugador se entera: el contador avisa antes de que llegue a cero.
+- [ ] El ritmo es un parámetro editable, no un número dentro del código.
+
+**Nota de balance.** Los valores del GDD (0,10–0,20 por segundo y unidad) vacían una reserva de
+100 en **un minuto** con la escuadra inicial. Van con un multiplicador global de sustento para
+poder calibrarlos en la semana 16 sin recompilar, tal como el propio GDD anticipa.
+
+---
+
+### HU-035 · Punto de reunión del castillo *(bloque B)*
+**Épica:** E04 · **Semana:** 05
+
+- [ ] Con el castillo seleccionado, clic derecho fija dónde salen las unidades nuevas.
+- [ ] Si el punto es un nodo de recurso, el pawn nuevo empieza a recolectarlo directamente.
+
+---
+
+### HU-036 · Resaltado del nodo bajo el cursor *(bloque B)*
+**Épica:** E04 · **Semana:** 05
+
+- [ ] Al pasar el ratón sobre un recurso se resalta, usando los sprites `_Highlight` del pack.
+- [ ] Muestra cuánto le queda por dar.
+
+---
 
 ### Semana 06 — Construcción y producción (E05)
 Modo de colocación con silueta · validación de terreno · pawn construye · sistema de población ·
-casa sube el límite · castillo entrena pawns · cola de producción.
+casa sube el límite · cuartel, campo de tiro y monasterio · cola de producción de tropas.
 
 > **Interfaz de producción.** Al seleccionar un edificio, el panel de acciones (HU-025) muestra
 > qué puede fabricar con su coste, y al pulsar encola la unidad con su tiempo de espera y una
 > barra de progreso. Al seleccionar un pawn, muestra qué puede construir. Es el mismo panel
-> que se estrena en la semana 04: por eso su rejilla se diseña desde el principio con hueco
-> para acciones que todavía no existen.
+> que se estrena en la semana 04, y el castillo ya lo estrena en la 05 con HU-033: aquí solo se
+> extiende al resto de edificios.
 
 > **La escuadra inicial de 10 unidades por base es andamio de pruebas.** En el juego real se
-> empieza con **dos pawns**, como en Warcraft, y todo lo demás se entrena. Se cambia aquí,
-> cuando el castillo sepa producir.
+> empieza con **dos pawns**, como en Warcraft, y todo lo demás se entrena. Se mantiene durante
+> la semana 05 a propósito —le da al consumo de carne algo con qué morder y a la muerte algo
+> que enseñar— y se retira aquí, cuando el cuartel y el campo de tiro puedan producir lo que
+> hoy viene regalado.
 
 ### Semana 07 — Combate cuerpo a cuerpo (E06)
 Componente de salud y muerte · barras de vida · targeting con grilla espacial · ataque del guerrero ·

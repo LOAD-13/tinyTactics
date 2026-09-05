@@ -89,7 +89,16 @@ namespace TinyTactics.Mundo
         public bool PuedePasar(int desdeX, int desdeY, int haciaX, int haciaY)
         {
             if (!Transitable(haciaX, haciaY)) return false;
-            if (!Transitable(desdeX, desdeY)) return false;
+
+            // La celda de PARTIDA no se comprueba, y es deliberado: se comprobaba, y eso
+            // dejaba encerrada para siempre a cualquier unidad que acabara sobre una celda
+            // bloqueada. Le pasaba a los pawns recién entrenados, que aparecían dentro del
+            // disco del castillo: se podían seleccionar, aceptaban la orden y no daban un
+            // paso, sin un solo error por consola.
+            //
+            // Quitarlo no abre ningún agujero: entrar en una celda bloqueada lo sigue
+            // impidiendo la primera línea, y el corte de esquinas de más abajo también.
+            // Lo único que cambia es que ahora siempre se puede SALIR.
 
             int dx = haciaX - desdeX;
             int dy = haciaY - desdeY;
@@ -179,6 +188,59 @@ namespace TinyTactics.Mundo
                     this[x, y] = celda;
                 }
             }
+        }
+
+        /// <summary>
+        /// Celda pisable junto a un objetivo, eligiendo la que le pilla más cerca a quien
+        /// viene.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="CeldaTransitableCercana"/> devuelve la primera que encuentra en su
+        /// barrido, y como el barrido siempre recorre los anillos en el mismo orden, siempre
+        /// devuelve la misma. El resultado en pantalla era que todos los pawns rodeaban el
+        /// árbol para ponerse en el mismo lado, vinieran de donde vinieran.
+        ///
+        /// Esta versión recorre el anillo entero antes de decidir y se queda con la candidata
+        /// más cercana al origen. Sigue prefiriendo el anillo más pegado al objetivo —primero
+        /// cerca del recurso, y solo entonces cerca de mí— así que nadie pica desde lejos por
+        /// ahorrarse dos pasos.
+        /// </remarks>
+        public bool CeldaTransitableJuntoA(Vector2Int objetivo, Vector2 origen,
+                                           int radioMaximo, out Vector2Int salida)
+        {
+            salida = objetivo;
+
+            if (Transitable(objetivo.x, objetivo.y)) return true;
+
+            for (int r = 1; r <= radioMaximo; r++)
+            {
+                bool hay = false;
+                float mejor = float.MaxValue;
+
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        // Solo el borde del anillo: el interior ya se miró en la vuelta anterior.
+                        if (Mathf.Abs(dx) != r && Mathf.Abs(dy) != r) continue;
+
+                        int x = objetivo.x + dx;
+                        int y = objetivo.y + dy;
+                        if (!Transitable(x, y)) continue;
+
+                        float d = ((Vector2)new Vector2(x + 0.5f, y + 0.5f) - origen).sqrMagnitude;
+                        if (d >= mejor) continue;
+
+                        mejor = d;
+                        salida = new Vector2Int(x, y);
+                        hay = true;
+                    }
+                }
+
+                if (hay) return true;
+            }
+
+            return false;
         }
 
         public int ContarTransitables()
