@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using TinyTactics.Mundo;
+using TinyTactics.Nucleo;
 
 namespace TinyTactics.Unidades
 {
@@ -23,6 +25,9 @@ namespace TinyTactics.Unidades
         [Range(1f, 12f)] public float radioDePastoreo = 4f;
 
         [Range(0.1f, 3f)] public float velocidad = 0.55f;
+
+        [Tooltip("Radio propio de la oveja para no meterse dentro de las unidades.")]
+        [Range(0.2f, 1.5f)] public float radio = 0.45f;
 
         [Tooltip("Segundos parada antes de decidir otra cosa.")]
         public Vector2 descanso = new Vector2(1.5f, 5f);
@@ -70,6 +75,11 @@ namespace TinyTactics.Unidades
 
         void Update()
         {
+            // Apartarse va antes que cualquier otra cosa y corre en TODOS los estados, no
+            // solo mientras anda: una oveja pastando tambien tiene que dejar de ser un
+            // fantasma cuando un pawn le pasa por encima.
+            Apartarse();
+
             _reloj -= Time.deltaTime;
 
             if (_estado == Estado.Andando)
@@ -101,6 +111,57 @@ namespace TinyTactics.Unidades
 
             if (Mathf.Abs(hacia.x) > 0.05f && _sprite != null)
                 _sprite.flipX = hacia.x < 0f;
+        }
+
+        static readonly List<Unidades.Unidad> _cerca = new List<Unidades.Unidad>(16);
+
+        /// <summary>
+        /// Saca a la oveja de dentro de cualquier unidad con la que se solape.
+        /// </summary>
+        /// <remarks>
+        /// La oveja no entra en el indice espacial —no es una unidad y no debe pagar ese
+        /// coste— asi que la separacion es de un solo sentido: ella se aparta y la unidad ni
+        /// se entera. Basta, porque el resultado que se ve es el mismo y evita meter
+        /// decoracion dentro del bucle de simulacion.
+        ///
+        /// Se corrige la posicion en el momento en vez de acumular una fuerza: con un empuje
+        /// blando la oveja tardaria varios fotogramas en salir y durante ese rato se la
+        /// seguiria viendo atravesada.
+        /// </remarks>
+        void Apartarse()
+        {
+            Vector2 posicion = transform.position;
+            RegistroDeUnidades.VecinasEnRadio(posicion, radio + 1f, _cerca);
+
+            Vector2 correccion = Vector2.zero;
+
+            for (int i = 0; i < _cerca.Count; i++)
+            {
+                var u = _cerca[i];
+                if (u == null || !u.Viva) continue;
+
+                Vector2 delta = posicion - (Vector2)u.transform.position;
+                float minimo = radio + u.Radio;
+                float d = delta.magnitude;
+
+                if (d >= minimo) continue;
+
+                // Justo encima: se elige una salida cualquiera, pero determinista, para que
+                // dos ovejas apiladas no salgan las dos hacia el mismo lado.
+                if (d < 0.0001f)
+                {
+                    float angulo = Siguiente(360) * Mathf.Deg2Rad;
+                    correccion += new Vector2(Mathf.Cos(angulo), Mathf.Sin(angulo)) * minimo;
+                    continue;
+                }
+
+                correccion += delta / d * (minimo - d);
+            }
+
+            if (correccion.sqrMagnitude < 0.000001f) return;
+
+            transform.position = new Vector3(posicion.x + correccion.x,
+                                             posicion.y + correccion.y, 0f);
         }
 
         void Cambiar(Estado nuevo)
