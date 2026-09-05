@@ -20,6 +20,7 @@ namespace TinyTactics.EditorHerramientas
         const string CarpetaUI = "Assets/Datos/UI";
         const string RutaTema = CarpetaUI + "/TemaInterfaz.asset";
         const string DirPack = "Assets/Tiny Swords/UI Elements";
+        const string DirRecursos = "Assets/Tiny Swords/Pawn and Resources";
 
         // Recortes en coordenadas de Unity (origen abajo a la izquierda).
         // Los verticales están elegidos para que marco y relleno queden centrados en el
@@ -113,6 +114,11 @@ namespace TinyTactics.EditorHerramientas
             tema.cursorMano = PrepararTextura($"{DirPack}/Cursors/Cursor_02.png", 64, true);
             tema.cursorProhibido = PrepararTextura($"{DirPack}/Cursors/Cursor_03.png", 64, true);
 
+            // El cuarto puntero es la mira de corchetes. Se usa como textura de cursor
+            // ademas de como marcador de seleccion: son dos assets distintos generados del
+            // mismo PNG, asi que no se pisan.
+            tema.cursorAccion = PrepararTextura($"{DirPack}/Cursors/Cursor_04.png", 64, true);
+
             // Los corchetes vienen en 128 px. A 96 px por unidad ocupan 1,33 tiles: rodean
             // al pawn sin taparlo y sin invadir la casilla vecina.
             tema.marcadorSeleccion = PrepararSprite($"{DirPack}/Cursors/Cursor_04.png", 96);
@@ -165,6 +171,11 @@ namespace TinyTactics.EditorHerramientas
                                                $"{CarpetaUI}/BarraGrandeRelleno.png",
                                                CajaBarraGrandeRelleno, Vector4.zero, PpuInterfaz);
 
+            tema.barraGrandeRellenoAzul = Recortar($"{DirPack}/Bars/BigBar_Fill.png",
+                                                   $"{CarpetaUI}/BarraGrandeRellenoAzul.png",
+                                                   CajaBarraGrandeRelleno, Vector4.zero,
+                                                   PpuInterfaz, matizFijo: 0.56f);
+
             // Estas dos también viven en el mundo, colgando de cada unidad.
             tema.barraChicaMarco = Recortar($"{DirPack}/Bars/SmallBar_Base.png",
                                             $"{CarpetaUI}/BarraChicaMarco.png",
@@ -185,10 +196,22 @@ namespace TinyTactics.EditorHerramientas
             tema.iconoAtaqueAuto = PrepararSprite($"{DirPack}/Icons/Icon_06.png", PpuInterfaz);
             tema.iconoCurar = PrepararSprite($"{DirPack}/Icons/Icon_07.png", PpuInterfaz);
             tema.iconoConstruir = PrepararSprite($"{DirPack}/Icons/Icon_01.png", PpuInterfaz);
+            tema.iconoEntrenar = PrepararSprite($"{DirPack}/Icons/Icon_02.png", PpuInterfaz);
 
             tema.iconoAtaque = PrepararSprite($"{DirPack}/Icons/Icon_05.png", PpuInterfaz);
             tema.iconoOro = PrepararSprite($"{DirPack}/Icons/Icon_03.png", PpuInterfaz);
             tema.iconoVelocidad = PrepararSprite($"{DirPack}/Icons/Icon_08.png", PpuInterfaz);
+
+            // Los contadores llevan los sacos reales del pack en vez de los iconos
+            // genéricos: es exactamente el mismo dibujo que el pawn carga a la espalda, así
+            // que la relación entre lo que se ve en el mapa y el número de arriba es
+            // inmediata y no hay que explicarla.
+            tema.iconoRecursoOro =
+                PrepararSprite($"{DirRecursos}/Gold/Gold Resource/Gold_Resource.png", PpuInterfaz);
+            tema.iconoRecursoMadera =
+                PrepararSprite($"{DirRecursos}/Wood/Wood Resource/Wood Resource.png", PpuInterfaz);
+            tema.iconoRecursoCarne =
+                PrepararSprite($"{DirRecursos}/Meat/Meat Resource/Meat Resource.png", PpuInterfaz);
 
             // Los retratos vienen con un margen transparente enorme: la cara ocupa 197 de
             // los 256 px del lienzo. Sin recortar, el hueco del panel se ve medio vacio por
@@ -237,8 +260,30 @@ namespace TinyTactics.EditorHerramientas
             return salida;
         }
 
+        /// <summary>
+        /// Lleva cualquier pixel con color a un matiz concreto, conservando lo claro y lo
+        /// saturado que ya era. Se diferencia de <see cref="Retenir"/> en que aquella solo
+        /// toca los pixeles cercanos a un matiz de partida —vale para reteñir el mismo
+        /// boton en cinco colores— mientras que esta cambia el color de algo que ya era de
+        /// otro, como pasar la barra de vida de roja a azul.
+        /// </summary>
+        static Color ForzarMatiz(Color c, float matiz)
+        {
+            if (c.a < 0.004f) return c;
+
+            Color.RGBToHSV(c, out _, out float s, out float v);
+
+            // Los grises y los negros del contorno se quedan como estan: darles matiz
+            // convertiria el borde de la barra en una silueta de color.
+            if (s < 0.12f) return c;
+
+            var salida = Color.HSVToRGB(matiz, s, v);
+            salida.a = c.a;
+            return salida;
+        }
+
         static Sprite Recortar(string origen, string destino, RectInt caja, Vector4 borde,
-                               int ppu, Vector2? tinte = null)
+                               int ppu, Vector2? tinte = null, float? matizFijo = null)
         {
             var existente = AssetDatabase.LoadAssetAtPath<Sprite>(destino);
             if (existente != null && !_forzar) return existente;
@@ -271,6 +316,10 @@ namespace TinyTactics.EditorHerramientas
             if (tinte.HasValue)
                 for (int i = 0; i < pixeles.Length; i++)
                     pixeles[i] = Retenir(pixeles[i], tinte.Value);
+
+            if (matizFijo.HasValue)
+                for (int i = 0; i < pixeles.Length; i++)
+                    pixeles[i] = ForzarMatiz(pixeles[i], matizFijo.Value);
 
             var recorte = new Texture2D(caja.width, caja.height, TextureFormat.RGBA32, false);
             recorte.SetPixels(pixeles);
@@ -360,6 +409,7 @@ namespace TinyTactics.EditorHerramientas
             escalador.matchWidthOrHeight = 0.5f;
 
             go.AddComponent<PanelDeUnidad>().tema = tema;
+            go.AddComponent<HudRecursos>().tema = tema;
             go.AddComponent<CursorJuego>().tema = tema;
 
             // Sin EventSystem los botones de uGUI no reciben un solo clic. No hacía falta

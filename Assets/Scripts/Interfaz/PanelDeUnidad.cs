@@ -53,8 +53,12 @@ namespace TinyTactics.Interfaz
 
         public string[] fuentesTexto = { "Cambria", "Constantia", "Georgia" };
 
-        [Tooltip("Color de todo el texto del panel. Negro sobre los tonos claros del pack.")]
-        public Color colorTexto = new Color(0.09f, 0.07f, 0.06f);
+        [Tooltip("Color de todo el texto del panel. Blanco con contorno: la madera y las " +
+                 "cajas del pack son oscuras, y el negro se perdía sobre ellas.")]
+        public Color colorTexto = new Color(1f, 0.98f, 0.92f);
+
+        [Tooltip("Contorno del texto. Es lo que lo despega del fondo sea cual sea el bando.")]
+        public Color colorContorno = new Color(0.05f, 0.04f, 0.03f, 0.95f);
 
         [Header("Animación")]
         [Tooltip("El panel entra deslizándose desde abajo. Apagar para que aparezca de golpe.")]
@@ -81,6 +85,7 @@ namespace TinyTactics.Interfaz
         CanvasGroup _opacidad;
         Image _liston;
         Image _cara;
+        Image _caraProduccion;
         Image _cajaGrande;
         readonly List<Image> _cajasChicas = new List<Image>();
 
@@ -158,7 +163,7 @@ namespace TinyTactics.Interfaz
         /// es público. Si ninguna está, se cae a la fuente incrustada en el motor, que no
         /// es medieval pero siempre existe.
         /// </summary>
-        static Font PrimeraInstalada(string[] candidatas)
+        internal static Font PrimeraInstalada(string[] candidatas)
         {
             if (candidatas != null && candidatas.Length > 0)
             {
@@ -178,8 +183,20 @@ namespace TinyTactics.Interfaz
 
         void LateUpdate()
         {
+            CaducarAviso();
+
             var selector = SelectorDeUnidades.Actual;
             var seleccion = selector != null ? selector.Seleccionadas : null;
+
+            // El edificio manda cuando no hay tropas elegidas. Son excluyentes, así que no
+            // hay que decidir prioridades: o una cosa o la otra.
+            var edificio = selector != null ? selector.EdificioSeleccionado : null;
+
+            if (edificio != null && (seleccion == null || seleccion.Count == 0))
+            {
+                MostrarEdificio(selector, edificio);
+                return;
+            }
 
             if (seleccion == null || seleccion.Count == 0)
             {
@@ -271,43 +288,56 @@ namespace TinyTactics.Interfaz
                 _cara.enabled = cara != null;
             }
 
-            // Los listones solo se reasignan al cambiar de bando. Hoy siempre es el mismo,
-            // pero en cuanto haya observador o repetición el panel seguirá al jugador activo.
-            if (primera.faccion != _faccionPintada)
-            {
-                _faccionPintada = primera.faccion;
+            AplicarFaccion(primera.faccion);
 
-                if (_liston != null)
-                {
-                    _liston.sprite = tema.ListonPanelDe(primera.faccion);
-                    _liston.enabled = _liston.sprite != null;
-                }
+            // Se vuelve del modo edificio: barra de vida roja otra vez y sin miniatura.
+            if (_rellenoVida != null && tema.barraGrandeRelleno != null)
+                _rellenoVida.sprite = tema.barraGrandeRelleno;
 
-                if (_listonNombre != null)
-                {
-                    _listonNombre.sprite = tema.ListonNombreDe(primera.faccion);
-                    _listonNombre.enabled = _listonNombre.sprite != null;
-                }
-
-                if (_listonAviso != null)
-                    _listonAviso.sprite = tema.ListonNombreDe(primera.faccion);
-
-                if (_cajaGrande != null)
-                {
-                    _cajaGrande.sprite = tema.CajaDe(primera.faccion);
-                    _cajaGrande.enabled = _cajaGrande.sprite != null;
-                }
-
-                var chica = tema.CajaChicaDe(primera.faccion);
-                for (int i = 0; i < _cajasChicas.Count; i++)
-                {
-                    if (_cajasChicas[i] == null) continue;
-                    _cajasChicas[i].sprite = chica;
-                    _cajasChicas[i].enabled = chica != null;
-                }
-            }
+            if (_caraProduccion != null) _caraProduccion.enabled = false;
 
             if (_nombre != null) _nombre.text = NombreDe(seleccion);
+        }
+
+        /// <summary>
+        /// Tiñe listones y marcos del color del bando.
+        ///
+        /// Solo se reasignan al cambiar de bando. Hoy siempre es el mismo, pero en cuanto
+        /// haya observador o repetición el panel seguirá al jugador activo.
+        /// </summary>
+        void AplicarFaccion(int faccion)
+        {
+            if (tema == null || faccion == _faccionPintada) return;
+
+            _faccionPintada = faccion;
+
+            if (_liston != null)
+            {
+                _liston.sprite = tema.ListonPanelDe(faccion);
+                _liston.enabled = _liston.sprite != null;
+            }
+
+            if (_listonNombre != null)
+            {
+                _listonNombre.sprite = tema.ListonNombreDe(faccion);
+                _listonNombre.enabled = _listonNombre.sprite != null;
+            }
+
+            if (_listonAviso != null) _listonAviso.sprite = tema.ListonNombreDe(faccion);
+
+            if (_cajaGrande != null)
+            {
+                _cajaGrande.sprite = tema.CajaDe(faccion);
+                _cajaGrande.enabled = _cajaGrande.sprite != null;
+            }
+
+            var chica = tema.CajaChicaDe(faccion);
+            for (int i = 0; i < _cajasChicas.Count; i++)
+            {
+                if (_cajasChicas[i] == null) continue;
+                _cajasChicas[i].sprite = chica;
+                _cajasChicas[i].enabled = chica != null;
+            }
         }
 
         /// <summary>Un solo tipo se nombra; una mezcla no tiene nombre que valga.</summary>
@@ -327,6 +357,97 @@ namespace TinyTactics.Interfaz
             return primera.datos.nombreVisible;
         }
 
+        // -----------------------------------------------------------------
+        // Ficha de edificio
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// La ficha de un edificio reutiliza la vista individual entera.
+        ///
+        /// No hay una segunda vista porque la información se corresponde una a una: el
+        /// retrato pasa a ser el del castillo y la barra grande, que en una unidad muestra
+        /// la vida, muestra aquí lo que lleva hecho lo que está fabricando. Duplicar la
+        /// vista para cambiar dos textos habría sido cuatrocientas líneas de calco.
+        /// </summary>
+        void MostrarEdificio(SelectorDeUnidades selector, Edificios.Edificio edificio)
+        {
+            Mostrar(true, false);
+            AplicarTransicion();
+
+            var produccion = edificio.GetComponent<Edificios.ProduccionEdificio>();
+
+            if (_versionVista != selector.VersionSeleccion)
+            {
+                _versionVista = selector.VersionSeleccion;
+
+                AplicarFaccion(edificio.faccion);
+
+                if (_cara != null)
+                {
+                    _cara.sprite = edificio.retrato;
+                    _cara.enabled = edificio.retrato != null;
+                }
+
+                if (_nombre != null) _nombre.text = edificio.nombreVisible;
+
+                var datos = produccion != null ? produccion.datosUnidad : null;
+
+                // Azul, no rojo. La barra roja del panel significa vida, y una fabricacion
+                // a medias no es un edificio a medio matar.
+                if (_rellenoVida != null && tema != null && tema.barraGrandeRellenoAzul != null)
+                    _rellenoVida.sprite = tema.barraGrandeRellenoAzul;
+
+                if (_caraProduccion != null)
+                {
+                    var retrato = datos != null && tema != null
+                        ? tema.RetratoDe(datos.tipo, edificio.faccion)
+                        : null;
+
+                    _caraProduccion.sprite = retrato;
+                    _caraProduccion.enabled = retrato != null;
+                }
+
+                if (_ataque != null) _ataque.text = "—";
+                if (_velocidad != null) _velocidad.text = "—";
+                if (_oro != null) _oro.text = datos != null ? datos.oro.ToString() : "—";
+
+                RefrescarAccionesEdificio(produccion);
+            }
+
+            RefrescarProduccion(produccion);
+        }
+
+        void RefrescarProduccion(Edificios.ProduccionEdificio produccion)
+        {
+            float progreso = produccion != null ? produccion.Progreso : 0f;
+            int cola = produccion != null ? produccion.EnCola : 0;
+
+            if (_rellenoVida != null && !Mathf.Approximately(_rellenoVida.fillAmount, progreso))
+                _rellenoVida.fillAmount = progreso;
+
+            // La barra de fabricación va muda. El texto de dentro nació siendo el «60 / 60»
+            // de la vida, y ahí encaja porque una cifra de vida es un dato que se consulta;
+            // el progreso de un entrenamiento ya se lee entero en lo que ha avanzado la
+            // barra, así que la frase solo añadía ruido sobre el relleno.
+            if (_vida != null && _vida.enabled) _vida.enabled = false;
+        }
+
+        /// <summary>Un edificio solo enseña lo que sabe fabricar.</summary>
+        void RefrescarAccionesEdificio(Edificios.ProduccionEdificio produccion)
+        {
+            bool produce = produccion != null && produccion.datosUnidad != null;
+            var color = tema != null ? tema.BotonDe(_faccionPintada) : null;
+
+            for (int i = 0; i < _botones.Count; i++)
+            {
+                var b = _botones[i];
+                bool visible = b.Accion == Accion.EntrenarPawn && produce;
+
+                if (b.Raiz.activeSelf != visible) b.Raiz.SetActive(visible);
+                if (color != null && b.Fondo.sprite != color) b.Fondo.sprite = color;
+            }
+        }
+
         void RefrescarFicha(Unidad unidad)
         {
             if (unidad == null || unidad.datos == null) return;
@@ -341,6 +462,9 @@ namespace TinyTactics.Interfaz
         void RefrescarVida(Unidad unidad)
         {
             if (unidad == null || unidad.datos == null) return;
+
+            // Se vuelve del modo edificio, donde la barra va sin texto.
+            if (_vida != null && !_vida.enabled) _vida.enabled = true;
 
             int max = Mathf.Max(1, unidad.datos.vidaMaxima);
             float f = Mathf.Clamp01((float)unidad.Vida / max);
@@ -458,6 +582,20 @@ namespace TinyTactics.Interfaz
                     new Vector2(ladoCara, ladoCara));
             _cara = cara.GetComponent<Image>();
             _cara.preserveAspect = true;
+
+            // Miniatura de lo que se esta fabricando, en la esquina de la cara del edificio.
+            // Es donde Warcraft pone la cola de produccion: ahi se lee sin estorbar, y no
+            // toca en absoluto la ficha de una unidad, que simplemente la deja apagada.
+            float ladoMini = ladoCara * 0.44f;
+            var miniatura = Caja("Miniatura", cara, null, false);
+            Colocar(miniatura,
+                    new Vector2(ladoCara * 0.5f - ladoMini * 0.5f,
+                                -ladoCara * 0.5f + ladoMini * 0.5f),
+                    new Vector2(ladoMini, ladoMini));
+
+            _caraProduccion = miniatura.GetComponent<Image>();
+            _caraProduccion.preserveAspect = true;
+            _caraProduccion.enabled = false;
 
             float izquierdaAzul = -mitadCaja + MargenCaja + ladoCara + 12f;
             float derechaAzul = mitadCaja - MargenCaja;
@@ -604,7 +742,7 @@ namespace TinyTactics.Interfaz
         // -----------------------------------------------------------------
 
         /// <summary>Qué hace un botón de la rejilla de comandos.</summary>
-        public enum Accion { Atacar, AtacarAuto, Mover, Detener, Curar, Construir }
+        public enum Accion { Atacar, AtacarAuto, Mover, Detener, Curar, Construir, EntrenarPawn }
 
         class Boton
         {
@@ -648,10 +786,15 @@ namespace TinyTactics.Interfaz
             const float Lado = 62f;
             const float Paso = 70f;
 
-            var orden = new[]
+            // Cada acción declara su hueco en la rejilla, en vez de deducirlo de su posición
+            // en la lista. Es lo que permite que entrenar y atacar compartan casilla: nunca
+            // se ven a la vez —una es de edificio y la otra de tropa— y así el comando
+            // principal cae siempre en la misma esquina, se haya seleccionado lo que sea.
+            var orden = new (Accion accion, int ranura)[]
             {
-                Accion.Atacar, Accion.AtacarAuto, Accion.Detener,
-                Accion.Mover, Accion.Curar, Accion.Construir,
+                (Accion.Atacar, 0), (Accion.AtacarAuto, 1), (Accion.Detener, 2),
+                (Accion.Mover, 3), (Accion.Curar, 4), (Accion.Construir, 5),
+                (Accion.EntrenarPawn, 0),
             };
 
             float x0 = -(Columnas - 1) * Paso * 0.5f;
@@ -659,12 +802,15 @@ namespace TinyTactics.Interfaz
 
             for (int i = 0; i < orden.Length; i++)
             {
-                var boton = new Boton { Accion = orden[i] };
+                var boton = new Boton { Accion = orden[i].accion };
+                int ranura = orden[i].ranura;
 
-                boton.Raiz = new GameObject(orden[i].ToString(), typeof(RectTransform));
+                boton.Raiz = new GameObject(orden[i].accion.ToString(), typeof(RectTransform));
                 var rt = (RectTransform)boton.Raiz.transform;
                 rt.SetParent(marco, false);
-                Colocar(rt, new Vector2(x0 + (i % Columnas) * Paso, y0 - (i / Columnas) * Paso),
+                Colocar(rt,
+                        new Vector2(x0 + (ranura % Columnas) * Paso,
+                                    y0 - (ranura / Columnas) * Paso),
                         new Vector2(Lado, Lado));
 
                 var fondo = Caja("Fondo", rt, tema != null ? tema.BotonDe(0) : null, true);
@@ -674,7 +820,7 @@ namespace TinyTactics.Interfaz
                 // Este sí recibe clics: el resto del panel los tiene desactivados.
                 boton.Fondo.raycastTarget = true;
 
-                var icono = Caja("Icono", rt, IconoDe(orden[i]), false);
+                var icono = Caja("Icono", rt, IconoDe(orden[i].accion), false);
                 Colocar(icono, Vector2.zero, new Vector2(Lado * 0.62f, Lado * 0.62f));
                 boton.Icono = icono.GetComponent<Image>();
                 boton.Icono.preserveAspect = true;
@@ -684,12 +830,12 @@ namespace TinyTactics.Interfaz
                 boton.Espera.enabled = false;
 
                 boton.Raiz.AddComponent<AvisoDeBoton>()
-                     .Configurar(TextoDe(orden[i]), MostrarAviso);
+                     .Configurar(TextoDe(orden[i].accion), MostrarAviso);
 
                 var interactivo = boton.Raiz.AddComponent<Button>();
                 interactivo.targetGraphic = boton.Fondo;
 
-                var copia = orden[i];
+                var copia = orden[i].accion;
                 interactivo.onClick.AddListener(() =>
                 {
                     var selector = SelectorDeUnidades.Actual;
@@ -713,8 +859,34 @@ namespace TinyTactics.Interfaz
                 case Accion.Mover: return "Mover  ·  M";
                 case Accion.Detener: return "Detener  ·  S";
                 case Accion.Curar: return "Curar";
+                case Accion.EntrenarPawn: return "Entrenar pawn  ·  50 oro  ·  P";
                 default: return "Construir  ·  semana 06";
             }
+        }
+
+        /// <summary>
+        /// Escribe un aviso en el listón durante unos segundos.
+        ///
+        /// Lo usa la producción para explicar por qué no ha pasado nada al pulsar. Un botón
+        /// que se pulsa y no responde parece roto, y el jugador no tiene forma de saber si
+        /// le falta oro o si la cola está llena.
+        /// </summary>
+        public void Avisar(string texto)
+        {
+            if (string.IsNullOrEmpty(texto)) return;
+
+            MostrarAviso(texto);
+            _avisoHasta = Time.unscaledTime + 2.5f;
+        }
+
+        float _avisoHasta;
+
+        void CaducarAviso()
+        {
+            if (_avisoHasta <= 0f || Time.unscaledTime < _avisoHasta) return;
+
+            _avisoHasta = 0f;
+            MostrarAviso(null);
         }
 
         /// <summary>
@@ -745,6 +917,7 @@ namespace TinyTactics.Interfaz
                 case Accion.Mover: return tema.iconoMover;
                 case Accion.Detener: return tema.iconoDetener;
                 case Accion.Curar: return tema.iconoCurar;
+                case Accion.EntrenarPawn: return tema.iconoEntrenar;
                 default: return tema.iconoConstruir;
             }
         }
@@ -775,7 +948,10 @@ namespace TinyTactics.Interfaz
             {
                 var b = _botones[i];
 
-                bool visible = b.Accion != Accion.Curar && b.Accion != Accion.Construir;
+                bool visible = b.Accion != Accion.Curar &&
+                               b.Accion != Accion.Construir &&
+                               b.Accion != Accion.EntrenarPawn;
+
                 if (b.Accion == Accion.Curar) visible = hayCurandero;
                 if (b.Accion == Accion.Construir) visible = hayConstructor;
 
@@ -901,6 +1077,12 @@ namespace TinyTactics.Interfaz
             texto.raycastTarget = false;
             texto.horizontalOverflow = HorizontalWrapMode.Overflow;
             texto.verticalOverflow = VerticalWrapMode.Overflow;
+
+            // El contorno se pone aquí, en la única fábrica de textos del panel, para que
+            // ninguna etiqueta futura se quede sin él por descuido.
+            var contorno = go.AddComponent<Outline>();
+            contorno.effectColor = colorContorno;
+            contorno.effectDistance = new Vector2(1.6f, -1.6f);
 
             return texto;
         }

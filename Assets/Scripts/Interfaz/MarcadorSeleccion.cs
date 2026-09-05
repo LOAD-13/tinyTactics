@@ -19,6 +19,11 @@ namespace TinyTactics.Interfaz
         [Tooltip("Segundos que tarda en cerrarse. 0 lo deja fijo.")]
         [Range(0f, 0.6f)] public float duracion = 0.13f;
 
+        [Tooltip("Tamano de reposo del corchete. El castillo lo necesita mucho mayor que " +
+                 "una unidad, y la animacion multiplica sobre este valor en vez de " +
+                 "aplastarlo a uno.")]
+        [Range(0.5f, 6f)] public float escalaBase = 1f;
+
         float _reloj;
 
         void OnEnable()
@@ -39,14 +44,14 @@ namespace TinyTactics.Interfaz
         {
             if (duracion <= 0.0001f)
             {
-                transform.localScale = Vector3.one;
+                transform.localScale = new Vector3(escalaBase, escalaBase, 1f);
                 return;
             }
 
             // Salida rápida y frenada al final: el corchete "aterriza" sobre la unidad en
             // vez de llegar a velocidad constante, que se lee como un salto.
             float suave = 1f - (1f - t) * (1f - t);
-            float escala = Mathf.Lerp(escalaInicial, 1f, suave);
+            float escala = Mathf.Lerp(escalaInicial, 1f, suave) * escalaBase;
 
             transform.localScale = new Vector3(escala, escala, 1f);
         }
