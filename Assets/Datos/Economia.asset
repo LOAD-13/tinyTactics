@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd89b5f3256c5f943b61588bbc4fb6d5, type: 3}
+  m_Name: Economia
+  m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosEconomia
+  oroInicial: 200
+  maderaInicial: 150
+  carneInicial: 100
+  extraccionesOro: 50
+  cargaOro: 10
+  golpesOro: 5
+  extraccionesMadera: 12
+  cargaMadera: 10
+  golpesMadera: 6
+  extraccionesCarne: 1
+  cargaCarne: 25
+  golpesCarne: 4
+  alcanceTrabajo: 1.2
+  radioRelevo: 14
+  ritmoSustento: 0.1
+  avisoCarne: 25
+  danoConHambre: 0.5
+  velocidadConHambre: 0.6
+  tiempoPawn: 12
+  colaMaxima: 5
