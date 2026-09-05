@@ -30,12 +30,55 @@ namespace TinyTactics.Nucleo
         public override void Aplicar(Unidad unidad)
         {
             // Moverse cancela el objetivo: si no, la unidad daría dos pasos y volvería
-            // corriendo a pegarle a lo que estuviera atacando antes.
-            var maquina = unidad.GetComponent<MaquinaDeEstados>();
-            if (maquina != null) maquina.Cancelar();
+            // corriendo a pegarle a lo que estuviera atacando antes. Lo mismo con la
+            // recolección: un pawn al que mandas a otro sitio deja el árbol, no vuelve.
+            Soltar(unidad);
 
             var movimiento = unidad.GetComponent<MovimientoUnidad>();
             if (movimiento != null) movimiento.IrA(Destino);
+        }
+
+        /// <summary>
+        /// Corta todo lo que la unidad estuviera haciendo por su cuenta.
+        ///
+        /// Vive aquí y no en cada orden porque el orden de las dos llamadas importa y ya
+        /// se pagó una vez: el recolector se apoya en la máquina para dejar de dibujar el
+        /// trabajo, así que tiene que cancelarse antes de que la máquina se limpie.
+        /// </summary>
+        internal static void Soltar(Unidad unidad)
+        {
+            var recolector = unidad.GetComponent<RecolectorPawn>();
+            if (recolector != null) recolector.Cancelar();
+
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.Cancelar();
+        }
+    }
+
+    /// <summary>
+    /// Mandar a un pawn a explotar un nodo del mapa.
+    ///
+    /// Entra por el mismo sitio que atacar o moverse, y no como una llamada suelta desde
+    /// el ratón, por el ADR-01: el día que la IA tenga que gestionar su economía, emitirá
+    /// exactamente esta orden y no hará falta tocar nada más.
+    /// </summary>
+    public class OrdenRecolectar : Orden
+    {
+        public Mundo.NodoRecurso Nodo;
+
+        public override void Aplicar(Unidad unidad)
+        {
+            var recolector = unidad.GetComponent<RecolectorPawn>();
+
+            // Las unidades militares ignoran la orden en vez de irse encima del árbol.
+            // Seleccionar un grupo mixto y hacer clic en un bosque tiene que mandar a los
+            // pawns y dejar quieto al resto, no arrastrar al ejército entero a talar.
+            if (recolector == null || Nodo == null) return;
+
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.Cancelar();
+
+            recolector.Recolectar(Nodo);
         }
     }
 
@@ -58,6 +101,9 @@ namespace TinyTactics.Nucleo
             // primero, cuándo llega y qué le pasa al objetivo es la máquina de estados:
             // una orden puede tardar, y el ADR-01 no dice que tenga que resolverse en el
             // mismo fotograma, solo que todo entre por aquí.
+            var recolector = unidad.GetComponent<RecolectorPawn>();
+            if (recolector != null) recolector.Cancelar();
+
             var maquina = unidad.GetComponent<MaquinaDeEstados>();
             if (maquina != null) maquina.OrdenarAtaque(Objetivo);
         }
@@ -82,13 +128,33 @@ namespace TinyTactics.Nucleo
         }
     }
 
+    /// <summary>
+    /// Llevar al castillo lo que se tenga en las manos.
+    ///
+    /// Es el clic derecho sobre el propio centro de entrega, como en cualquier RTS. Sin
+    /// ella, un pawn al que has movido a mitad del viaje se queda con el saco puesto y sin
+    /// forma directa de decirle que lo suelte.
+    /// </summary>
+    public class OrdenEntregar : Orden
+    {
+        public override void Aplicar(Unidad unidad)
+        {
+            var recolector = unidad.GetComponent<RecolectorPawn>();
+            if (recolector == null) return;
+
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.Cancelar();
+
+            recolector.Entregar();
+        }
+    }
+
     /// <summary>Quedarse quieto y cancelar lo que estuviera haciendo.</summary>
     public class OrdenDetener : Orden
     {
         public override void Aplicar(Unidad unidad)
         {
-            var maquina = unidad.GetComponent<MaquinaDeEstados>();
-            if (maquina != null) maquina.Cancelar();
+            OrdenMover.Soltar(unidad);
 
             var movimiento = unidad.GetComponent<MovimientoUnidad>();
             if (movimiento != null) movimiento.Detener();
