@@ -28,10 +28,46 @@ namespace TinyTactics.Unidades
         public bool Viva => _vida > 0;
         public bool Seleccionada { get; private set; }
 
+        /// <summary>
+        /// True mientras la unidad recorre una ruta. La mantiene al día
+        /// <c>MovimientoUnidad</c>.
+        ///
+        /// Vive aquí y no se consulta con <c>GetComponent</c> porque la lee el empuje entre
+        /// unidades, que la pregunta por cada vecina y en cada fotograma.
+        /// </summary>
+        public bool EnMarcha { get; set; }
+
         /// <summary>Radio de separación; cae de vuelta a un valor sano si faltan datos.</summary>
         public float Radio => datos != null ? datos.radio : 0.42f;
 
-        public float Velocidad => datos != null ? datos.velocidad : 3f;
+        /// <summary>
+        /// Velocidad efectiva. Con la despensa vacía el ejército se arrastra.
+        ///
+        /// El castigo se aplica aquí y no en cada sitio que lee la velocidad para que sea
+        /// imposible olvidarse de uno: quien pregunte por la velocidad de una unidad
+        /// obtiene la de verdad, con hambre incluida.
+        /// </summary>
+        public float Velocidad =>
+            (datos != null ? datos.velocidad : 3f) * Sustento.FactorVelocidad(faccion);
+
+        /// <summary>Daño efectivo, con el castigo por hambre ya aplicado. Cura si es negativo.</summary>
+        public int Dano
+        {
+            get
+            {
+                if (datos == null || datos.dano == 0) return 0;
+
+                float factor = Sustento.FactorDano(faccion);
+
+                // Se redondea hacia arriba en valor absoluto para que un golpe con hambre
+                // siga haciendo algo: un daño de 5 por 0,5 no puede quedarse en cero, o el
+                // hambre dejaría de ser un castigo para pasar a ser una inmunidad.
+                int valor = Mathf.RoundToInt(Mathf.Abs(datos.dano) * factor);
+                valor = Mathf.Max(1, valor);
+
+                return datos.dano < 0 ? -valor : valor;
+            }
+        }
 
         Transform _anillo;
 
