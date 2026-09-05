@@ -184,6 +184,7 @@ git push origin v0.3.0-s03
    > | Épica | Rama |
    > |---|---|
    > | E03 · Unidades y animación | `feat/E03-unidades-y-animacion` |
+   > | E04 · Economía | `feat/E04-economia` |
 5. **Escenas y prefabs son YAML gigante y no se mergean bien.** Hoy el riesgo es bajo porque
    solo Joaquín programa, pero la disciplina se mantiene: preferir **prefabs** sobre meter
    todo en la escena. Si el día de mañana alguien más toca código, esta regla salva el proyecto.

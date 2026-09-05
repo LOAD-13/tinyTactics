@@ -19,7 +19,7 @@ namespace TinyTactics.Interfaz
     [AddComponentMenu("Tiny Tactics/Cursor del juego")]
     public class CursorJuego : MonoBehaviour
     {
-        enum Forma { Normal, Mano, Prohibido }
+        enum Forma { Normal, Mano, Prohibido, Accion }
 
         [Header("Tema")]
         public TemaInterfaz tema;
@@ -27,6 +27,9 @@ namespace TinyTactics.Interfaz
         [Header("Detección")]
         [Tooltip("Radio en unidades de mundo para considerar que el puntero está sobre una unidad.")]
         public float radioUnidad = 0.55f;
+
+        [Tooltip("Radio para considerar que el puntero está sobre un recurso.")]
+        public float radioNodo = 1.1f;
 
         [Tooltip("Windows admite punteros de 64 px por hardware. Si se ven recortados, " +
                  "poner ForceSoftware: los dibuja el motor, a costa de un frame de retraso.")]
@@ -69,6 +72,18 @@ namespace TinyTactics.Interfaz
             // El índice espacial ya está reconstruido por el selector en este mismo frame.
             if (HayUnidadPropia(punto, faccion)) return Forma.Mano;
 
+            // Un edificio propio también responde al clic.
+            if (Edificios.Edificio.EdificioEn(punto, faccion) != null) return Forma.Mano;
+
+            // Un recurso vivo NUNCA sale como prohibido, y esta comprobación va antes que la
+            // de la grilla precisamente por eso: un árbol y una veta bloquean su celda, así
+            // que la regla de «celda intransitable = prohibido» los marcaba a todos con el
+            // aspa. El jugador leía «aquí no puedes hacer nada» sobre lo único con lo que
+            // sí puede interactuar.
+            var nodo = NodoRecurso.NodoEn(punto, radioNodo);
+            if (nodo != null)
+                return HayRecolector(selector) ? Forma.Accion : Forma.Normal;
+
             // Sin nada seleccionado no hay orden que dar, así que tampoco hay nada que prohibir.
             if (selector == null || selector.Seleccionadas.Count == 0) return Forma.Normal;
 
@@ -77,6 +92,20 @@ namespace TinyTactics.Interfaz
 
             var celda = mundo.Grilla.MundoACelda(punto);
             return mundo.Grilla.Transitable(celda.x, celda.y) ? Forma.Normal : Forma.Prohibido;
+        }
+
+        static bool HayRecolector(SelectorDeUnidades selector)
+        {
+            if (selector == null) return false;
+
+            var seleccion = selector.Seleccionadas;
+            for (int i = 0; i < seleccion.Count; i++)
+            {
+                var u = seleccion[i];
+                if (u != null && u.GetComponent<RecolectorPawn>() != null) return true;
+            }
+
+            return false;
         }
 
         static readonly List<Unidad> _cerca = new List<Unidad>(32);
@@ -107,6 +136,11 @@ namespace TinyTactics.Interfaz
                 case Forma.Mano:
                     Cursor.SetCursor(tema != null ? tema.cursorMano : null,
                                      tema != null ? tema.puntoMano : Vector2.zero, modo);
+                    break;
+
+                case Forma.Accion:
+                    Cursor.SetCursor(tema != null ? tema.cursorAccion : null,
+                                     tema != null ? tema.puntoAccion : Vector2.zero, modo);
                     break;
 
                 case Forma.Prohibido:

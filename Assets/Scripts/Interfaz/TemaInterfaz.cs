@@ -21,7 +21,12 @@ namespace TinyTactics.Interfaz
         public Texture2D cursorMano;
         public Texture2D cursorProhibido;
 
+        [Tooltip("Puntero sobre algo con lo que se puede interactuar: un arbol, una veta " +
+                 "o una oveja con un pawn seleccionado.")]
+        public Texture2D cursorAccion;
+
         [Tooltip("Punto activo de cada puntero, en píxeles desde la esquina superior izquierda.")]
+        public Vector2 puntoAccion = new Vector2(32f, 32f);
         public Vector2 puntoNormal = new Vector2(23f, 18f);
         public Vector2 puntoMano = new Vector2(27f, 18f);
         public Vector2 puntoProhibido = new Vector2(32f, 31f);
@@ -50,9 +55,20 @@ namespace TinyTactics.Interfaz
 
         public Sprite barraGrandeMarco;
         public Sprite barraGrandeRelleno;
+
+        [Tooltip("El mismo relleno en azul. La barra roja significa vida; el progreso de " +
+                 "una fabricacion no es vida y no debe leerse como si lo fuera.")]
+        public Sprite barraGrandeRellenoAzul;
         public Sprite iconoAtaque;
         public Sprite iconoOro;
         public Sprite iconoVelocidad;
+
+        [Header("Recursos")]
+        [Tooltip("Los sacos del propio pack, no iconos genéricos: son los mismos que carga " +
+                 "el pawn, así que el jugador reconoce el contador sin leerlo.")]
+        public Sprite iconoRecursoOro;
+        public Sprite iconoRecursoMadera;
+        public Sprite iconoRecursoCarne;
 
         [Header("Panel de acciones")]
         [Tooltip("Botón cuadrado del pack, reteñido al color de cada facción.")]
@@ -63,6 +79,7 @@ namespace TinyTactics.Interfaz
         public Sprite iconoAtaqueAuto;
         public Sprite iconoCurar;
         public Sprite iconoConstruir;
+        public Sprite iconoEntrenar;
 
         public Sprite BotonDe(int faccion) => Elegir(botones, faccion);
 

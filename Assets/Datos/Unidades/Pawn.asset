@@ -28,14 +28,71 @@ MonoBehaviour:
     ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Idle.png
     fps: 7
     direccion: 0
+    recurso: 0
     enBucle: 1
   - estado: 1
     ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Run.png
     fps: 11
     direccion: 0
+    recurso: 0
     enBucle: 1
   - estado: 2
     ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Interact Axe.png
     fps: 12
     direccion: 0
+    recurso: 0
     enBucle: 0
+  - estado: 4
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Interact Pickaxe.png
+    fps: 12
+    direccion: 0
+    recurso: 1
+    enBucle: 1
+  - estado: 4
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Interact Axe.png
+    fps: 12
+    direccion: 0
+    recurso: 2
+    enBucle: 1
+  - estado: 4
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Interact Knife.png
+    fps: 12
+    direccion: 0
+    recurso: 3
+    enBucle: 1
+  - estado: 1
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Run Gold.png
+    fps: 11
+    direccion: 0
+    recurso: 1
+    enBucle: 1
+  - estado: 1
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Run Wood.png
+    fps: 11
+    direccion: 0
+    recurso: 2
+    enBucle: 1
+  - estado: 1
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Run Meat.png
+    fps: 11
+    direccion: 0
+    recurso: 3
+    enBucle: 1
+  - estado: 0
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Idle Gold.png
+    fps: 7
+    direccion: 0
+    recurso: 1
+    enBucle: 1
+  - estado: 0
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Idle Wood.png
+    fps: 7
+    direccion: 0
+    recurso: 2
+    enBucle: 1
+  - estado: 0
+    ruta: Assets/Tiny Swords/Pawn and Resources/Pawn/{color} Pawn/Pawn_Idle Meat.png
+    fps: 7
+    direccion: 0
+    recurso: 3
+    enBucle: 1

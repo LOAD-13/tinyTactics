@@ -11,6 +11,100 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 05 — Economía · HITO 1 · PC1
+**Entrega:** domingo 06/09/2026 · **Expo:** lunes 07/09/2026 · **Expone:** Joaquín
+**Tag:** _(pendiente)_ `v0.5.0-s05`
+
+### Lo prometido
+HU-026 nodos que se agotan · HU-027 almacén por facción · HU-028 el castillo como entidad
+seleccionable · HU-029 ciclo de recolección · HU-030 animaciones de trabajo y de carga ·
+HU-031 orden contextual de recolectar · HU-032 HUD · HU-033 entrenar pawns · HU-034 sustento.
+
+### Lo entregado
+Las nueve del bloque A, más HU-035 (punto de reunión) que era bloque B. Queda fuera HU-036, el
+resaltado del nodo bajo el cursor. Además, tres cosas que no estaban en la lista y salieron de
+jugar: el criadero de ovejas, la orden de entregar con clic derecho sobre el castillo, y el
+orden de dibujo dinámico.
+
+**El alcance creció a mitad de semana y se decidió a conciencia.** El plan original dejaba el
+castillo como simple punto de entrega. Se amplió a castillo seleccionable que entrena pawns,
+adelantando trabajo de E05, porque sin producción la economía no cierra el bucle: recolectar
+sin nada en qué gastar es un número que sube. Con producción, el oro se convierte en pawns y
+los pawns en más oro, que es de lo que va el género.
+
+### Lo que costó de verdad
+
+**Los pawns recién entrenados no se movían.** Se seleccionaban, aceptaban la orden y no daban un
+paso, sin un solo error por consola. La causa estaba en `PuedePasar`, que exigía que la celda de
+**partida** fuera transitable: cualquier unidad que acabara sobre terreno bloqueado quedaba
+encerrada para siempre, y los pawns nacían dentro del disco de 2,6 tiles del castillo. Se quitó
+la comprobación de origen —entrar en una celda bloqueada lo sigue impidiendo la de destino— y
+además la salida se ajusta a la celda pisable más cercana.
+
+**El dibujo mentía sobre lo que llevaba el pawn, y eso hizo parecer rotos dos arreglos buenos.**
+Al empezar a picar se le dice a la máquina «llevas madera», porque de esa tabla sale la
+herramienta. Si se interrumpía a mitad, el pawn quedaba dibujado con el tronco al hombro sin
+llevar nada. Se reportó como «puede coger otro recurso con uno en la mano» y como «el exploit
+sigue»: los dos eran el mismo sprite mintiendo. Se sincroniza al cancelar.
+
+**El exploit de los golpes.** Parar y reanudar a un pawn conservaba el progreso, así que picar a
+tirones sacaba la carga en una fracción del tiempo. Razonado en el [ADR-13](ARQUITECTURA.md).
+No se llegó a identificar con certeza cuál de las rutas de interrupción se dejaba el contador a
+medias; se cerró la clase entera de fallo en vez de parchear una ruta: el contador exige que el
+trabajo esté encendido, cancelar sale del estado en el acto, y el recolector pone el contador a
+cero al empezar cada tanda.
+
+**Los recursos bloqueaban cinco tiles en vez de uno.** Con radio 1,0 cada veta tapaba su celda y
+las cuatro vecinas; como el oro va en bolsones apretados, seis vetas formaban un bloque macizo y
+el pawn picaba desde el borde de la mancha, a dos tiles del oro. Ahora cada nodo tapa solo su
+celda. El bosque denso sigue siendo un muro, que es lo que pide el GDD, pero deja de inflarse.
+
+**Todos los pawns se ponían en el mismo lado del árbol.** `CeldaTransitableCercana` devuelve la
+primera celda de su barrido, y el barrido recorre los anillos siempre en el mismo orden. Se
+añadió una variante que recorre el anillo entero y elige la más cercana a quien viene.
+
+**El pawn iba a una puerta que no existe.** Entregaba en un punto fijo bajo el castillo, así que
+si volvía por el norte rodeaba el edificio entero. Ahora la distancia se mide al **borde** de la
+huella —medida sobre el PNG: 4,88 × 3,25 unidades, centro 0,27 por debajo del centro del
+lienzo— y el destino es el lado por el que llega.
+
+**El empuje entre unidades era simétrico**, así que el que llegaba a un punto desplazaba al que
+ya estaba plantado allí y el grupo se iba reptando. Ahora el que anda es el que se aparta.
+
+### Decisiones tomadas
+
+- **La carne se renueva y el oro no.** Una veta agotada empuja a salir a disputar la siguiente,
+  que es el conflicto que el agotamiento existe para provocar. Con la carne el efecto sería el
+  contrario: es un gasto continuo, y una despensa seca del todo no crea una decisión, crea una
+  partida perdida sin nada que hacer. La carne es **renta**, no reserva.
+- **La oveja cae de un golpe** y da 25 de carne. No se ordeña por viajes.
+- **Sin piedra.** El pack no trae animación de pawn cargando piedra —solo oro, madera y carne—
+  así que un cuarto recurso obligaría a un peón que vuelve de la cantera con las manos vacías.
+  Además diluiría la carne, que es lo que distingue nuestra economía. Las rocas se quedan de
+  decoración, canalizando el movimiento.
+- **Sin población esta semana.** El GDD la fija en 5 iniciales y +5 por casa; con la escuadra de
+  pruebas de diez unidades, el tope bloquearía la producción antes del primer pawn. Entra en la
+  semana 06 junto con las casas, que es cuando existe algo con lo que subirla.
+- **La decisión de recolectar vive fuera de la máquina de estados.** La máquina dice qué se
+  dibuja; el recolector decide qué se hace. Mantiene el ADR-11 sin engordar el archivo.
+- **`Economia.asset` no se sobrescribe al regenerar la escena**, al revés que el catálogo de
+  unidades. Son los números que Raúl va a mover en la semana 16 y regenerar un mapa no puede
+  borrarle una tarde de ajustes.
+- **Una orden ya no le quita la carga al pawn.** Perdía lo recolectado, o sea que mover a un
+  peón borraba en silencio varios segundos de trabajo.
+
+### Andamio que hay que retirar
+- El **poste de entrenamiento** y la **escuadra de diez unidades** por base. Siguen ahí a
+  propósito: le dan al consumo de carne algo con qué morder. Se retiran en E05/E06.
+- **`DeambularPawn` ya se borró**: era código muerto desde que llegó la máquina de estados.
+
+### Pendiente
+- HU-036, resaltado del nodo bajo el cursor.
+- Población, construcción y el botón Construir (E05).
+- El balance de la carne está sin calibrar: todo el ritmo cuelga de `ritmoSustento`.
+
+---
+
 ## Semana 04 — Unidades y animación
 **Entrega:** domingo 30/08/2026 · **Expo:** lunes 31/08/2026 · **Expone:** Raúl
 **Tag:** _(pendiente)_ `v0.4.0-s04`

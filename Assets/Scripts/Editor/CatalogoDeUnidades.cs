@@ -150,13 +150,42 @@ namespace TinyTactics.EditorHerramientas
                     d.vidaMaxima = 60; d.dano = 5; d.alcance = 0.5f;
                     d.velocidad = 3.0f; d.radio = 0.42f; d.carnePorSegundo = 0.10f;
                     d.oro = 50; d.madera = 0;
+                    // Doce tiras: la tabla del pawn se indexa por estado y por recurso.
+                    // El pack ya trae las tres herramientas y los tres sacos, así que la
+                    // economía entera se dibuja sin una sola pieza de arte nueva.
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirPawn}/Pawn_Idle.png", 7f),
                         Clip(EstadoUnidad.Moviendo, $"{DirPawn}/Pawn_Run.png", 11f),
-                        // El pawn no pelea: su «ataque» es el gesto de trabajar, que es lo
-                        // que se reutilizará para talar y minar en la semana 05.
+
+                        // El pawn no pelea: su «ataque» es el gesto de trabajar.
                         Clip(EstadoUnidad.Atacando, $"{DirPawn}/Pawn_Interact Axe.png", 12f, false),
+
+                        // Trabajando: cada recurso tiene su herramienta.
+                        Faena(EstadoUnidad.Trabajando, TipoRecurso.Oro,
+                              $"{DirPawn}/Pawn_Interact Pickaxe.png", 12f),
+                        Faena(EstadoUnidad.Trabajando, TipoRecurso.Madera,
+                              $"{DirPawn}/Pawn_Interact Axe.png", 12f),
+                        Faena(EstadoUnidad.Trabajando, TipoRecurso.Carne,
+                              $"{DirPawn}/Pawn_Interact Knife.png", 12f),
+
+                        // De vuelta al castillo, con el saco a la espalda.
+                        Faena(EstadoUnidad.Moviendo, TipoRecurso.Oro,
+                              $"{DirPawn}/Pawn_Run Gold.png", 11f),
+                        Faena(EstadoUnidad.Moviendo, TipoRecurso.Madera,
+                              $"{DirPawn}/Pawn_Run Wood.png", 11f),
+                        Faena(EstadoUnidad.Moviendo, TipoRecurso.Carne,
+                              $"{DirPawn}/Pawn_Run Meat.png", 11f),
+
+                        // Y parado, que también se le tiene que ver la carga: si solo
+                        // cambiara al andar, un pawn cargado que se detiene soltaría el
+                        // saco de golpe sin haber llegado a ninguna parte.
+                        Faena(EstadoUnidad.Reposo, TipoRecurso.Oro,
+                              $"{DirPawn}/Pawn_Idle Gold.png", 7f),
+                        Faena(EstadoUnidad.Reposo, TipoRecurso.Madera,
+                              $"{DirPawn}/Pawn_Idle Wood.png", 7f),
+                        Faena(EstadoUnidad.Reposo, TipoRecurso.Carne,
+                              $"{DirPawn}/Pawn_Idle Meat.png", 7f),
                     };
                     break;
             }
@@ -232,6 +261,17 @@ namespace TinyTactics.EditorHerramientas
         static ClipUnidad Clip(EstadoUnidad estado, string ruta, float fps, bool bucle = true) =>
             new ClipUnidad { estado = estado, ruta = ruta, fps = fps, enBucle = bucle };
 
+        /// <summary>Tira ligada a un recurso: la herramienta con la que pica o el saco que lleva.</summary>
+        static ClipUnidad Faena(EstadoUnidad estado, TipoRecurso recurso, string ruta, float fps) =>
+            new ClipUnidad
+            {
+                estado = estado,
+                recurso = recurso,
+                ruta = ruta,
+                fps = fps,
+                enBucle = true,
+            };
+
         // -----------------------------------------------------------------
 
         /// <summary>
@@ -265,6 +305,7 @@ namespace TinyTactics.EditorHerramientas
                 {
                     estado = clip.estado,
                     direccion = clip.direccion,
+                    recurso = clip.recurso,
                     frames = frames.ToArray(),
                     fps = clip.fps,
                     enBucle = clip.enBucle,

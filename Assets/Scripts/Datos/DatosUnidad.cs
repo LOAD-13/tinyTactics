@@ -6,10 +6,24 @@ namespace TinyTactics.Datos
     public enum TipoUnidad { Pawn, Guerrero, Lancero, Arquero, Monje }
 
     /// <summary>
-    /// En qué está una unidad. El orden importa: define la prioridad al resolver
-    /// transiciones, de menor a mayor. Morir gana a todo.
+    /// En qué está una unidad. La prioridad NO sale de este orden: la resuelve
+    /// <c>MaquinaDeEstados.Decidir()</c> con una cadena explícita, y morir gana a todo.
+    ///
+    /// <b>Trabajando va al final a propósito.</b> Los valores del enum se serializan en la
+    /// escena dentro de las tiras de animación; meterlo en medio habría corrido
+    /// <c>Atacando</c> y <c>Muriendo</c> un puesto y las unidades ya guardadas atacarían
+    /// con la animación de morir. Añadir al final es gratis, insertar no.
     /// </summary>
-    public enum EstadoUnidad { Reposo, Moviendo, Atacando, Muriendo }
+    public enum EstadoUnidad { Reposo, Moviendo, Atacando, Muriendo, Trabajando }
+
+    /// <summary>
+    /// Los tres recursos del juego, más el caso normal de no llevar nada.
+    ///
+    /// Sirve para dos cosas a la vez: qué da un nodo del mapa y qué lleva un pawn encima.
+    /// Es el mismo dato mirado desde los dos lados, y unificarlo evita tener que traducir
+    /// entre dos enums cada vez que un pawn deposita.
+    /// </summary>
+    public enum TipoRecurso { Ninguno, Oro, Madera, Carne }
 
     /// <summary>
     /// Hacia dónde apunta un ataque.
@@ -38,6 +52,9 @@ namespace TinyTactics.Datos
 
         [Tooltip("Solo para ataques direccionales. El lancero es la única unidad que los tiene.")]
         public DireccionAtaque direccion = DireccionAtaque.Ninguna;
+
+        [Tooltip("Recurso con el que trabaja o que lleva encima. Solo lo usa el pawn.")]
+        public TipoRecurso recurso = TipoRecurso.Ninguno;
 
         [Tooltip("Reposo y caminar se repiten; atacar y morir se reproducen una sola vez.")]
         public bool enBucle = true;
@@ -94,12 +111,30 @@ namespace TinyTactics.Datos
         /// Que falte no es un error: no todas las unidades atacan igual, y ninguna del
         /// pack tiene animación de muerte. Quien pregunte decide qué hacer con el hueco.
         /// </summary>
-        public ClipUnidad ClipDe(EstadoUnidad estado)
+        public ClipUnidad ClipDe(EstadoUnidad estado) => ClipDe(estado, TipoRecurso.Ninguno);
+
+        /// <summary>
+        /// Clip de un estado teniendo en cuenta lo que la unidad lleva o trabaja.
+        ///
+        /// La tabla se indexa por <b>estado × recurso</b> desde que existe la economía: un
+        /// pawn cargado de madera no se dibuja igual andando que uno con las manos vacías,
+        /// y el pack trae las doce combinaciones por color. Si no hay entrada para el
+        /// recurso pedido se cae a la versión sin carga, que es la de siempre.
+        /// </summary>
+        public ClipUnidad ClipDe(EstadoUnidad estado, TipoRecurso recurso)
         {
             if (clips == null) return null;
 
             for (int i = 0; i < clips.Length; i++)
-                if (clips[i] != null && clips[i].estado == estado) return clips[i];
+                if (clips[i] != null && clips[i].estado == estado && clips[i].recurso == recurso)
+                    return clips[i];
+
+            if (recurso == TipoRecurso.Ninguno) return null;
+
+            for (int i = 0; i < clips.Length; i++)
+                if (clips[i] != null && clips[i].estado == estado &&
+                    clips[i].recurso == TipoRecurso.Ninguno)
+                    return clips[i];
 
             return null;
         }

@@ -1,17 +1,10 @@
 fileFormatVersion: 2
-guid: a1c1e555a725e4b15b512516e3dec87c
-AssetOrigin:
-  serializedVersion: 1
-  productId: 352566
-  packageName: Tiny Swords
-  packageVersion: 1.0
-  assetPath: Assets/Tiny Swords/Pawn and Resources/Wood/Wood Resource/Wood Resource.png
-  uploadId: 844324
+guid: 157f201dd3d028f4684c1ee2847007f8
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -3791318427878180659
-    second: Wood Resource_0
+      213: -8656652518740787937
+    second: BarraGrandeRellenoAzul_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -108,7 +101,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 0
+    textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -120,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Wood Resource_0
+      name: BarraGrandeRellenoAzul_0
       rect:
         serializedVersion: 2
-        x: 8
-        y: 17
-        width: 49
-        height: 30
+        x: 0
+        y: 11
+        width: 64
+        height: 26
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -135,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: dc8bde32af7826bc0800000000000000
-      internalID: -3791318427878180659
+      spriteID: f1df67c26646dd780800000000000000
+      internalID: -8656652518740787937
       vertices: []
       indices: 
       edges: []
@@ -155,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Wood Resource_0: -3791318427878180659
+      BarraGrandeRellenoAzul_0: -8656652518740787937
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -29,6 +29,10 @@ namespace TinyTactics.Entrada
         [Tooltip("Radio en unidades de mundo para atrapar una unidad con un clic simple.")]
         public float radioClic = 0.55f;
 
+        [Tooltip("Radio para atrapar un árbol, una veta o una oveja. Más generoso que el " +
+                 "de unidad: los recursos son objetos grandes y con mucho aire alrededor.")]
+        public float radioNodo = 1.1f;
+
         [Header("Apariencia de la caja")]
         public Color colorRelleno = new Color(0.30f, 0.85f, 0.75f, 0.15f);
         public Color colorBorde = new Color(0.35f, 0.95f, 0.85f, 0.9f);
@@ -49,6 +53,13 @@ namespace TinyTactics.Entrada
         bool _avisado;
 
         public IReadOnlyList<Unidad> Seleccionadas => _seleccionadas;
+
+        /// <summary>
+        /// Edificio elegido, o null. Es <b>excluyente</b> con la selección de unidades:
+        /// en cualquier RTS clásico un edificio no forma grupo con las tropas, porque las
+        /// órdenes que acepta no tienen nada que ver con las de una unidad.
+        /// </summary>
+        public Edificios.Edificio EdificioSeleccionado { get; private set; }
 
         /// <summary>
         /// Instancia activa. La usan el panel y el cursor para leer la selección sin
@@ -124,6 +135,15 @@ namespace TinyTactics.Entrada
         /// </summary>
         public void PedirAccion(Interfaz.PanelDeUnidad.Accion accion)
         {
+            // Entrenar es la única acción de edificio, y no necesita objetivo: se pulsa y
+            // se encola. Va antes de la comprobación de unidades porque cuando hay un
+            // edificio elegido no hay ninguna unidad seleccionada.
+            if (accion == Interfaz.PanelDeUnidad.Accion.EntrenarPawn)
+            {
+                Entrenar();
+                return;
+            }
+
             if (_seleccionadas.Count == 0) return;
 
             switch (accion)
@@ -145,10 +165,38 @@ namespace TinyTactics.Entrada
             }
         }
 
+        /// <summary>Encola una unidad en el edificio elegido y avisa si no se ha podido.</summary>
+        void Entrenar()
+        {
+            if (EdificioSeleccionado == null) return;
+
+            var produccion = EdificioSeleccionado.GetComponent<Edificios.ProduccionEdificio>();
+            if (produccion == null) return;
+
+            if (produccion.Encolar(out string motivo)) return;
+
+            // El aviso viaja al mismo listón donde se lee qué hace cada botón. Sin él, un
+            // clic sin oro no hace absolutamente nada y el jugador no sabe si el botón está
+            // roto o si es que no le alcanza.
+            var panel = Interfaz.PanelDeUnidad.Actual;
+            if (panel != null) panel.Avisar(motivo);
+        }
+
         void LeerAtajos()
         {
             var teclado = Keyboard.current;
-            if (teclado == null || _seleccionadas.Count == 0) return;
+
+            if (teclado == null) return;
+
+            if (EdificioSeleccionado != null && _seleccionadas.Count == 0)
+            {
+                if (teclado.pKey.wasPressedThisFrame)
+                    PedirAccion(Interfaz.PanelDeUnidad.Accion.EntrenarPawn);
+
+                return;
+            }
+
+            if (_seleccionadas.Count == 0) return;
 
             if (teclado.aKey.wasPressedThisFrame)
                 PedirAccion(Interfaz.PanelDeUnidad.Accion.Atacar);
@@ -253,7 +301,6 @@ namespace TinyTactics.Entrada
         void LeerBotonDerecho(Mouse raton)
         {
             if (!raton.rightButton.wasPressedThisFrame) return;
-            if (_seleccionadas.Count == 0) return;
             if (SobreLaInterfaz(raton.position.ReadValue())) return;
 
             var mundo = MundoJuego.Actual;
@@ -261,8 +308,40 @@ namespace TinyTactics.Entrada
 
             Vector3 punto = PuntoEnMundo(raton.position.ReadValue());
 
+            // Con un edificio elegido, el clic derecho no manda tropas: fija dónde salen
+            // las que fabrique. Es el punto de reunión de toda la vida.
+            if (EdificioSeleccionado != null && _seleccionadas.Count == 0)
+            {
+                FijarPuntoDeReunion(punto);
+                return;
+            }
+
+            if (_seleccionadas.Count == 0) return;
+
+            // Sobre el propio centro de entrega, los pawns cargados van a soltar. Es la
+            // pareja natural del clic sobre un recurso, y la única forma de decirle a un
+            // peón al que has interrumpido a mitad de viaje que termine lo que llevaba.
+            var propio = Edificios.Edificio.EdificioEn(punto, faccionJugador);
+            if (propio != null && propio.centroDeEntrega && HayCargado())
+            {
+                Autoridad.Emitir(new OrdenEntregar { Faccion = faccionJugador }, _seleccionadas);
+                return;
+            }
+
+            // Sobre un árbol, una veta o una oveja, los pawns se ponen a trabajar. El resto
+            // del grupo ignora la orden: mandar a un guerrero a talar no significa nada, y
+            // arrastrar al ejército entero al bosque sería peor que no hacer nada.
+            var nodo = NodoRecurso.NodoEn(punto, radioNodo);
+            if (nodo != null && HayRecolector())
+            {
+                Autoridad.Emitir(
+                    new OrdenRecolectar { Faccion = faccionJugador, Nodo = nodo },
+                    _seleccionadas);
+                return;
+            }
+
             // Clic derecho sobre un enemigo = atacar; sobre el suelo = moverse. Es el
-            // gesto contextual de cualquier RTS: un solo botón, dos órdenes distintas
+            // gesto contextual de cualquier RTS: un solo botón, varias órdenes distintas
             // según lo que haya debajo.
             var victima = UnidadEn(punto, false);
             if (victima != null)
@@ -364,11 +443,39 @@ namespace TinyTactics.Entrada
 
             if (!acumula) LimpiarSeleccion();
 
-            if (elegida != null) Anadir(elegida);
+            if (elegida != null)
+            {
+                SeleccionarEdificio(null);
+                Anadir(elegida);
+                return;
+            }
+
+            // Solo si el clic no ha cogido ninguna unidad se mira si hay un edificio
+            // debajo. Al revés, el castillo se comería los clics de los pawns que tiene
+            // delante, que es justo donde se amontonan al depositar.
+            if (!acumula) SeleccionarEdificio(Edificios.Edificio.EdificioEn(mundo, faccionJugador));
+        }
+
+        void SeleccionarEdificio(Edificios.Edificio edificio)
+        {
+            if (EdificioSeleccionado == edificio) return;
+
+            if (EdificioSeleccionado != null) EdificioSeleccionado.Seleccionar(false);
+
+            EdificioSeleccionado = edificio;
+
+            if (edificio != null) edificio.Seleccionar(true);
+
+            VersionSeleccion++;
         }
 
         void SeleccionarEnCaja(Vector2 esquinaA, Vector2 esquinaB, bool acumula)
         {
+            // La caja de arrastre nunca coge edificios. Es la convención del género: si
+            // arrastrar por encima de la base metiera el castillo en el grupo, la mitad de
+            // las órdenes del jugador irían dirigidas a algo que no se mueve.
+            if (!acumula) SeleccionarEdificio(null);
+
             if (!acumula) LimpiarSeleccion();
 
             Vector3 a = PuntoEnMundo(esquinaA);
@@ -388,6 +495,50 @@ namespace TinyTactics.Entrada
 
                 Anadir(u);
             }
+        }
+
+        /// <summary>¿Hay algún pawn con las manos ocupadas entre lo seleccionado?</summary>
+        bool HayCargado()
+        {
+            for (int i = 0; i < _seleccionadas.Count; i++)
+            {
+                var u = _seleccionadas[i];
+                if (u == null) continue;
+
+                var r = u.GetComponent<RecolectorPawn>();
+                if (r != null && r.Carga != Datos.TipoRecurso.Ninguno) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>¿Hay algún pawn entre lo seleccionado?</summary>
+        bool HayRecolector()
+        {
+            for (int i = 0; i < _seleccionadas.Count; i++)
+            {
+                var u = _seleccionadas[i];
+                if (u != null && u.GetComponent<RecolectorPawn>() != null) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Fija dónde salen las unidades que fabrique el edificio elegido.
+        ///
+        /// Si el punto cae sobre un recurso, el pawn nuevo se pone a recolectarlo nada más
+        /// nacer. Es un detalle pequeño y es lo que separa tener que recoger a mano cada
+        /// pawn de poder dejar la base produciendo mientras peleas en la otra punta.
+        /// </summary>
+        void FijarPuntoDeReunion(Vector3 punto)
+        {
+            var produccion = EdificioSeleccionado.GetComponent<Edificios.ProduccionEdificio>();
+            if (produccion == null) return;
+
+            produccion.tienePuntoDeReunion = true;
+            produccion.puntoDeReunion = punto;
+            produccion.nodoDeReunion = NodoRecurso.NodoEn(punto, radioNodo);
         }
 
         /// <summary>¿Hay algún curandero entre lo seleccionado?</summary>
@@ -454,6 +605,18 @@ namespace TinyTactics.Entrada
         /// </summary>
         void PurgarSeleccion()
         {
+            // Un edificio destruido o apagado no puede seguir elegido. Se compara con
+            // ReferenceEquals porque un objeto destruido de Unity finge ser null en el
+            // operador normal: sin esto la referencia muerta se quedaría dentro para
+            // siempre y el panel intentaría dibujar un castillo que ya no existe.
+            if (!ReferenceEquals(EdificioSeleccionado, null) &&
+                (EdificioSeleccionado == null ||
+                 !EdificioSeleccionado.gameObject.activeInHierarchy))
+            {
+                EdificioSeleccionado = null;
+                VersionSeleccion++;
+            }
+
             for (int i = _seleccionadas.Count - 1; i >= 0; i--)
             {
                 var u = _seleccionadas[i];

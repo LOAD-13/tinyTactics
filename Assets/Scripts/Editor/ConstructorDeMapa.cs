@@ -4,8 +4,10 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Tilemaps;
+using TinyTactics.Edificios;
 using TinyTactics.Entrada;
 using TinyTactics.Mundo;
+using TinyTactics.Nucleo;
 using TinyTactics.Unidades;
 using TinyTactics.Movimiento;
 using TinyTactics.Datos;
@@ -303,6 +305,39 @@ namespace TinyTactics.EditorHerramientas
             var go = new GameObject("Mundo");
             var mundo = go.AddComponent<MundoJuego>();
             mundo.definicion = definicion;
+
+            // La economía cuelga del mismo objeto que el mundo: las dos son estado global
+            // de la partida y tenerlas juntas evita buscar dónde vive cada cosa.
+            var economia = go.AddComponent<Economia>();
+            economia.datos = ObtenerDatosEconomia();
+            economia.bandos = Mathf.Max(1, definicion.bandos);
+
+            go.AddComponent<Sustento>();
+        }
+
+        /// <summary>
+        /// El asset de balance económico. Se crea vacío la primera vez y luego <b>no se
+        /// vuelve a tocar</b>, al revés que el catálogo de unidades.
+        ///
+        /// El motivo es que estos números son exactamente los que Raúl va a mover en las
+        /// sesiones de balance: si regenerar la escena los devolviera a los de fábrica, cada
+        /// cambio de mapa borraría una tarde de ajustes sin avisar.
+        /// </summary>
+        static DatosEconomia ObtenerDatosEconomia()
+        {
+            AsegurarCarpeta(CarpetaDatos);
+
+            const string ruta = CarpetaDatos + "/Economia.asset";
+
+            var datos = AssetDatabase.LoadAssetAtPath<DatosEconomia>(ruta);
+            if (datos != null) return datos;
+
+            datos = ScriptableObject.CreateInstance<DatosEconomia>();
+            AssetDatabase.CreateAsset(datos, ruta);
+            AssetDatabase.SaveAssets();
+
+            Debug.Log($"[Tiny Tactics] Datos de economía creados en {ruta}");
+            return datos;
         }
 
         static CamaraRTS CrearCamara(DefinicionMapa definicion, MapaGenerado mapa)
@@ -569,6 +604,8 @@ namespace TinyTactics.EditorHerramientas
             var rnd = new System.Random(definicion.semilla + 555);
             var raiz = new GameObject("Contenido").transform;
 
+            _altoMapa = definicion.alto;
+
             var arboles = CargarVariantes(raiz, "Árboles", new[]
             {
                 $"{DirRecursos}/Wood/Trees/Tree1.png",
@@ -630,11 +667,127 @@ namespace TinyTactics.EditorHerramientas
             Sembrar(mapa.RocasAgua, rocasAgua, definicion.alto, rnd, 0f,
                     animar: true, fps: 7f, ordenExtra: -25, ordenAbsoluto: true);
 
+            // Hasta aquí son decoración. A partir de aquí, economía: los mismos objetos
+            // aprenden qué dan, cuánto les queda y qué dejan al agotarse.
+            var mundo = Object.FindFirstObjectByType<MundoJuego>();
+
+            MarcarNodos(arboles.Padre, mapa.Arboles, TipoRecurso.Madera,
+                        mundo != null ? mundo.radioArbol : 1.1f, CargarTocones());
+
+            MarcarNodos(oro.Padre, mapa.Oro, TipoRecurso.Oro,
+                        mundo != null ? mundo.radioOro : 1.0f, null);
+
+            // La oveja no bloquea la grilla porque se mueve, y marcar celdas con algo que
+            // cambia de sitio ensuciaría el pathfinding sin arreglar nada.
+            MarcarNodos(ovejas.Padre, mapa.Ovejas, TipoRecurso.Carne, 0f, null, seMueve: true);
+
+            // El rebaño pasta, o sea que se mueve: mismo tratamiento que las unidades.
+            for (int i = 0; i < ovejas.Padre.childCount; i++)
+                ovejas.Padre.GetChild(i).gameObject
+                      .AddComponent<OrdenPorProfundidad>().alto = definicion.alto;
+
+            PrepararCriadero(mundo, ovejas.Padre, mapa, definicion.alto);
+
             ColocarBases(raiz, mapa, definicion.alto, rnd);
             SembrarNubes(raiz, definicion, rnd);
 
             if (definicion.patitoDeGoma)
                 SoltarPatito(raiz, definicion, mapa, rnd);
+        }
+
+        // -----------------------------------------------------------------
+        // Nodos de recurso
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Convierte en nodos explotables los objetos que <see cref="Sembrar"/> acaba de
+        /// crear.
+        /// </summary>
+        /// <remarks>
+        /// Se emparejan hijo e índice porque <c>Sembrar</c> recorre la lista de celdas en
+        /// orden y crea exactamente un objeto por celda. Es la misma pareja que ya usa
+        /// <see cref="SoltarAPastar"/>, y depende de ese contrato: si algún día se
+        /// sembraran objetos salteados habría que guardar la celda en el propio objeto.
+        /// </remarks>
+        static void MarcarNodos(Transform padre, List<Vector2Int> celdas, TipoRecurso recurso,
+                                float radioBloqueo, Sprite[] restos, bool seMueve = false)
+        {
+            if (padre == null || celdas == null) return;
+
+            int total = Mathf.Min(padre.childCount, celdas.Count);
+
+            for (int i = 0; i < total; i++)
+            {
+                var nodo = padre.GetChild(i).gameObject.AddComponent<NodoRecurso>();
+                nodo.recurso = recurso;
+                nodo.celda = celdas[i];
+                nodo.radioBloqueo = radioBloqueo;
+                nodo.seMueve = seMueve;
+
+                if (restos != null && restos.Length > 0) nodo.Configurar(restos);
+            }
+        }
+
+        /// <summary>
+        /// Monta el criadero: una oveja apagada de molde y los focos donde pueden nacer.
+        /// </summary>
+        /// <remarks>
+        /// La plantilla se saca <b>clonando una oveja ya sembrada</b> en vez de construir
+        /// otra desde cero. Así se hereda de un golpe todo lo que ya se le hizo —las tres
+        /// tiras de animación resueltas a sprites, el pastoreo, el nodo de recurso— y, sobre
+        /// todo, es imposible que el molde y las ovejas del mapa acaben siendo cosas
+        /// distintas porque alguien tocó una de las dos ramas y se olvidó de la otra.
+        /// </remarks>
+        static void PrepararCriadero(MundoJuego mundo, Transform padreOvejas,
+                                     MapaGenerado mapa, int alto)
+        {
+            if (mundo == null || padreOvejas == null || padreOvejas.childCount == 0)
+            {
+                Debug.LogWarning("[Tiny Tactics] Sin ovejas sembradas: no hay criadero.");
+                return;
+            }
+
+            var molde = Object.Instantiate(padreOvejas.GetChild(0).gameObject);
+            molde.name = "PlantillaOveja";
+            molde.transform.SetParent(mundo.transform, false);
+            molde.SetActive(false);
+
+            // Los focos: cada base, cada expansión y una muestra repartida de donde ya
+            // pastaba el rebaño original. Con solo las bases, el centro del mapa se quedaría
+            // pelado en cuanto se sacrificaran las primeras.
+            var focos = new List<Vector2Int>();
+            focos.AddRange(mapa.Bases);
+            focos.AddRange(mapa.Expansiones);
+
+            int paso = Mathf.Max(1, mapa.Ovejas.Count / 10);
+            for (int i = 0; i < mapa.Ovejas.Count; i += paso) focos.Add(mapa.Ovejas[i]);
+
+            var criadero = mundo.gameObject.AddComponent<CriaderoOvejas>();
+            criadero.Configurar(molde, padreOvejas, focos);
+            criadero.mundoAlto = alto;
+        }
+
+        /// <summary>
+        /// Los tocones que quedan donde había un árbol.
+        ///
+        /// Es el único de los tres recursos que deja rastro, y no es capricho: un bosque que
+        /// se evapora borra la historia de la partida, mientras que un claro lleno de
+        /// tocones dice de un vistazo que por ahí ya pasó alguien.
+        /// </summary>
+        static Sprite[] CargarTocones()
+        {
+            var salida = new List<Sprite>();
+
+            for (int i = 1; i <= 4; i++)
+            {
+                var lista = CargarSpritesOrdenados($"{DirRecursos}/Wood/Trees/Stump {i}.png");
+                if (lista.Count > 0) salida.Add(lista[0]);
+            }
+
+            if (salida.Count == 0)
+                Debug.LogWarning("[Tiny Tactics] No encuentro los tocones; los árboles talados desaparecerán.");
+
+            return salida.ToArray();
         }
 
         // -----------------------------------------------------------------
@@ -664,6 +817,9 @@ namespace TinyTactics.EditorHerramientas
         /// </summary>
         static TemaInterfaz _tema;
 
+        /// <summary>Alto del mapa en curso. Lo necesita el orden por profundidad.</summary>
+        static int _altoMapa = 128;
+
         /// <summary>
         /// Poste de entrenamiento delante de la escuadra: una oveja roja e indestructible.
         ///
@@ -689,7 +845,7 @@ namespace TinyTactics.EditorHerramientas
 
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = tiras[0].frames[0];
-            sr.sortingOrder = alto - celda.y + 3;
+            sr.sortingOrder = OrdenPorProfundidad.Calcular(alto, celda.y) + 3;
 
             // Teñida para que se distinga de las ovejas de verdad que pastan por el mapa.
             sr.color = new Color(1f, 0.45f, 0.45f);
@@ -741,9 +897,9 @@ namespace TinyTactics.EditorHerramientas
             return _flecha;
         }
 
-        static void CrearUnidad(Transform padre, DatosUnidad datos, int faccion,
-                                MaquinaDeEstados.Tira[] tiras,
-                                Vector3 posicion, int orden, string nombre)
+        static GameObject CrearUnidad(Transform padre, DatosUnidad datos, int faccion,
+                                      MaquinaDeEstados.Tira[] tiras,
+                                      Vector3 posicion, int orden, string nombre)
         {
             var go = new GameObject(nombre);
             go.transform.SetParent(padre, false);
@@ -758,15 +914,28 @@ namespace TinyTactics.EditorHerramientas
             var unidad = go.AddComponent<Unidad>();
             unidad.Configurar(datos, faccion);
 
+            // Las unidades andan, asi que su profundidad no se puede dejar fijada aqui.
+            var profundidad = go.AddComponent<OrdenPorProfundidad>();
+            profundidad.alto = _altoMapa;
+            profundidad.extra = 2;
+
             go.AddComponent<MovimientoUnidad>();
 
             // La máquina va después del movimiento: en Awake lo busca por GetComponent
             // para saber si la unidad está andando.
             go.AddComponent<MaquinaDeEstados>().Configurar(tiras, ObtenerPolvo(), ObtenerEfectoCura(), ObtenerFlecha());
 
+            // Solo el pawn recolecta. Que el componente exista únicamente donde tiene
+            // sentido es además lo que hace que un guerrero ignore la orden de talar sin
+            // ninguna comprobación de tipo por el medio.
+            if (datos != null && datos.tipo == TipoUnidad.Pawn && !datos.invulnerable)
+                go.AddComponent<RecolectorPawn>();
+
             // Marcador y barra salen del pack, no de una textura dibujada por codigo.
             ConstructorDeInterfaz.AnadirMarcador(go, _tema, faccion, orden);
             ConstructorDeInterfaz.AnadirBarraDeVida(go, _tema, orden);
+
+            return go;
         }
 
         /// <summary>
@@ -858,15 +1027,7 @@ namespace TinyTactics.EditorHerramientas
                     $"Assets/Tiny Swords/Buildings/{color} Buildings/Castle.png");
 
                 if (castillo.Count > 0)
-                {
-                    var go = new GameObject("Castillo");
-                    go.transform.SetParent(grupo, false);
-                    go.transform.position = new Vector3(celda.x + 0.5f, celda.y + 1.4f, 0f);
-
-                    var sr = go.AddComponent<SpriteRenderer>();
-                    sr.sprite = castillo[0];
-                    sr.sortingOrder = alto - celda.y;
-                }
+                    CrearCastillo(grupo, castillo[0], celda, alto, i);
 
                 // Unidades reales: seleccionables, animadas y capaces de recibir órdenes.
                 for (int p = 0; p < EscuadraInicial.Length; p++)
@@ -887,6 +1048,7 @@ namespace TinyTactics.EditorHerramientas
                                 alto - celda.y + 2, $"{tipo}_{p + 1}");
                 }
 
+                PrepararProduccion(grupo, i, alto - celda.y + 2);
                 CrearMuneco(grupo, celda, alto);
             }
 
@@ -898,6 +1060,99 @@ namespace TinyTactics.EditorHerramientas
                 go.transform.SetParent(padre, false);
                 go.transform.position = new Vector3(celda.x + 0.5f, celda.y + 0.5f, 0f);
             }
+        }
+
+        /// <summary>
+        /// El castillo deja de ser un dibujo: sabe de qué bando es, recibe recursos y se
+        /// puede seleccionar.
+        /// </summary>
+        static void CrearCastillo(Transform grupo, Sprite sprite, Vector2Int celda,
+                                  int alto, int faccion)
+        {
+            var go = new GameObject("Castillo");
+            go.transform.SetParent(grupo, false);
+            go.transform.position = new Vector3(celda.x + 0.5f, celda.y + 1.4f, 0f);
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+
+            // Un edificio se ordena por donde SE APOYA, no por el centro de su dibujo. El
+            // castillo mide tres tiles de alto: usando su centro, todo lo que pasara por
+            // delante de la puerta se dibujaba detrás del muro.
+            sr.sortingOrder = OrdenPorProfundidad.Calcular(alto, celda.y - 0.5f);
+
+            var edificio = go.AddComponent<Edificio>();
+            edificio.tipo = TipoEdificio.Castillo;
+            edificio.nombreVisible = "Castillo";
+            edificio.faccion = faccion;
+
+            // El retrato es el propio castillo. No hace falta dibujar un icono aparte: lo
+            // que se ve en el panel es exactamente lo que hay en el mapa.
+            edificio.retrato = sprite;
+
+            // Huella MEDIDA sobre el PNG: dentro del lienzo de 320x256 el dibujo ocupa
+            // 4,88 x 3,25 unidades y su centro cae 0,27 por debajo del centro del lienzo.
+            // Es lo que permite entregar arrimándose por cualquier lado.
+            edificio.huella = new Vector2(4.88f, 3.25f);
+            edificio.huellaCentro = new Vector2(0f, -0.27f);
+
+            // Las unidades nuevas salen por debajo, lejos de donde se amontonan los que
+            // vienen a depositar.
+            edificio.puntoSalida = new Vector2(0f, -3.2f);
+
+            go.AddComponent<ProduccionEdificio>();
+
+            ConstructorDeInterfaz.AnadirMarcador(go, _tema, faccion, alto - celda.y);
+
+            // El marcador viene dimensionado para una unidad. Las dos cifras de abajo están
+            // MEDIDAS sobre el PNG del castillo, no estimadas a ojo: dentro de su lienzo de
+            // 320x256 el dibujo ocupa 4,88 x 3,25 unidades y su centro cae 0,27 por debajo
+            // del centro del lienzo. Deducirlo mirando la escena fue lo que dejó el corchete
+            // colgando por debajo del edificio.
+            //
+            // El tamaño va por el campo del componente y no tocando la escala del transform
+            // porque la animación de cierre reescribe la escala entera al encenderse: puesta
+            // a mano duraría exactamente hasta el primer clic.
+            var anillo = go.transform.Find("Seleccion");
+            if (anillo != null)
+            {
+                anillo.localPosition = new Vector3(0f, -0.3f, 0f);
+
+                // 4,88 unidades de ancho entre las 1,33 que mide el corchete (128 px a 96 ppu).
+                var marcador = anillo.GetComponent<MarcadorSeleccion>();
+                if (marcador != null) marcador.escalaBase = 3.7f;
+            }
+        }
+
+        /// <summary>
+        /// Deja lista la plantilla con la que el castillo fabrica pawns.
+        /// </summary>
+        /// <remarks>
+        /// Es una unidad de verdad, creada con el mismo código que las demás, pero apagada.
+        /// Se hace así porque las animaciones se resuelven a sprites con
+        /// <c>AssetDatabase</c>, que solo existe en el editor: un pawn construido en caliente
+        /// saldría sin un solo dibujo. Apagada no se registra, no se puede seleccionar y no
+        /// consume carne — para el juego, no está.
+        /// </remarks>
+        static void PrepararProduccion(Transform grupo, int faccion, int orden)
+        {
+            var edificio = grupo.GetComponentInChildren<Edificio>();
+            if (edificio == null) return;
+
+            var produccion = edificio.GetComponent<ProduccionEdificio>();
+            if (produccion == null) return;
+
+            var datos = CatalogoDeUnidades.Obtener(TipoUnidad.Pawn);
+            var tiras = CatalogoDeUnidades.CargarTiras(datos, faccion, CargarSpritesOrdenados);
+            if (tiras == null) return;
+
+            var plantilla = CrearUnidad(grupo, datos, faccion, tiras,
+                                        edificio.PuntoDeSalida, orden, "PlantillaPawn");
+
+            plantilla.SetActive(false);
+
+            produccion.datosUnidad = datos;
+            produccion.plantilla = plantilla;
         }
 
         /// <summary>
@@ -962,7 +1217,9 @@ namespace TinyTactics.EditorHerramientas
                 // la sensación de profundidad en una vista cenital.
                 // Orden absoluto para lo que va entre capas fijas del tilemap;
                 // orden por Y para todo lo que se pisa con las unidades.
-                sr.sortingOrder = ordenAbsoluto ? ordenExtra : alto - celda.y + ordenExtra;
+                sr.sortingOrder = ordenAbsoluto
+                    ? ordenExtra
+                    : OrdenPorProfundidad.Calcular(alto, celda.y) + ordenExtra;
 
                 if (conAnimacion && tira.Length > 1)
                 {
@@ -1007,7 +1264,7 @@ namespace TinyTactics.EditorHerramientas
                 sr.color = new Color(1f, 1f, 1f, 0.75f);
 
                 // Por encima de todo: las nubes pasan sobre el terreno y las unidades.
-                sr.sortingOrder = 1000 + i;
+                sr.sortingOrder = 5000 + i;
 
                 var deriva = go.AddComponent<DerivaNube>();
                 deriva.velocidad = 0.35f + (float)rnd.NextDouble() * 0.55f;
