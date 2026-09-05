@@ -20,8 +20,12 @@ namespace TinyTactics.Mundo
         public DefinicionMapa definicion;
 
         [Header("Radios de bloqueo (en tiles)")]
-        public float radioArbol = 1.1f;
-        public float radioOro = 1.0f;
+        [Tooltip("Cada árbol y cada veta tapan SOLO su propia celda. Con un radio mayor, un " +
+                 "bolsón denso se convertía en un bloque macizo de cinco tiles de ancho y el " +
+                 "pawn se quedaba picando desde el borde, a dos tiles del oro.")]
+        public float radioArbol = 0.7f;
+
+        public float radioOro = 0.6f;
         public float radioCastillo = 2.6f;
 
         [Header("Depuración")]
@@ -98,8 +102,7 @@ namespace TinyTactics.Mundo
                 {
                     for (int y = 0; y < Mapa.Alto - 1; y++)
                     {
-                        if (Mapa.Nivel[x, y] != 0 || Mapa.Nivel[x, y + 1] == 0) continue;
-                        if (Mapa.Escalera != null && Mapa.Escalera[x, y]) continue;
+                        if (!EsParedDeAcantilado(x, y)) continue;
 
                         var celda = Grilla[x, y];
                         celda.Obstaculo = true;
@@ -121,6 +124,73 @@ namespace TinyTactics.Mundo
                 $"[Tiny Tactics] Grilla lista: {Mapa.Ancho}x{Mapa.Alto}, " +
                 $"{Grilla.ContarTransitables()} celdas transitables de {Mapa.Ancho * Mapa.Alto} " +
                 $"({ms:F0} ms).");
+        }
+
+        /// <summary>
+        /// La fila justo al sur de una meseta lleva pintada la pared del acantilado, así
+        /// que no se puede pisar aunque el terreno de debajo sea llano. Las rampas son la
+        /// excepción: ahí la pared se sustituye por la cuesta.
+        /// </summary>
+        bool EsParedDeAcantilado(int x, int y)
+        {
+            if (Mapa.Nivel == null || y + 1 >= Mapa.Alto) return false;
+            if (Mapa.Nivel[x, y] != 0 || Mapa.Nivel[x, y + 1] == 0) return false;
+
+            return Mapa.Escalera == null || !Mapa.Escalera[x, y];
+        }
+
+        /// <summary>
+        /// Devuelve al mapa el terreno de un recurso agotado.
+        /// </summary>
+        /// <remarks>
+        /// No basta con apagar el disco que ocupaba: los bolsones de recursos van apretados
+        /// y dos árboles vecinos comparten celdas, así que borrar sin más abriría un
+        /// pasillo por debajo del árbol de al lado. Y borrar a ciegas también tumbaría las
+        /// paredes de acantilado, que viven en el mismo campo.
+        ///
+        /// Por eso se <b>recalcula</b> una ventana alrededor: se limpia, se vuelven a poner
+        /// los acantilados, y se remarcan los nodos que siguen vivos y las bases. Cuesta un
+        /// puñado de celdas y es correcto por construcción, que en pathfinding vale más que
+        /// ser rápido: una celda mal abierta manda unidades a atravesar un bosque.
+        /// </remarks>
+        public void LiberarRecurso(Vector2Int centro, float radio)
+        {
+            if (Grilla == null || Mapa == null) return;
+
+            float mayor = Mathf.Max(radioCastillo, Mathf.Max(radioArbol, radioOro));
+            int margen = Mathf.CeilToInt(radio + mayor) + 1;
+
+            int minX = Mathf.Max(0, centro.x - margen);
+            int maxX = Mathf.Min(Mapa.Ancho - 1, centro.x + margen);
+            int minY = Mathf.Max(0, centro.y - margen);
+            int maxY = Mathf.Min(Mapa.Alto - 1, centro.y + margen);
+
+            for (int x = minX; x <= maxX; x++)
+            {
+                for (int y = minY; y <= maxY; y++)
+                {
+                    var celda = Grilla[x, y];
+                    celda.Obstaculo = EsParedDeAcantilado(x, y);
+                    Grilla[x, y] = celda;
+                }
+            }
+
+            // Los nodos vivos son la fuente de verdad de lo que estorba: la lista original
+            // del generador incluye los que ya se han talado.
+            var nodos = NodoRecurso.Todos;
+
+            for (int i = 0; i < nodos.Count; i++)
+            {
+                var nodo = nodos[i];
+                if (nodo == null || nodo.Agotado || nodo.radioBloqueo <= 0f) continue;
+
+                if (nodo.celda.x < minX - margen || nodo.celda.x > maxX + margen ||
+                    nodo.celda.y < minY - margen || nodo.celda.y > maxY + margen) continue;
+
+                Grilla.MarcarObstaculo(nodo.celda, nodo.radioBloqueo);
+            }
+
+            foreach (var c in Mapa.Bases) Grilla.MarcarObstaculo(c, radioCastillo);
         }
 
         /// <summary>Celda transitable más cercana a un punto del mundo.</summary>
