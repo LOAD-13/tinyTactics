@@ -63,6 +63,13 @@ namespace TinyTactics.Interfaz
             if (PanelDeUnidad.Actual != null && PanelDeUnidad.Actual.CapturaPuntero(pantalla))
                 return Forma.Normal;
 
+            // Con una silueta en la mano, quien dice si se puede es la mancha verde o roja
+            // del suelo. Un aspa de prohibido encima significaría lo mismo dos veces y, lo
+            // que es peor, saldría sobre terreno perfectamente válido: casi todo lo que hay
+            // bajo un edificio está bloqueado por el propio edificio que se va a poner.
+            var colocador = Edificios.ColocadorEdificios.Actual;
+            if (colocador != null && colocador.Activo) return Forma.Normal;
+
             Vector3 punto = _camara.ScreenToWorldPoint(new Vector3(pantalla.x, pantalla.y, 0f));
             punto.z = 0f;
 
