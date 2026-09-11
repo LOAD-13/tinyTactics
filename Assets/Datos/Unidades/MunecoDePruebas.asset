@@ -23,16 +23,19 @@ MonoBehaviour:
   carnePorSegundo: 0
   oro: 0
   madera: 0
+  poblacion: 1
   clips:
   - estado: 0
     ruta: Assets/Tiny Swords/Pawn and Resources/Meat/Sheep/Sheep_Idle.png
     fps: 6
     direccion: 0
     recurso: 0
+    martillo: 0
     enBucle: 1
   - estado: 1
     ruta: Assets/Tiny Swords/Pawn and Resources/Meat/Sheep/Sheep_Idle.png
     fps: 6
     direccion: 0
     recurso: 0
+    martillo: 0
     enBucle: 1
