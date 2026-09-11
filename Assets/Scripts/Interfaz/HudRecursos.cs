@@ -45,6 +45,9 @@ namespace TinyTactics.Interfaz
 
         public string[] fuentes = { "Cambria", "Constantia", "Georgia" };
 
+        [Tooltip("Color del contador de población cuando ya no cabe nadie más.")]
+        public Color colorLleno = new Color(1f, 0.72f, 0.30f);
+
         class Contador
         {
             public TipoRecurso Recurso;
@@ -54,8 +57,13 @@ namespace TinyTactics.Interfaz
 
         readonly Contador[] _contadores = new Contador[3];
 
+        Text _poblacion;
+        int _usadaPintada = -1;
+        int _topePintado = -1;
+
         Font _fuente;
         Economia _economia;
+        Poblacion _censo;
 
         void Awake()
         {
@@ -65,14 +73,20 @@ namespace TinyTactics.Interfaz
 
         void OnEnable()
         {
-            _economia = Economia.Actual;
-
             // La economía puede no existir todavía si el orden de Awake juega en contra.
             // Start lo resuelve: para entonces todos los Awake han corrido.
-            if (_economia != null) _economia.AlCambiar += AlCambiar;
+            Enganchar();
         }
 
         void Start()
+        {
+            Enganchar();
+
+            Refrescar();
+            RefrescarPoblacion();
+        }
+
+        void Enganchar()
         {
             if (_economia == null)
             {
@@ -80,18 +94,54 @@ namespace TinyTactics.Interfaz
                 if (_economia != null) _economia.AlCambiar += AlCambiar;
             }
 
-            Refrescar();
+            if (_censo != null) return;
+
+            _censo = Poblacion.Actual;
+            if (_censo != null) _censo.AlCambiar += AlCambiarPoblacion;
         }
 
         void OnDisable()
         {
             if (_economia != null) _economia.AlCambiar -= AlCambiar;
             _economia = null;
+
+            if (_censo != null) _censo.AlCambiar -= AlCambiarPoblacion;
+            _censo = null;
         }
 
         void AlCambiar(int bando)
         {
             if (bando == faccion) Refrescar();
+        }
+
+        void AlCambiarPoblacion(int bando)
+        {
+            if (bando == faccion) RefrescarPoblacion();
+        }
+
+        /// <summary>
+        /// «3 / 10»: lo que ocupan las unidades y lo que permiten los edificios.
+        /// </summary>
+        /// <remarks>
+        /// Se pinta la pareja entera y no solo lo usado porque el tope se mueve: sube cinco
+        /// con cada casa. Enseñar solo «3» dejaría al jugador sin saber cuándo tiene que
+        /// construir la siguiente, que es justo la decisión que este contador existe para
+        /// provocar.
+        /// </remarks>
+        void RefrescarPoblacion()
+        {
+            if (_poblacion == null || _censo == null) return;
+
+            int usada = _censo.Usada(faccion);
+            int tope = _censo.Tope(faccion);
+
+            if (usada == _usadaPintada && tope == _topePintado) return;
+
+            _usadaPintada = usada;
+            _topePintado = tope;
+
+            _poblacion.text = $"{usada} / {tope}";
+            _poblacion.color = usada >= tope ? colorLleno : colorTexto;
         }
 
         // -----------------------------------------------------------------
@@ -134,8 +184,17 @@ namespace TinyTactics.Interfaz
             raiz.anchorMax = new Vector2(0.5f, 1f);
             raiz.pivot = new Vector2(0.5f, 1f);
             raiz.anchoredPosition = new Vector2(0f, -margen.y);
+
+            // Cuatro cajas: los tres recursos y la población.
+            //
+            // La población va en la misma fila y no suelta en una esquina a propósito. Es
+            // un límite que se gasta igual que el oro —se consume al entrenar y se amplía
+            // construyendo— así que pertenece al mismo sitio donde el jugador ya mira antes
+            // de pulsar «entrenar». En una esquina aparte se consulta cuando ya es tarde.
+            const int Cajas = 4;
+
             raiz.sizeDelta = new Vector2(
-                tamanoCaja.x * 3f + separacion * 2f, tamanoCaja.y);
+                tamanoCaja.x * Cajas + separacion * (Cajas - 1), tamanoCaja.y);
 
             var recursos = new[] { TipoRecurso.Oro, TipoRecurso.Madera, TipoRecurso.Carne };
 
@@ -147,11 +206,25 @@ namespace TinyTactics.Interfaz
                 _contadores[i] = ConstruirContador(raiz, recursos[i],
                                                    new Vector2(x, -tamanoCaja.y * 0.5f));
             }
+
+            float xPoblacion = x0 + tamanoCaja.x * (Cajas - 0.5f) + separacion * (Cajas - 1);
+
+            var censo = ConstruirContador(raiz, TipoRecurso.Ninguno,
+                                          new Vector2(xPoblacion, -tamanoCaja.y * 0.5f),
+                                          "Poblacion");
+
+            _poblacion = censo.Numero;
+
+            // Un punto menos que los recursos: «12 / 50» son siete caracteres donde los
+            // demás tienen tres, y a 28 puntos se le comían el icono.
+            _poblacion.fontSize = 24;
+            _poblacion.text = "0 / 0";
         }
 
-        Contador ConstruirContador(RectTransform padre, TipoRecurso recurso, Vector2 posicion)
+        Contador ConstruirContador(RectTransform padre, TipoRecurso recurso, Vector2 posicion,
+                                   string nombre = null)
         {
-            var caja = Nodo(recurso.ToString(), padre);
+            var caja = Nodo(nombre ?? recurso.ToString(), padre);
             caja.anchorMin = caja.anchorMax = new Vector2(0.5f, 1f);
             caja.pivot = new Vector2(0.5f, 0.5f);
             caja.anchoredPosition = posicion;
@@ -222,7 +295,10 @@ namespace TinyTactics.Interfaz
                 case TipoRecurso.Oro: return tema.iconoRecursoOro;
                 case TipoRecurso.Madera: return tema.iconoRecursoMadera;
                 case TipoRecurso.Carne: return tema.iconoRecursoCarne;
-                default: return null;
+
+                // La población se dibuja con la cara del pawn. Es el retrato que el jugador
+                // ya asocia con «una unidad», así que el contador se entiende sin leyenda.
+                default: return tema.RetratoDe(TipoUnidad.Pawn, faccion);
             }
         }
 
