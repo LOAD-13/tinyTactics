@@ -70,6 +70,11 @@ namespace TinyTactics.EditorHerramientas
                     return;
                 }
 
+                // Las fichas de edificio, con su huella medida sobre el PNG, antes de montar
+                // nada que dependa de ellas.
+                EditorUtility.DisplayProgressBar("Tiny Tactics", "Midiendo los edificios…", 0.55f);
+                FichasDeEdificio.ObtenerTodas();
+
                 EditorUtility.DisplayProgressBar("Tiny Tactics", "Pintando el terreno…", 0.6f);
 
                 var escena = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -313,6 +318,22 @@ namespace TinyTactics.EditorHerramientas
             economia.bandos = Mathf.Max(1, definicion.bandos);
 
             go.AddComponent<Sustento>();
+
+            // La población no guarda contadores: recuenta las unidades vivas y los edificios
+            // en pie. Por eso cuelga del mismo objeto y no necesita que nadie la avise.
+            go.AddComponent<Poblacion>();
+
+            // Una sola plantilla por tipo y bando, que todos los edificios comparten.
+            go.AddComponent<CatalogoDePlantillas>();
+
+            // Y su gemelo para los edificios: qué se puede construir y con qué dibujo.
+            go.AddComponent<CatalogoDeEdificios>();
+
+            // El colocador vive en su propio objeto porque lleva hijos con SpriteRenderer
+            // —la silueta y la mancha del suelo— y el objeto del mundo no dibuja nada.
+            var colocador = new GameObject("Colocador");
+            colocador.transform.SetParent(go.transform, false);
+            colocador.AddComponent<ColocadorEdificios>();
         }
 
         /// <summary>
@@ -653,7 +674,10 @@ namespace TinyTactics.EditorHerramientas
                 $"{DirDecoracion}/Rocks in the Water/Water Rocks_04.png",
             });
 
-            Sembrar(mapa.Arboles, arboles, definicion.alto, rnd, AlturaArbol);
+            // Qué variante de árbol le tocó a cada uno, para darle su tocón al talarlo.
+            var especies = new List<int>(mapa.Arboles.Count);
+
+            Sembrar(mapa.Arboles, arboles, definicion.alto, rnd, AlturaArbol, elegidas: especies);
             Sembrar(mapa.Oro, oro, definicion.alto, rnd, AlturaOro);
             Sembrar(mapa.Rocas, rocas, definicion.alto, rnd, 0f);
 
@@ -672,7 +696,8 @@ namespace TinyTactics.EditorHerramientas
             var mundo = Object.FindFirstObjectByType<MundoJuego>();
 
             MarcarNodos(arboles.Padre, mapa.Arboles, TipoRecurso.Madera,
-                        mundo != null ? mundo.radioArbol : 1.1f, CargarTocones());
+                        mundo != null ? mundo.radioArbol : 1.1f, CargarTocones(),
+                        especies: especies);
 
             MarcarNodos(oro.Padre, mapa.Oro, TipoRecurso.Oro,
                         mundo != null ? mundo.radioOro : 1.0f, null);
@@ -710,7 +735,8 @@ namespace TinyTactics.EditorHerramientas
         /// sembraran objetos salteados habría que guardar la celda en el propio objeto.
         /// </remarks>
         static void MarcarNodos(Transform padre, List<Vector2Int> celdas, TipoRecurso recurso,
-                                float radioBloqueo, Sprite[] restos, bool seMueve = false)
+                                float radioBloqueo, Sprite[] restos, bool seMueve = false,
+                                List<int> especies = null)
         {
             if (padre == null || celdas == null) return;
 
@@ -724,7 +750,26 @@ namespace TinyTactics.EditorHerramientas
                 nodo.radioBloqueo = radioBloqueo;
                 nodo.seMueve = seMueve;
 
-                if (restos != null && restos.Length > 0) nodo.Configurar(restos);
+                if (restos == null || restos.Length == 0) continue;
+
+                // Cada árbol se queda SOLO con el tocón de su especie.
+                //
+                // Antes se le pasaban los cuatro y al talarlo se sorteaba uno. El sorteo era
+                // el error: el pack dibuja Tree1 y Tree2 en lienzos de 192x256 y Tree3 y
+                // Tree4 en lienzos de 192x192, así que un pino talado que sacara el tocón de
+                // un roble aparecía desplazado un tercio de tile, y encima era un tocón de
+                // otro árbol. Emparejados, el tocón cae exactamente donde estaba el tronco.
+                if (especies != null && i < especies.Count)
+                {
+                    int cual = Mathf.Clamp(especies[i], 0, restos.Length - 1);
+
+                    // Sin tocón para esa especie, el árbol desaparece al talarlo. Es mejor
+                    // que plantarle el de otro: un hueco se lee como un claro en el bosque.
+                    if (restos[cual] != null) nodo.Configurar(new[] { restos[cual] });
+                    continue;
+                }
+
+                nodo.Configurar(restos);
             }
         }
 
@@ -774,20 +819,36 @@ namespace TinyTactics.EditorHerramientas
         /// se evapora borra la historia de la partida, mientras que un claro lleno de
         /// tocones dice de un vistazo que por ahí ya pasó alguien.
         /// </summary>
+        /// <summary>
+        /// Los cuatro tocones, <b>en el mismo orden que los cuatro árboles</b>.
+        /// </summary>
+        /// <remarks>
+        /// El índice es el contrato: <c>Stump 3</c> es el tocón de <c>Tree3</c>. Por eso un
+        /// tocón que falte deja un hueco en vez de encoger la lista — al encogerla, perder
+        /// <c>Stump 2</c> haría que el tocón del tercer árbol pasara a ser el del cuarto y
+        /// todos los árboles del mapa quedarían emparejados con el tocón equivocado, sin
+        /// un solo mensaje de error.
+        /// </remarks>
         static Sprite[] CargarTocones()
         {
-            var salida = new List<Sprite>();
+            var salida = new Sprite[4];
+            int encontrados = 0;
 
-            for (int i = 1; i <= 4; i++)
+            for (int i = 0; i < salida.Length; i++)
             {
-                var lista = CargarSpritesOrdenados($"{DirRecursos}/Wood/Trees/Stump {i}.png");
-                if (lista.Count > 0) salida.Add(lista[0]);
+                var lista = CargarSpritesOrdenados($"{DirRecursos}/Wood/Trees/Stump {i + 1}.png");
+                if (lista.Count == 0) continue;
+
+                salida[i] = lista[0];
+                encontrados++;
             }
 
-            if (salida.Count == 0)
-                Debug.LogWarning("[Tiny Tactics] No encuentro los tocones; los árboles talados desaparecerán.");
+            if (encontrados < salida.Length)
+                Debug.LogWarning(
+                    $"[Tiny Tactics] Solo encuentro {encontrados} de 4 tocones; los árboles " +
+                    "de las especies que falten desaparecerán al talarlos.");
 
-            return salida.ToArray();
+            return salida;
         }
 
         // -----------------------------------------------------------------
@@ -795,19 +856,24 @@ namespace TinyTactics.EditorHerramientas
         // -----------------------------------------------------------------
 
         /// <summary>
-        /// Composicion de la escuadra inicial de cada bando.
-        ///
-        /// No es equilibrio de juego: las unidades todavia no se entrenan (eso es E05) ni
-        /// pelean (E06). Es una escuadra de demostracion, elegida para que en la escena se
-        /// vean los cinco tipos a la vez y se pueda comprobar que cada uno anima lo suyo.
+        /// Composición de la escuadra inicial de cada bando: <b>dos pawns y nada más</b>.
         /// </summary>
+        /// <remarks>
+        /// Eran diez unidades, dos de cada tipo. Ese reparto era andamio: hasta esta semana
+        /// no se podía entrenar nada, así que la única forma de ver animarse a un lancero
+        /// era regalarlo al empezar.
+        /// </remarks>
+        /// <remarks>
+        /// Ahora hay cuartel, campo de tiro y monasterio, así que regalar el ejército
+        /// entero no solo sobra: <b>estorba</b>. Con diez unidades de salida y un tope de
+        /// diez, el jugador empieza la partida sin sitio para nada y lo primero que aprende
+        /// es que el botón de entrenar no funciona. Dos pawns dejan ocho puntos libres, que
+        /// es espacio exacto para la apertura: recolectar, levantar una casa y empezar a
+        /// producir.
+        /// </remarks>
         static readonly TipoUnidad[] EscuadraInicial =
         {
             TipoUnidad.Pawn, TipoUnidad.Pawn,
-            TipoUnidad.Guerrero, TipoUnidad.Guerrero,
-            TipoUnidad.Lancero, TipoUnidad.Lancero,
-            TipoUnidad.Arquero, TipoUnidad.Arquero,
-            TipoUnidad.Monje, TipoUnidad.Monje,
         };
 
         /// <summary>
@@ -929,7 +995,14 @@ namespace TinyTactics.EditorHerramientas
             // sentido es además lo que hace que un guerrero ignore la orden de talar sin
             // ninguna comprobación de tipo por el medio.
             if (datos != null && datos.tipo == TipoUnidad.Pawn && !datos.invulnerable)
+            {
                 go.AddComponent<RecolectorPawn>();
+
+                // Recolectar y construir son dos faenas del mismo pawn, y por eso son dos
+                // componentes: se interrumpen distinto y terminan distinto. Cada uno cancela
+                // al otro al empezar, que es lo único que tienen que saber el uno del otro.
+                go.AddComponent<ConstructorPawn>();
+            }
 
             // Marcador y barra salen del pack, no de una textura dibujada por codigo.
             ConstructorDeInterfaz.AnadirMarcador(go, _tema, faccion, orden);
@@ -1023,11 +1096,8 @@ namespace TinyTactics.EditorHerramientas
                 var grupo = new GameObject($"Bando{i + 1}_{color}").transform;
                 grupo.SetParent(padre, false);
 
-                var castillo = CargarSpritesOrdenados(
-                    $"Assets/Tiny Swords/Buildings/{color} Buildings/Castle.png");
-
-                if (castillo.Count > 0)
-                    CrearCastillo(grupo, castillo[0], celda, alto, i);
+                CrearEdificio(grupo, FichasDeEdificio.Obtener(TipoEdificio.Castillo),
+                              i, celda, alto, "Castillo");
 
                 // Unidades reales: seleccionables, animadas y capaces de recibir órdenes.
                 for (int p = 0; p < EscuadraInicial.Length; p++)
@@ -1038,10 +1108,14 @@ namespace TinyTactics.EditorHerramientas
                     var tiras = CatalogoDeUnidades.CargarTiras(datos, i, CargarSpritesOrdenados);
                     if (tiras == null) continue;
 
-                    // En fila doble delante del castillo, con algo de holgura para que
-                    // el empuje blando no las tenga peleando desde el primer frame.
-                    float dx = (p % 5 - 2f) * 1.7f;
-                    float dy = -2.4f - (p / 5) * 1.6f;
+                    // En fila delante del castillo y centradas sobre él, con holgura para
+                    // que el empuje blando no las tenga peleando desde el primer frame.
+                    //
+                    // El reparto se calcula sobre el tamaño de la escuadra en vez de dar por
+                    // hecho que son cinco por fila: con dos pawns, la fórmula antigua los
+                    // dejaba a los dos pegados al borde izquierdo del castillo.
+                    float dx = (p - (EscuadraInicial.Length - 1) * 0.5f) * 1.7f;
+                    float dy = -2.6f;
 
                     CrearUnidad(grupo, datos, i, tiras,
                                 new Vector3(celda.x + 0.5f + dx, celda.y + dy, 0f),
@@ -1063,65 +1137,96 @@ namespace TinyTactics.EditorHerramientas
         }
 
         /// <summary>
-        /// El castillo deja de ser un dibujo: sabe de qué bando es, recibe recursos y se
-        /// puede seleccionar.
+        /// Monta un edificio completo: dibujo, huella, selección, producción y barra de obra.
         /// </summary>
-        static void CrearCastillo(Transform grupo, Sprite sprite, Vector2Int celda,
-                                  int alto, int faccion)
+        /// <remarks>
+        /// Una sola función para el castillo que viene con el mapa y para las plantillas de
+        /// lo que el jugador construye. Eran dos caminos distintos y ahí estaba la trampa:
+        /// cualquier detalle que se arreglara en uno —el corchete de selección, el orden de
+        /// dibujado, el punto de salida— habría que acordarse de arreglarlo en el otro, y la
+        /// única señal de haberlo olvidado sería una casa que se ve rara en la captura del
+        /// domingo.
+        /// </remarks>
+        static GameObject CrearEdificio(Transform padre, DatosEdificio datos, int faccion,
+                                        Vector2Int celda, int alto, string nombre)
         {
-            var go = new GameObject("Castillo");
-            go.transform.SetParent(grupo, false);
-            go.transform.position = new Vector3(celda.x + 0.5f, celda.y + 1.4f, 0f);
+            if (datos == null) return null;
+
+            string color = ColoresFaccion[faccion % ColoresFaccion.Length];
+
+            var sprites = CargarSpritesOrdenados(datos.RutaDe(color));
+            if (sprites.Count == 0)
+            {
+                Debug.LogWarning($"[Tiny Tactics] No encuentro {datos.RutaDe(color)}.");
+                return null;
+            }
+
+            var go = new GameObject(nombre);
+            go.transform.SetParent(padre, false);
 
             var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
+            sr.sprite = sprites[0];
+
+            var edificio = go.AddComponent<Edificio>();
+
+            // El retrato es el propio edificio. No hace falta dibujar un icono aparte: lo
+            // que se ve en el panel es exactamente lo que hay en el mapa.
+            edificio.retrato = sprites[0];
+
+            // Las unidades nuevas salen por debajo de la planta, lejos de donde se
+            // amontonan los pawns que vienen a depositar.
+            edificio.puntoSalida = new Vector2(0f, -(datos.planta.y * 0.5f + 1.4f));
+
+            var celdas = datos.CeldasDesde(celda);
+            edificio.Colocar(datos, faccion, celdas);
 
             // Un edificio se ordena por donde SE APOYA, no por el centro de su dibujo. El
             // castillo mide tres tiles de alto: usando su centro, todo lo que pasara por
-            // delante de la puerta se dibujaba detrás del muro.
-            sr.sortingOrder = OrdenPorProfundidad.Calcular(alto, celda.y - 0.5f);
+            // delante de la puerta se dibujaba detrás del muro (ADR-12).
+            //
+            // El desplazamiento sale de la huella medida y no de la posición, para que
+            // valga igual cuando el jugador plante el edificio en otro sitio en partida.
+            float aLaBase = datos.huella.y * 0.5f - datos.huellaCentro.y;
 
-            var edificio = go.AddComponent<Edificio>();
-            edificio.tipo = TipoEdificio.Castillo;
-            edificio.nombreVisible = "Castillo";
-            edificio.faccion = faccion;
+            var profundidad = go.AddComponent<OrdenPorProfundidad>();
+            profundidad.alto = alto;
+            profundidad.desplazamientoY = aLaBase;
 
-            // El retrato es el propio castillo. No hace falta dibujar un icono aparte: lo
-            // que se ve en el panel es exactamente lo que hay en el mapa.
-            edificio.retrato = sprite;
-
-            // Huella MEDIDA sobre el PNG: dentro del lienzo de 320x256 el dibujo ocupa
-            // 4,88 x 3,25 unidades y su centro cae 0,27 por debajo del centro del lienzo.
-            // Es lo que permite entregar arrimándose por cualquier lado.
-            edificio.huella = new Vector2(4.88f, 3.25f);
-            edificio.huellaCentro = new Vector2(0f, -0.27f);
-
-            // Las unidades nuevas salen por debajo, lejos de donde se amontonan los que
-            // vienen a depositar.
-            edificio.puntoSalida = new Vector2(0f, -3.2f);
+            int orden = OrdenPorProfundidad.Calcular(alto, go.transform.position.y - aLaBase);
+            sr.sortingOrder = orden;
 
             go.AddComponent<ProduccionEdificio>();
 
-            ConstructorDeInterfaz.AnadirMarcador(go, _tema, faccion, alto - celda.y);
+            ConstructorDeInterfaz.AnadirMarcador(go, _tema, faccion, orden);
 
-            // El marcador viene dimensionado para una unidad. Las dos cifras de abajo están
-            // MEDIDAS sobre el PNG del castillo, no estimadas a ojo: dentro de su lienzo de
-            // 320x256 el dibujo ocupa 4,88 x 3,25 unidades y su centro cae 0,27 por debajo
-            // del centro del lienzo. Deducirlo mirando la escena fue lo que dejó el corchete
-            // colgando por debajo del edificio.
-            //
-            // El tamaño va por el campo del componente y no tocando la escala del transform
-            // porque la animación de cierre reescribe la escala entera al encenderse: puesta
-            // a mano duraría exactamente hasta el primer clic.
+            // El corchete viene dimensionado para una unidad y hay que estirarlo a la huella
+            // MEDIDA del edificio. El tamaño va por el campo del componente y no tocando la
+            // escala del transform porque la animación de cierre reescribe la escala entera
+            // al encenderse: puesta a mano duraría exactamente hasta el primer clic.
             var anillo = go.transform.Find("Seleccion");
             if (anillo != null)
             {
-                anillo.localPosition = new Vector3(0f, -0.3f, 0f);
+                anillo.localPosition = new Vector3(datos.huellaCentro.x,
+                                                   datos.huellaCentro.y - 0.03f, 0f);
 
-                // 4,88 unidades de ancho entre las 1,33 que mide el corchete (128 px a 96 ppu).
+                // El corchete del pack mide 1,33 unidades de ancho (128 px a 96 ppu).
                 var marcador = anillo.GetComponent<MarcadorSeleccion>();
-                if (marcador != null) marcador.escalaBase = 3.7f;
+                if (marcador != null) marcador.escalaBase = datos.huella.x / 1.33f;
             }
+
+            // Barra de obra, apagada. Solo la enciende la obra en construcción: un edificio
+            // terminado no lleva barra encima.
+            ConstructorDeInterfaz.AnadirBarraDeVida(go, _tema, orden);
+
+            var barra = go.transform.Find("Vida");
+            if (barra != null)
+            {
+                barra.localPosition = new Vector3(0f, -aLaBase - 0.45f, 0f);
+                barra.localScale = new Vector3(0.9f, 0.9f, 1f);
+                barra.gameObject.SetActive(false);
+            }
+
+            return go;
         }
 
         /// <summary>
@@ -1139,20 +1244,73 @@ namespace TinyTactics.EditorHerramientas
             var edificio = grupo.GetComponentInChildren<Edificio>();
             if (edificio == null) return;
 
-            var produccion = edificio.GetComponent<ProduccionEdificio>();
-            if (produccion == null) return;
+            var catalogo = Object.FindFirstObjectByType<CatalogoDePlantillas>();
+            if (catalogo == null) return;
 
-            var datos = CatalogoDeUnidades.Obtener(TipoUnidad.Pawn);
-            var tiras = CatalogoDeUnidades.CargarTiras(datos, faccion, CargarSpritesOrdenados);
-            if (tiras == null) return;
+            // Una plantilla por TIPO y bando, no por edificio. El cuartel entrena guerreros y
+            // lanceros, el campo de tiro arqueros: con plantillas por edificio habría copias
+            // repetidas de la misma unidad y bastaría regenerar mal una para que dos guerreros
+            // del mismo bando dejaran de ser iguales.
+            var plantillas = new GameObject($"Plantillas_{faccion}").transform;
+            plantillas.SetParent(grupo, false);
 
-            var plantilla = CrearUnidad(grupo, datos, faccion, tiras,
-                                        edificio.PuntoDeSalida, orden, "PlantillaPawn");
+            foreach (TipoUnidad tipo in System.Enum.GetValues(typeof(TipoUnidad)))
+            {
+                if (catalogo.Obtener(tipo, faccion) != null) continue;
 
-            plantilla.SetActive(false);
+                var datos = CatalogoDeUnidades.Obtener(tipo);
+                var tiras = CatalogoDeUnidades.CargarTiras(datos, faccion, CargarSpritesOrdenados);
+                if (tiras == null) continue;
 
-            produccion.datosUnidad = datos;
-            produccion.plantilla = plantilla;
+                var plantilla = CrearUnidad(plantillas, datos, faccion, tiras,
+                                            edificio.PuntoDeSalida, orden, $"Plantilla{tipo}");
+
+                plantilla.SetActive(false);
+                catalogo.Registrar(tipo, faccion, plantilla);
+            }
+
+            PrepararEdificios(grupo, faccion, plantillas);
+        }
+
+        /// <summary>
+        /// Una copia apagada de cada edificio construible, en el color del bando.
+        /// </summary>
+        /// <remarks>
+        /// Mismo motivo que las plantillas de unidad, y la misma trampa evitada: el dibujo
+        /// de cada edificio se resuelve con <c>AssetDatabase</c>, que no existe en partida.
+        /// Sin esto, la casa que el jugador levantara en el minuto diez saldría sin sprite.
+        ///
+        /// El castillo también entra, aunque hoy no se construya. Cuesta lo mismo y el día
+        /// que haya expansiones el catálogo ya lo tendrá.
+        /// </remarks>
+        static void PrepararEdificios(Transform grupo, int faccion, Transform plantillas)
+        {
+            var catalogo = Object.FindFirstObjectByType<CatalogoDeEdificios>();
+            if (catalogo == null) return;
+
+            // Fuera de la pantalla. Un edificio apagado no se dibuja, pero dejarlo encima
+            // de la base hace que cualquier gizmo del editor parezca un objeto duplicado.
+            var celdaMolde = new Vector2Int(-50, -50);
+
+            foreach (var ficha in FichasDeEdificio.ObtenerTodas())
+            {
+                if (ficha == null) continue;
+                if (catalogo.PlantillaDe(ficha, faccion) != null) continue;
+
+                var plantilla = CrearEdificio(plantillas, ficha, faccion, celdaMolde,
+                                              _altoMapa, $"Plantilla{ficha.tipo}");
+
+                if (plantilla == null) continue;
+
+                // Sin celdas no reclama terreno al encenderse: se las pone el colocador.
+                var edificio = plantilla.GetComponent<Edificio>();
+                if (edificio != null) edificio.celdas = new RectInt(0, 0, 0, 0);
+
+                plantilla.SetActive(false);
+
+                var sr = plantilla.GetComponent<SpriteRenderer>();
+                catalogo.Registrar(ficha, faccion, sr != null ? sr.sprite : null, plantilla);
+            }
         }
 
         /// <summary>
@@ -1195,7 +1353,7 @@ namespace TinyTactics.EditorHerramientas
         static void Sembrar(List<Vector2Int> celdas, Variantes variantes, int alto,
                             System.Random rnd, float desplazamientoY,
                             bool animar = false, float fps = 8f, int ordenExtra = 0,
-                            bool ordenAbsoluto = false)
+                            bool ordenAbsoluto = false, List<int> elegidas = null)
         {
             if (variantes.Vacio) return;
 
@@ -1204,7 +1362,13 @@ namespace TinyTactics.EditorHerramientas
             foreach (var celda in celdas)
             {
                 // Cada instancia elige su variante, y usa la tira de ESA variante.
-                Sprite[] tira = variantes.Tiras[rnd.Next(variantes.Tiras.Count)];
+                int cual = rnd.Next(variantes.Tiras.Count);
+                Sprite[] tira = variantes.Tiras[cual];
+
+                // Y apunta CUÁL eligió, si alguien lo pide. El tocón de un árbol tiene que
+                // ser el de su especie: Tree3 mide 192x192 y Tree1 192x256, así que
+                // emparejar mal deja el tocón flotando cuatro píxeles por encima del suelo.
+                elegidas?.Add(cual);
 
                 var go = new GameObject($"{variantes.Nombre}_{celda.x}_{celda.y}");
                 go.transform.SetParent(variantes.Padre, false);

@@ -89,7 +89,7 @@ namespace TinyTactics.EditorHerramientas
                     d.nombreVisible = "Guerrero";
                     d.vidaMaxima = 140; d.dano = 18; d.alcance = 0.8f;
                     d.velocidad = 2.6f; d.radio = 0.44f; d.carnePorSegundo = 0.20f;
-                    d.oro = 90; d.madera = 10;
+                    d.oro = 90; d.madera = 10; d.poblacion = 2;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Warrior/Warrior_Idle.png", 7f),
@@ -102,7 +102,7 @@ namespace TinyTactics.EditorHerramientas
                     d.nombreVisible = "Lancero";
                     d.vidaMaxima = 100; d.dano = 22; d.alcance = 1.6f;
                     d.velocidad = 2.8f; d.radio = 0.46f; d.carnePorSegundo = 0.20f;
-                    d.oro = 80; d.madera = 0;
+                    d.oro = 80; d.madera = 0; d.poblacion = 2;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Lancer/Lancer_Idle.png", 8f),
@@ -123,7 +123,7 @@ namespace TinyTactics.EditorHerramientas
                     d.nombreVisible = "Arquero";
                     d.vidaMaxima = 70; d.dano = 14; d.alcance = 5.0f;
                     d.velocidad = 2.9f; d.radio = 0.40f; d.carnePorSegundo = 0.15f;
-                    d.oro = 85; d.madera = 20;
+                    d.oro = 85; d.madera = 20; d.poblacion = 2;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Archer/Archer_Idle.png", 7f),
@@ -136,7 +136,7 @@ namespace TinyTactics.EditorHerramientas
                     d.nombreVisible = "Monje";
                     d.vidaMaxima = 65; d.dano = -20; d.alcance = 3.5f;
                     d.velocidad = 2.7f; d.radio = 0.40f; d.carnePorSegundo = 0.15f;
-                    d.oro = 120; d.madera = 0;
+                    d.oro = 120; d.madera = 0; d.poblacion = 3;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Monk/Idle.png", 7f),
@@ -149,7 +149,7 @@ namespace TinyTactics.EditorHerramientas
                     d.nombreVisible = "Pawn";
                     d.vidaMaxima = 60; d.dano = 5; d.alcance = 0.5f;
                     d.velocidad = 3.0f; d.radio = 0.42f; d.carnePorSegundo = 0.10f;
-                    d.oro = 50; d.madera = 0;
+                    d.oro = 50; d.madera = 0; d.poblacion = 1;
                     // Doce tiras: la tabla del pawn se indexa por estado y por recurso.
                     // El pack ya trae las tres herramientas y los tres sacos, así que la
                     // economía entera se dibuja sin una sola pieza de arte nueva.
@@ -186,6 +186,19 @@ namespace TinyTactics.EditorHerramientas
                               $"{DirPawn}/Pawn_Idle Wood.png", 7f),
                         Faena(EstadoUnidad.Reposo, TipoRecurso.Carne,
                               $"{DirPawn}/Pawn_Idle Meat.png", 7f),
+
+                        // La obra: el martillo ya estaba en el pack desde el primer día y
+                        // no se usaba. Gana a la carga, porque un pawn puede llegar a la
+                        // obra con el saco todavía encima.
+                        //
+                        // A 10 fps y no a 12 como el hacha, y el motivo está MEDIDO sobre el
+                        // PNG: la tira del martillo son 3 fotogramas y la del hacha 6. Al
+                        // mismo ritmo, un martillazo duraría la mitad que un hachazo, y como
+                        // el coste de una obra se cuenta en martillazos (ADR-13), todos los
+                        // edificios se habrían levantado al doble de velocidad de la prevista.
+                        Obra(EstadoUnidad.Trabajando, $"{DirPawn}/Pawn_Interact Hammer.png", 10f),
+                        Obra(EstadoUnidad.Moviendo, $"{DirPawn}/Pawn_Run Hammer.png", 11f),
+                        Obra(EstadoUnidad.Reposo, $"{DirPawn}/Pawn_Idle Hammer.png", 7f),
                     };
                     break;
             }
@@ -235,6 +248,7 @@ namespace TinyTactics.EditorHerramientas
             datos.carnePorSegundo = 0f;
             datos.oro = 0;
             datos.madera = 0;
+            datos.poblacion = 1;
 
             datos.clips = new[]
             {
@@ -260,6 +274,17 @@ namespace TinyTactics.EditorHerramientas
 
         static ClipUnidad Clip(EstadoUnidad estado, string ruta, float fps, bool bucle = true) =>
             new ClipUnidad { estado = estado, ruta = ruta, fps = fps, enBucle = bucle };
+
+        /// <summary>Tira de obra: el pawn con el martillo.</summary>
+        static ClipUnidad Obra(EstadoUnidad estado, string ruta, float fps) =>
+            new ClipUnidad
+            {
+                estado = estado,
+                martillo = true,
+                ruta = ruta,
+                fps = fps,
+                enBucle = true,
+            };
 
         /// <summary>Tira ligada a un recurso: la herramienta con la que pica o el saco que lleva.</summary>
         static ClipUnidad Faena(EstadoUnidad estado, TipoRecurso recurso, string ruta, float fps) =>
@@ -306,6 +331,7 @@ namespace TinyTactics.EditorHerramientas
                     estado = clip.estado,
                     direccion = clip.direccion,
                     recurso = clip.recurso,
+                    martillo = clip.martillo,
                     frames = frames.ToArray(),
                     fps = clip.fps,
                     enBucle = clip.enBucle,
