@@ -11,6 +11,88 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 06 — Construcción y producción
+**Entrega:** domingo 13/09/2026 · **Expo:** lunes 14/09/2026
+**Tag:** _(pendiente)_ `v0.6.0-s06` · **Rama:** `feat/E05-construccion`
+
+### Lo prometido
+Las diez HUs de la épica E05, sin bloque opcional: HU-036 resaltado del nodo (arrastrada de la
+semana 05) · HU-037 catálogo de edificios · HU-038 colocación con silueta · HU-039 el pawn
+construye · HU-040 población y contador · HU-041 la casa sube el límite · HU-042 los tres
+edificios de producción · HU-043 el panel dinámico · HU-044 tocón por especie · HU-045 retirar
+la escuadra regalada.
+
+### Lo entregado
+Las diez. La partida cambia de forma: se empieza con **dos pawns y un castillo**, y el ejército
+hay que construirlo.
+
+### Lo que costó de verdad
+
+**El tocón mentía por una diferencia de lienzo.** El generador sembraba cada árbol eligiendo una
+de las cuatro variantes al azar, y al talarlo sorteaba uno de los cuatro tocones — otra vez al
+azar, sin relación con el árbol que había. El pack dibuja `Tree1` y `Tree2` en lienzos de
+192×256 y `Tree3` y `Tree4` en 192×192, así que un pino talado que sacara el tocón de un roble
+aparecía desplazado un tercio de tile. Se veía como un fallo de alineación y era un fallo de
+emparejamiento. Ahora `Sembrar` **apunta qué variante sembró** en cada sitio y cada nodo se
+queda solo con su tocón.
+
+**El castillo bloqueaba terreno con un disco y los edificios nuevos no tenían cómo.** El mapa
+marcaba las celdas de las bases con un disco de radio 2,6 desde la lista de bases del generador.
+Eso no sirve para nada construido en partida: la lista es de antes de empezar. Y había un
+segundo problema esperando — al talar un árbol, `LiberarRecurso` recalcula una ventana entera y
+repone lo que sigue vivo, así que una casa pegada a un bosque se habría quedado con un pasillo
+pisable por debajo en cuanto alguien talara al lado.
+
+Se resolvió unificando: **cada edificio bloquea su propio rectángulo de celdas** en su `Start`,
+el castillo incluido, y `LiberarRecurso` repone preguntándoles a los edificios vivos en vez de a
+una lista escrita antes de la partida. Una sola regla para el que viene con el mapa y para el
+que levanta el jugador.
+
+**Dos medidas, no una** ([ADR-14](ARQUITECTURA.md#adr-14)). Los edificios están dibujados en
+perspectiva y el recuadro del dibujo no es el suelo que ocupan. Intentar que una sola cifra
+sirviera para las dos cosas daba a elegir entre un monasterio imposible de colocar o un pawn
+entregando a través del muro.
+
+**El martillo no cabía en `TipoRecurso`.** La tabla de animación del pawn se indexa por estado y
+por recurso, y la tentación era añadir un cuarto valor al enum. Habría colado el martillo en las
+tablas de extracción y de carga de la economía, que se indexan por ese mismo enum. Es una
+bandera aparte, y además tenía que serlo: un pawn puede llegar a la obra **con el saco todavía
+encima**, así que el martillo tiene que ganarle al dibujo de la carga sin borrarlo.
+
+**La medición automática se validó contra la manual.** La herramienta nueva mide el recuadro de
+píxeles opacos abriendo el PNG. Para el castillo devolvió 4,88 × 3,25 con el centro 0,27 por
+debajo: exactamente las cifras que se habían sacado a mano en la semana 05. La fórmula del
+corchete de selección, generalizada a `huella.x / 1.33`, da 3,67 donde había un 3,7 puesto a
+ojo.
+
+### Decisiones tomadas
+- **La obra se cuenta en martillazos, no en segundos** ([ADR-13](ARQUITECTURA.md#adr-13)). Que
+  dos pawns tarden la mitad sale gratis y parar a medias no regala progreso.
+- **Una sola orden planta una sola obra**, por muchos pawns que la reciban. Es la diferencia
+  entre mandar cinco pawns a construir una casa y acabar con cinco casas apiladas.
+- **La población se recuenta, no se guarda.** Una unidad que muere libera su hueco sin que nadie
+  la descuente, y el día que los edificios se puedan destruir, una casa caída bajará el tope sin
+  una línea más.
+- **La rejilla del panel se volvió dinámica.** El cuartel entrena dos unidades, y con un botón
+  fijo por acción el lancero no habría tenido dónde salir.
+- **El contador de población fue a la fila de recursos**, no a una esquina. Se gasta al entrenar
+  y se amplía construyendo: pertenece al sitio donde el jugador ya mira antes de pulsar.
+- **Lo que no se puede pagar se ve apagado, no escondido.** Un cuartel que desaparece cuando
+  falta madera nunca le enseña al jugador hacia dónde ahorrar.
+- **Una ficha de casa, no tres.** `House2` y `House3` son variantes de dibujo del mismo edificio;
+  tres fichas se habrían comido tres de las cuatro ranuras de construcción.
+
+### Andamio que hay que retirar
+- El **poste de entrenamiento** sigue. Es la única forma de ver daño y muerte hasta que haya
+  enemigos de verdad, en E06.
+- La **escuadra de diez unidades ya se retiró**: era de cuando no se podía entrenar nada.
+
+### Pendiente
+- Torre, vida y destrucción de edificios: declarados fuera de alcance antes de empezar, van a E06.
+- El coste de obra de cada edificio está puesto a ojo; se calibra en la semana 16.
+
+---
+
 ## Semana 05 — Economía · HITO 1 · PC1
 **Entrega:** domingo 06/09/2026 · **Expo:** lunes 07/09/2026 · **Expone:** Joaquín
 **Tag:** _(pendiente)_ `v0.5.0-s05`

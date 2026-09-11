@@ -21,7 +21,7 @@ Equipo: Joaquín Loa Denegri · Kiara Santti Saavedra · Gerardo Raúl Socualaya
 
 ### La experiencia que proponemos
 
-El jugador empieza con un castillo, una casa y dos pawns en una esquina del mapa.
+El jugador empieza con un castillo y dos pawns en una esquina del mapa.
 Debe **expandir su economía** antes de que los rivales expandan la suya, **traducir esa economía
 en ejército** y **destruir el castillo enemigo** — todo bajo la presión de no saber qué está
 haciendo el rival, porque la niebla de guerra le oculta el mapa.
@@ -139,20 +139,39 @@ debe perder contra uno mixto de costo equivalente.
 
 ## 5. Edificios
 
-| Edificio | Sprite del pack | Costo | Función |
-|---|---|---|---|
-| **Castillo** | `Castle` | — (inicial) | Centro de entrega de recursos. Entrena pawns. Su destrucción = derrota. Aporta 5 de población |
-| **Casa** | `House1-3` | 60 🪵 | +5 al límite de población |
-| **Cuartel** | `Barracks` | 120 🪵 + 50 🪙 | Entrena guerreros y lanceros |
-| **Campo de tiro** | `Archery` | 100 🪵 + 70 🪙 | Entrena arqueros |
-| **Monasterio** | `Monastery` | 150 🪵 + 100 🪙 | Entrena monjes |
-| **Torre** | `Tower` | 80 🪵 + 40 🪙 | Defensa estática, ataque a distancia |
+| Edificio | Sprite del pack | Costo | Planta | Obra | Función |
+|---|---|---|---|---|---|
+| **Castillo** | `Castle` | — (inicial) | 5×3 | — | Centro de entrega de recursos. Entrena pawns. Su destrucción = derrota. Aporta **10** de población |
+| **Casa** | `House1` | 60 🪵 | 2×2 | 32 (~10 s) | +5 al límite de población |
+| **Cuartel** | `Barracks` | 100 🪵 + 40 🪙 | 3×3 | 50 (~15 s) | Entrena guerreros y lanceros |
+| **Campo de tiro** | `Archery` | 90 🪵 + 40 🪙 | 3×3 | 46 (~14 s) | Entrena arqueros |
+| **Monasterio** | `Monastery` | 80 🪵 + 80 🪙 | 3×3 | 56 (~17 s) | Entrena monjes |
+| **Torre** | `Tower` | 80 🪵 + 40 🪙 | 2×2 | — | Defensa estática, ataque a distancia *(E06)* |
 
-**Población:** empieza en 5 (castillo), +5 por casa, **tope duro de 50 unidades por bando**.
+**Planta** son las celdas que el edificio ocupa en el suelo, y no coincide con el tamaño de su
+dibujo: el monasterio dibuja algo más de cuatro tiles de alto y su planta son tres, porque lo de
+arriba es la aguja. **Obra** son los martillazos que cuesta levantarlo — no segundos, así que
+dos pawns tardan la mitad. Un martillazo son 0,3 s, que es lo que dura la tira del pack a 10 fps;
+los segundos de la tabla son orientativos y valen para **un** pawn.
+
+**Población:** empieza en **10** (castillo), +5 por casa, **tope duro de 50 puntos por bando**.
 Ese tope no es diseño arbitrario: es el presupuesto de rendimiento (5 bandos × 50 = 250 unidades).
+Como ninguna unidad cuesta menos de un punto, el límite de diseño y el técnico son el mismo número.
+
+| Unidad | Población |
+|---|---|
+| Pawn | 1 |
+| Guerrero · Lancero · Arquero | 2 |
+| Monje | 3 |
+
+Diez de salida y dos pawns iniciales dejan ocho puntos libres: sitio para la apertura —recolectar,
+levantar una casa y empezar a producir— sin que la primera decisión del jugador sea descubrir que
+no le cabe nada.
 
 **Construcción:** el jugador elige el edificio, aparece una silueta que sigue al cursor con
-validación de terreno, y al confirmar un pawn camina hasta el sitio y lo levanta.
+validación de terreno, y al confirmar un pawn camina hasta el sitio y lo levanta. La obra se ve
+desde el primer momento como el propio edificio translúcido, que se va opacando a martillazos.
+Mientras dura no entrega recursos, no fabrica y no suma población.
 
 ---
 
@@ -164,6 +183,10 @@ validación de terreno, y al confirmar un pawn camina hasta el sitio y lo levant
 | Selección múltiple | Arrastrar caja con clic izquierdo |
 | Sumar a la selección | Shift + clic / Shift + arrastre |
 | Mover / atacar / recolectar | Clic derecho sobre el destino (orden contextual) |
+| Abrir la rejilla de construcción | `B` con un pawn seleccionado |
+| Colocar el edificio elegido | Clic izquierdo (Shift para encadenar varios) |
+| Cancelar la colocación | Clic derecho o `Esc` |
+| Ayudar en una obra | Clic derecho sobre ella con pawns seleccionados |
 | Mover cámara | WASD o empujar el borde de la pantalla |
 | Zoom | Rueda del mouse |
 | Grupos de control | Ctrl + número para asignar, número para llamar |
