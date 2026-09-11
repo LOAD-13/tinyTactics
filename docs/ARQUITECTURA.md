@@ -179,6 +179,38 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-14 · Un edificio tiene dos medidas: el dibujo y la planta
+
+**Decisión.** Cada edificio guarda dos tamaños distintos. La **huella** es el recuadro de
+píxeles opacos de su PNG, en decimales, medida por la herramienta del editor. La **planta** son
+las celdas que ocupa en el suelo, en tiles enteros, escrita a mano en la ficha.
+
+**Por qué dos y no una.** Los edificios del pack están dibujados en perspectiva: se les ve la
+fachada. El monasterio mide 4,14 tiles de alto porque tiene una aguja, y su planta no llega a
+tres. Con una sola medida hay que elegir cuál se sacrifica, y las dos opciones son malas: usar
+el dibujo para bloquear terreno pediría cuatro tiles libres para colocar algo que cabe en tres
+—imposible de construir en media base—, y usar la planta para medir distancias dejaría al pawn
+entregando a través del muro.
+
+Cada una se usa donde significa algo. La huella mide distancias al borde, estira el corchete de
+selección y sitúa el retrato. La planta bloquea la grilla y dibuja la silueta verde.
+
+**La planta va en tiles enteros** porque la silueta se ajusta a la rejilla. Un edificio que
+ocupara 2,88 celdas dejaría un doceavo de celda pisable que ninguna unidad podría usar y que el
+pathfinding tendría que seguir considerando.
+
+**Consecuencia.** La posición del objeto **sale del rectángulo de celdas**, nunca al revés. Es
+lo que garantiza que la silueta que el jugador vio y el terreno que acaba bloqueado sean
+literalmente el mismo dato: si la silueta se colocara «donde está el ratón» y el edificio «donde
+dicen las celdas», coincidirían casi siempre y discreparían medio tile justo en los bordes, que
+es donde el jugador mira.
+
+**Lo que evita.** Las huellas se **miden**, no se estiman — la regla que se ganó a pulso en la
+semana 03 leyendo un tileset a ojo tres veces seguidas y en la 05 con el corchete del castillo.
+La medición automática reprodujo exactamente el 4,88 × 3,25 que se había sacado a mano.
+
+---
+
 ### ADR-13 · El progreso de una acción se cuenta en golpes, no en segundos
 
 **Decisión.** Lo que cuesta recolectar una carga se mide en **pasadas completas de la
@@ -297,16 +329,16 @@ funciona en otro, y sigue sin poder decidir *dónde* va la subida.
 ```
 Assets/
 ├── Scripts/
-│   ├── Nucleo/          Autoridad de simulación, órdenes, tick
-│   ├── Mundo/           Grilla, mapa, facciones, niebla
-│   ├── Unidades/        FSM, stats, animación por sprite-swap
+│   ├── Nucleo/          Autoridad de simulación, órdenes, economía, población
+│   ├── Mundo/           Grilla, mapa, recursos, profundidad de dibujo
+│   ├── Unidades/        FSM, stats, animación por sprite-swap, recolector, constructor
 │   ├── Movimiento/      A*, cola de rutas, flow field, empuje
-│   ├── Economia/        Recursos, recolección, almacenamiento
-│   ├── Construccion/    Edificios, colocación, población
+│   ├── Edificios/       Edificio, producción, colocación, obra, catálogo
 │   ├── Combate/         Daño, targeting, proyectiles, curación
 │   ├── IA/              Capa estratégica, táctica, dificultades
 │   ├── Entrada/         Selección, órdenes contextuales, cámara
-│   ├── UI/              HUD, minimapa, menús
+│   ├── Interfaz/        HUD, panel, cursor, resaltado, minimapa
+│   ├── Editor/          Generadores de escena, interfaz y catálogos
 │   └── Datos/           ScriptableObjects de balance
 ├── Prefabs/             Unidades, edificios, proyectiles, efectos
 ├── Scenes/              Menu, Juego, mapas

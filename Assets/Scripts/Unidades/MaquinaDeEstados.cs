@@ -35,6 +35,10 @@ namespace TinyTactics.Unidades
             public EstadoUnidad estado;
             public DireccionAtaque direccion = DireccionAtaque.Ninguna;
             public TipoRecurso recurso = TipoRecurso.Ninguno;
+
+            /// <summary>Tira de obra. Gana a la del recurso mientras el pawn construye.</summary>
+            public bool martillo;
+
             public Sprite[] frames;
             public float fps = 8f;
             public bool enBucle = true;
@@ -270,21 +274,32 @@ namespace TinyTactics.Unidades
                         return _tiras[i];
             }
 
+            // El martillo va PRIMERO. Un pawn que va a construir sigue llevando encima el
+            // saco de lo que estuviera recolectando, así que si mandara la carga se le
+            // vería levantar el muro a hachazos.
+            if (ConMartillo)
+            {
+                for (int i = 0; i < _tiras.Length; i++)
+                    if (_tiras[i] != null && _tiras[i].estado == estado && _tiras[i].martillo)
+                        return _tiras[i];
+            }
+
             if (Recurso != TipoRecurso.Ninguno)
             {
                 for (int i = 0; i < _tiras.Length; i++)
                     if (_tiras[i] != null && _tiras[i].estado == estado &&
-                        _tiras[i].recurso == Recurso)
+                        _tiras[i].recurso == Recurso && !_tiras[i].martillo)
                         return _tiras[i];
             }
 
             for (int i = 0; i < _tiras.Length; i++)
                 if (_tiras[i] != null && _tiras[i].estado == estado &&
-                    _tiras[i].recurso == TipoRecurso.Ninguno)
+                    _tiras[i].recurso == TipoRecurso.Ninguno && !_tiras[i].martillo)
                     return _tiras[i];
 
             for (int i = 0; i < _tiras.Length; i++)
-                if (_tiras[i] != null && _tiras[i].estado == estado) return _tiras[i];
+                if (_tiras[i] != null && _tiras[i].estado == estado && !_tiras[i].martillo)
+                    return _tiras[i];
 
             return null;
         }
@@ -319,6 +334,26 @@ namespace TinyTactics.Unidades
             if (Muerta || Recurso == recurso) return;
 
             Recurso = recurso;
+            Aplicar(Estado, true);
+        }
+
+        /// <summary>True mientras la unidad lleva el martillo en la mano.</summary>
+        public bool ConMartillo { get; private set; }
+
+        /// <summary>
+        /// Saca o guarda el martillo.
+        /// </summary>
+        /// <remarks>
+        /// Es una bandera aparte y no otro valor de <see cref="Recurso"/> porque las dos
+        /// cosas conviven: un pawn puede ir a construir con el saco de madera todavía
+        /// encima, y al acabar la obra tiene que volver a vérsele el saco sin que nadie
+        /// recuerde cuál era.
+        /// </remarks>
+        public void EmpunarMartillo(bool activo)
+        {
+            if (Muerta || ConMartillo == activo) return;
+
+            ConMartillo = activo;
             Aplicar(Estado, true);
         }
 

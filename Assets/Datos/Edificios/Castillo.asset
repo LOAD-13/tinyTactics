@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48de6012b48cd344d909184820a4b6e6, type: 3}
+  m_Name: Castillo
+  m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosEdificio
+  tipo: 0
+  nombreVisible: Castillo
+  carpeta: Assets/Tiny Swords/Buildings/{color} Buildings
+  variantes:
+  - archivo: Castle
+    huella: {x: 4.875, y: 3.25}
+    huellaCentro: {x: 0, y: -0.265625}
+  oro: 0
+  madera: 0
+  planta: {x: 5, y: 3}
+  golpesDeObra: 90
+  centroDeEntrega: 1
+  poblacionQueAporta: 10
+  construible: 0
+  fabrica:
+  - {fileID: 11400000, guid: 8366d06deef447b4c989c44b2262b06d, type: 2}

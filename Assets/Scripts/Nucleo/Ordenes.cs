@@ -50,6 +50,9 @@ namespace TinyTactics.Nucleo
             var recolector = unidad.GetComponent<RecolectorPawn>();
             if (recolector != null) recolector.Cancelar();
 
+            var constructor = unidad.GetComponent<ConstructorPawn>();
+            if (constructor != null) constructor.Cancelar();
+
             var maquina = unidad.GetComponent<MaquinaDeEstados>();
             if (maquina != null) maquina.Cancelar();
         }
@@ -75,10 +78,72 @@ namespace TinyTactics.Nucleo
             // pawns y dejar quieto al resto, no arrastrar al ejército entero a talar.
             if (recolector == null || Nodo == null) return;
 
+            // Irse a talar deja la obra a medias: son las dos faenas del mismo pawn y no se
+            // pueden hacer a la vez.
+            var constructor = unidad.GetComponent<ConstructorPawn>();
+            if (constructor != null) constructor.Cancelar();
+
             var maquina = unidad.GetComponent<MaquinaDeEstados>();
             if (maquina != null) maquina.Cancelar();
 
             recolector.Recolectar(Nodo);
+        }
+    }
+
+    /// <summary>
+    /// Levantar un edificio en unas celdas concretas.
+    ///
+    /// <b>La obra se planta una sola vez, por muchos pawns que reciban la orden.</b> Es la
+    /// diferencia entre mandar cinco pawns a construir una casa y acabar con cinco casas
+    /// apiladas. La primera unidad que la aplica planta el andamio; el resto se suma al que
+    /// ya existe, y como los martillazos se cuentan, la casa sale cinco veces más rápido
+    /// sin ninguna regla especial.
+    /// </summary>
+    public class OrdenConstruir : Orden
+    {
+        public Datos.DatosEdificio Edificio;
+        public RectInt Celdas;
+
+        /// <summary>Fachada elegida con la rueda. Solo cambia el dibujo.</summary>
+        public int Variante;
+
+        /// <summary>
+        /// Obra ya plantada por esta misma orden. Vive en la orden y no en un registro
+        /// global porque su alcance es exactamente el de la orden: un clic del jugador.
+        /// </summary>
+        Edificios.ObraEnConstruccion _obra;
+
+        public override void Aplicar(Unidad unidad)
+        {
+            var constructor = unidad.GetComponent<ConstructorPawn>();
+
+            // Solo los pawns construyen. Seleccionar un grupo mixto y mandar levantar una
+            // casa manda a los pawns y deja quieto al resto, igual que al talar.
+            if (constructor == null || Edificio == null) return;
+
+            if (_obra == null)
+            {
+                _obra = Edificios.ObraEnConstruccion.Plantar(Edificio, Faccion, Celdas, Variante);
+                if (_obra == null) return;
+            }
+
+            OrdenMover.Soltar(unidad);
+            constructor.Construir(_obra);
+        }
+    }
+
+    /// <summary>Echar una mano en una obra que ya está levantándose.</summary>
+    public class OrdenAyudarObra : Orden
+    {
+        public Edificios.ObraEnConstruccion Obra;
+
+        public override void Aplicar(Unidad unidad)
+        {
+            var constructor = unidad.GetComponent<ConstructorPawn>();
+            if (constructor == null || Obra == null) return;
+
+            OrdenMover.Soltar(unidad);
+            constructor.Construir(Obra);
         }
     }
 
@@ -103,6 +168,9 @@ namespace TinyTactics.Nucleo
             // mismo fotograma, solo que todo entre por aquí.
             var recolector = unidad.GetComponent<RecolectorPawn>();
             if (recolector != null) recolector.Cancelar();
+
+            var constructor = unidad.GetComponent<ConstructorPawn>();
+            if (constructor != null) constructor.Cancelar();
 
             var maquina = unidad.GetComponent<MaquinaDeEstados>();
             if (maquina != null) maquina.OrdenarAtaque(Objetivo);
@@ -141,6 +209,9 @@ namespace TinyTactics.Nucleo
         {
             var recolector = unidad.GetComponent<RecolectorPawn>();
             if (recolector == null) return;
+
+            var constructor = unidad.GetComponent<ConstructorPawn>();
+            if (constructor != null) constructor.Cancelar();
 
             var maquina = unidad.GetComponent<MaquinaDeEstados>();
             if (maquina != null) maquina.Cancelar();

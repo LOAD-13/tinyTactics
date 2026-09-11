@@ -28,6 +28,19 @@ namespace TinyTactics.Mundo
         [Tooltip("Las ovejas se mueven; los árboles y las vetas, no.")]
         public bool seMueve;
 
+        [Tooltip("Estorbo que solo se despeja: se trabaja igual pero no da nada. Son las " +
+                 "piedras y los arbustos. El campo `recurso` sigue diciendo con qué " +
+                 "herramienta se pica, aunque no haya botín.")]
+        public bool soloDespejar;
+
+        [Tooltip("Viajes que aguanta, si no se quiere el de su tipo en la economía. " +
+                 "Cero = el de la tabla. Lo usan los estorbos, que se quitan de un par de golpes.")]
+        [Min(0)] public int extraccionesFijas;
+
+        [Tooltip("Segundos que el resto —el tocón— se queda en el mapa antes de irse. " +
+                 "Cero = se queda para siempre.")]
+        [Min(0f)] public float segundosDeResto;
+
         /// <summary>
         /// Dónde tiene que plantarse el pawn para trabajarlo.
         /// </summary>
@@ -75,6 +88,12 @@ namespace TinyTactics.Mundo
         /// </summary>
         void Start()
         {
+            if (extraccionesFijas > 0)
+            {
+                _restantes = extraccionesFijas;
+                return;
+            }
+
             var eco = Economia.Actual;
             _restantes = eco != null && eco.datos != null
                 ? eco.datos.ExtraccionesDe(recurso)
@@ -115,8 +134,12 @@ namespace TinyTactics.Mundo
             cantidad = 0;
             if (Agotado) return false;
 
-            var eco = Economia.Actual;
-            cantidad = eco != null && eco.datos != null ? eco.datos.CargaDe(recurso) : 1;
+            // Un estorbo se quita, no se explota: la faena vale, pero el saco viene vacío.
+            if (!soloDespejar)
+            {
+                var eco = Economia.Actual;
+                cantidad = eco != null && eco.datos != null ? eco.datos.CargaDe(recurso) : 1;
+            }
 
             _restantes--;
             if (_restantes <= 0) Agotar();
@@ -145,11 +168,50 @@ namespace TinyTactics.Mundo
                 var animador = GetComponent<Unidades.AnimadorSprite>();
                 if (animador != null) animador.enabled = false;
 
+                // El tocón es una cicatriz, no un monumento: se queda el rato justo para que
+                // se entienda que ahí había un árbol y luego se va. Sin esto, media hora de
+                // partida deja el mapa sembrado de tocones y el bosque talado se lee igual
+                // de lleno que el que no se ha tocado.
+                if (segundosDeResto > 0f) StartCoroutine(Desvanecer());
+
                 return;
             }
 
             Destroy(gameObject);
         }
+
+        /// <summary>
+        /// Espera, se apaga poco a poco y desaparece.
+        /// </summary>
+        /// <remarks>
+        /// Se desvanece en vez de esfumarse de golpe porque un objeto que desaparece en un
+        /// fotograma se lee como un fallo del juego, no como el paso del tiempo. Dos
+        /// segundos bastan para que el ojo lo registre como algo que se va.
+        /// </remarks>
+        System.Collections.IEnumerator Desvanecer()
+        {
+            yield return new WaitForSeconds(segundosDeResto);
+
+            var sr = GetComponent<SpriteRenderer>();
+
+            if (sr != null)
+            {
+                Color inicial = sr.color;
+
+                for (float t = 0f; t < DuracionDelAdios; t += Time.deltaTime)
+                {
+                    var c = inicial;
+                    c.a = inicial.a * (1f - t / DuracionDelAdios);
+                    sr.color = c;
+
+                    yield return null;
+                }
+            }
+
+            Destroy(gameObject);
+        }
+
+        const float DuracionDelAdios = 2f;
 
         // -----------------------------------------------------------------
         // Búsqueda

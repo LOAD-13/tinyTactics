@@ -412,6 +412,10 @@ namespace TinyTactics.EditorHerramientas
             go.AddComponent<HudRecursos>().tema = tema;
             go.AddComponent<CursorJuego>().tema = tema;
 
+            // El resaltado tiñe el sprite que ya está en el mapa; del tema solo saca la caja
+            // de madera del cartel de existencias.
+            go.AddComponent<ResaltadoDeNodo>().tema = tema;
+
             // Sin EventSystem los botones de uGUI no reciben un solo clic. No hacía falta
             // hasta ahora porque toda la entrada se leía del ratón directamente.
             if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)

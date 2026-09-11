@@ -38,6 +38,21 @@ namespace TinyTactics.Unidades
         TipoRecurso _carga = TipoRecurso.Ninguno;
         int _cantidad;
 
+        /// <summary>
+        /// Qué estaba trabajando, aunque el nodo ya no exista.
+        /// </summary>
+        /// <remarks>
+        /// <b>La oveja se destruye al sacrificarla</b>, y un objeto destruido de Unity finge
+        /// ser <c>null</c>. Eso rompía el relevo: al volver de entregar la carne,
+        /// <c>_nodo</c> ya era «nulo» y el tipo se deducía de la carga, que acababa de
+        /// vaciarse al depositar. Resultado: el pawn mataba una oveja, la entregaba y se
+        /// quedaba plantado para siempre.
+        ///
+        /// Con los árboles no pasaba —el tronco talado sigue existiendo como tocón— así que
+        /// el fallo solo se veía con la carne, y parecía cosa de las ovejas.
+        /// </remarks>
+        TipoRecurso _ultimoTipo = TipoRecurso.Ninguno;
+
         int _golpes = 1;
         float _proximoIntento;
         Vector3 _destinoPedido;
@@ -74,6 +89,7 @@ namespace TinyTactics.Unidades
             SoltarReserva();
 
             _nodo = nodo;
+            _ultimoTipo = nodo.soloDespejar ? TipoRecurso.Ninguno : nodo.recurso;
 
             // Cargado no se empieza nada: primero se entrega y DESPUÉS se va al nodo nuevo,
             // sea del recurso que sea. Un peón que tira al suelo diez de oro porque le has
@@ -198,6 +214,11 @@ namespace TinyTactics.Unidades
             var eco = Economia.Actual;
             _golpes = eco != null && eco.datos != null ? eco.datos.GolpesDe(_nodo.recurso) : 4;
 
+            // Un estorbo no deja testigo: despejar es una orden puntual, y si otro pawn
+            // termina la piedra primero, este no debe irse a picar la veta más cercana solo
+            // porque compartan herramienta.
+            _ultimoTipo = _nodo.soloDespejar ? TipoRecurso.Ninguno : _nodo.recurso;
+
             // Cargar antes de Trabajar: la herramienta con la que pica sale de la misma
             // tabla que el saco que carga, indexada por recurso. Sin esto picaría a mano.
             _maquina.Cargar(_nodo.recurso);
@@ -220,13 +241,29 @@ namespace TinyTactics.Unidades
             // dibujo, no un cronómetro por detrás.
             if (_maquina.VueltasDeTrabajo < _golpes) return;
 
-            if (!_nodo.Extraer(out int cantidad)) { SoltarReserva(); Relevo(); return; }
+            // Se leen ANTES de extraer: extraer puede agotar el nodo y destruirlo, y a un
+            // objeto destruido de Unity ya no se le pueden preguntar sus campos.
+            bool despejando = _nodo.soloDespejar;
+            TipoRecurso daba = _nodo.recurso;
 
-            _carga = _nodo.recurso;
-            _cantidad = cantidad;
+            if (!_nodo.Extraer(out int cantidad)) { SoltarReserva(); Relevo(); return; }
 
             SoltarReserva();
             _maquina.Trabajar(false);
+
+            // Despejar un arbusto o una piedra no da botín: no hay nada que cargar ni a
+            // dónde llevarlo, así que el pawn se queda donde está en vez de hacer el viaje
+            // de vuelta al castillo con las manos vacías.
+            if (despejando || cantidad <= 0)
+            {
+                _maquina.Cargar(TipoRecurso.Ninguno);
+                Detenerse();
+                return;
+            }
+
+            _carga = daba;
+            _cantidad = cantidad;
+
             _maquina.Cargar(_carga);
 
             IrAEntregar();
@@ -285,11 +322,19 @@ namespace TinyTactics.Unidades
         /// </summary>
         void Relevo()
         {
-            TipoRecurso tipo = _nodo != null ? _nodo.recurso : _carga;
+            // El tipo sale del testigo y no del nodo: para cuando se busca relevo, el nodo
+            // puede haber dejado de existir (ver _ultimoTipo).
+            TipoRecurso tipo = _nodo != null ? _nodo.recurso : _ultimoTipo;
+            bool despejando = _nodo != null && _nodo.soloDespejar;
+
             _nodo = null;
 
             if (_carga != TipoRecurso.Ninguno) { IrAEntregar(); return; }
-            if (tipo == TipoRecurso.Ninguno) { Detenerse(); return; }
+
+            // Despejar es una orden puntual, no una faena que se repita sola. Buscar relevo
+            // habría mandado al pawn a picar la veta de oro más cercana por haber quitado
+            // una piedra, que no es lo que nadie pidió.
+            if (despejando || tipo == TipoRecurso.Ninguno) { Detenerse(); return; }
 
             var eco = Economia.Actual;
             float radio = eco != null && eco.datos != null ? eco.datos.radioRelevo : 14f;

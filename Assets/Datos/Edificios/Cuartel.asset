@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48de6012b48cd344d909184820a4b6e6, type: 3}
+  m_Name: Cuartel
+  m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosEdificio
+  tipo: 2
+  nombreVisible: Cuartel
+  carpeta: Assets/Tiny Swords/Buildings/{color} Buildings
+  variantes:
+  - archivo: Barracks
+    huella: {x: 2.875, y: 2.921875}
+    huellaCentro: {x: 0, y: -0.3671875}
+  oro: 40
+  madera: 100
+  planta: {x: 3, y: 3}
+  golpesDeObra: 50
+  centroDeEntrega: 0
+  poblacionQueAporta: 0
+  construible: 1
+  fabrica:
+  - {fileID: 11400000, guid: a4ab7a8e295e9e741b91e4a0083f1c82, type: 2}
+  - {fileID: 11400000, guid: 54c886182fc23eb4e882b4579fbf12d2, type: 2}

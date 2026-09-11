@@ -112,8 +112,48 @@ namespace TinyTactics.Entrada
             }
 
             LeerAtajos();
+
+            // La colocación se come el ratón entero mientras dura. Es un modo, no una
+            // acción: mientras arrastras una silueta por el mapa, ni se selecciona ni se
+            // dan órdenes, igual que en cualquier RTS del género.
+            if (LeerColocacion(raton)) return;
+
             LeerBotonIzquierdo(raton);
             LeerBotonDerecho(raton);
+        }
+
+        /// <summary>
+        /// Mueve la silueta y resuelve el clic que planta el edificio.
+        /// Devuelve true si ha consumido la entrada de este fotograma.
+        /// </summary>
+        bool LeerColocacion(Mouse raton)
+        {
+            var colocador = Edificios.ColocadorEdificios.Actual;
+            if (colocador == null || !colocador.Activo) return false;
+
+            Vector2 pantalla = raton.position.ReadValue();
+
+            // Sobre el panel la silueta se congela donde estaba: seguir al ratón por detrás
+            // de la interfaz enseña un sitio del mapa que el clic no va a poder elegir.
+            bool sobrePanel = SobreLaInterfaz(pantalla);
+            if (!sobrePanel) colocador.Apuntar(PuntoEnMundo(pantalla));
+
+            // La rueda pasa de una fachada a otra. El valor bruto varía mucho entre ratones
+            // y trackpads, así que solo se usa el signo, igual que hace el zoom de la cámara.
+            float rueda = raton.scroll.ReadValue().y;
+            if (Mathf.Abs(rueda) > 0.01f) colocador.Girar((int)Mathf.Sign(rueda));
+
+            // Clic derecho o Escape cancelan, que son los dos gestos que cualquiera prueba.
+            if (raton.rightButton.wasPressedThisFrame)
+            {
+                CancelarColocacion();
+                return true;
+            }
+
+            if (raton.leftButton.wasPressedThisFrame && !sobrePanel)
+                ResolverColocacion(colocador);
+
+            return true;
         }
 
         // -----------------------------------------------------------------
@@ -154,15 +194,115 @@ namespace TinyTactics.Entrada
                     return;
 
                 case Interfaz.PanelDeUnidad.Accion.Construir:
-                    // Sin funcionalidad hasta la semana 06. El botón está para que la
-                    // rejilla no cambie de forma cuando llegue.
-                    Debug.Log("[Tiny Tactics] Construir llega en la semana 06 (épica E05).");
+                    // No coloca nada todavía: abre la rejilla con lo que un pawn sabe
+                    // levantar. Elegir QUÉ y elegir DÓNDE son dos decisiones distintas, y
+                    // juntarlas en un clic obligaría a cancelar y volver a empezar cada vez
+                    // que el jugador se equivoca de edificio.
+                    AbrirConstruccion(true);
+                    return;
+
+                case Interfaz.PanelDeUnidad.Accion.Cancelar:
+                    AbrirConstruccion(false);
+                    CancelarColocacion();
                     return;
 
                 default:
                     _apuntando = accion;
                     return;
             }
+        }
+
+        // -----------------------------------------------------------------
+        // Construcción
+        // -----------------------------------------------------------------
+
+        /// <summary>¿Está el panel enseñando la rejilla de edificios?</summary>
+        public bool EligiendoEdificio { get; private set; }
+
+        void AbrirConstruccion(bool abierta)
+        {
+            if (EligiendoEdificio == abierta) return;
+
+            EligiendoEdificio = abierta;
+            VersionSeleccion++;
+        }
+
+        /// <summary>
+        /// El jugador ha elegido qué construir: ahora toca elegir dónde.
+        /// </summary>
+        public void PedirConstruir(Datos.DatosEdificio ficha)
+        {
+            if (ficha == null || !HayRecolector()) return;
+
+            var panel = Interfaz.PanelDeUnidad.Actual;
+
+            var eco = Economia.Actual;
+            if (eco != null && !eco.PuedePagar(faccionJugador, ficha.oro, ficha.madera))
+            {
+                // Se avisa aquí y no al soltar el clic en el mapa: llevar al jugador a
+                // pasear una silueta por el mapa para decirle al final que no le alcanza es
+                // hacerle perder el tiempo dos veces.
+                if (panel != null) panel.Avisar($"Faltan recursos · {ficha.CosteVisible()}");
+                return;
+            }
+
+            var colocador = Edificios.ColocadorEdificios.Actual;
+            if (colocador == null || !colocador.Empezar(ficha, faccionJugador))
+            {
+                if (panel != null) panel.Avisar("No encuentro el dibujo. Regenera la escena");
+                return;
+            }
+
+            _apuntando = null;
+            AbrirConstruccion(false);
+
+            // Un edificio con varias fachadas no lo anuncia por sí solo: la rueda es un
+            // gesto que nadie prueba si no se lo dicen, y en el resto del juego hace zoom.
+            if (panel != null && colocador.TieneFachadas)
+                panel.Avisar("Rueda del ratón: cambiar de fachada");
+        }
+
+        /// <summary>Resuelve el clic que planta el edificio.</summary>
+        void ResolverColocacion(Edificios.ColocadorEdificios colocador)
+        {
+            string impedimento = colocador.Impedimento();
+            var panel = Interfaz.PanelDeUnidad.Actual;
+
+            if (impedimento != null)
+            {
+                if (panel != null) panel.Avisar(impedimento);
+                return;
+            }
+
+            var ficha = colocador.Ficha;
+
+            var eco = Economia.Actual;
+            if (eco != null && !eco.Cobrar(faccionJugador, ficha.oro, ficha.madera))
+            {
+                if (panel != null) panel.Avisar("Faltan recursos");
+                return;
+            }
+
+            // Una sola orden para todo el grupo: la obra se planta una vez y todos los
+            // pawns se suman a ella. Emitirla por unidad plantaría una casa por pawn.
+            Autoridad.Emitir(
+                new OrdenConstruir
+                {
+                    Faccion = faccionJugador,
+                    Edificio = ficha,
+                    Celdas = colocador.Celdas,
+                    Variante = colocador.VarianteElegida,
+                },
+                _seleccionadas);
+
+            // Con shift se encadenan varios sin volver al panel, como en cualquier RTS.
+            if (!Acumulando()) CancelarColocacion();
+        }
+
+        void CancelarColocacion()
+        {
+            var colocador = Edificios.ColocadorEdificios.Actual;
+            if (colocador != null) colocador.Cancelar();
         }
 
         /// <summary>Encola una unidad en el edificio elegido y avisa si no se ha podido.</summary>
@@ -173,7 +313,23 @@ namespace TinyTactics.Entrada
             var produccion = EdificioSeleccionado.GetComponent<Edificios.ProduccionEdificio>();
             if (produccion == null) return;
 
-            if (produccion.Encolar(out string motivo)) return;
+            var catalogo = produccion.Catalogo;
+            if (catalogo.Length == 0) return;
+
+            // El atajo de teclado encola lo primero que el edificio sepa hacer. La rejilla
+            // del panel sí deja elegir cuál de todas.
+            PedirFabricar(catalogo[0]);
+        }
+
+        /// <summary>Encola una unidad concreta en el edificio elegido.</summary>
+        public void PedirFabricar(Datos.DatosUnidad datos)
+        {
+            if (EdificioSeleccionado == null || datos == null) return;
+
+            var produccion = EdificioSeleccionado.GetComponent<Edificios.ProduccionEdificio>();
+            if (produccion == null) return;
+
+            if (produccion.Encolar(datos, out string motivo)) return;
 
             // El aviso viaja al mismo listón donde se lee qué hace cada botón. Sin él, un
             // clic sin oro no hace absolutamente nada y el jugador no sabe si el botón está
@@ -187,6 +343,20 @@ namespace TinyTactics.Entrada
             var teclado = Keyboard.current;
 
             if (teclado == null) return;
+
+            // Escape deshace, en este orden: primero la silueta que está en el aire, luego
+            // la rejilla de edificios, y solo después la acción apuntada. Al revés, cancelar
+            // una colocación cerraría además el menú y habría que volver a abrirlo.
+            if (teclado.escapeKey.wasPressedThisFrame)
+            {
+                var enCurso = Edificios.ColocadorEdificios.Actual;
+                if (enCurso != null && enCurso.Activo) { CancelarColocacion(); return; }
+
+                if (EligiendoEdificio) { AbrirConstruccion(false); return; }
+
+                _apuntando = null;
+                return;
+            }
 
             if (EdificioSeleccionado != null && _seleccionadas.Count == 0)
             {
@@ -210,7 +380,8 @@ namespace TinyTactics.Entrada
             if (teclado.sKey.wasPressedThisFrame)
                 PedirAccion(Interfaz.PanelDeUnidad.Accion.Detener);
 
-            if (teclado.escapeKey.wasPressedThisFrame) _apuntando = null;
+            if (teclado.bKey.wasPressedThisFrame && HayRecolector())
+                PedirAccion(Interfaz.PanelDeUnidad.Accion.Construir);
         }
 
         /// <summary>Resuelve el clic que da objetivo a una acción armada.</summary>
@@ -322,7 +493,23 @@ namespace TinyTactics.Entrada
             // pareja natural del clic sobre un recurso, y la única forma de decirle a un
             // peón al que has interrumpido a mitad de viaje que termine lo que llevaba.
             var propio = Edificios.Edificio.EdificioEn(punto, faccionJugador);
-            if (propio != null && propio.centroDeEntrega && HayCargado())
+
+            // Sobre una obra a medias, los pawns se ponen a martillar. Va antes que la
+            // entrega porque una obra todavía no es centro de entrega de nada, y antes que
+            // el movimiento porque es lo que el jugador quiere decir al hacer clic ahí.
+            if (propio != null && !propio.Operativo && HayRecolector())
+            {
+                var obra = propio.GetComponent<Edificios.ObraEnConstruccion>();
+                if (obra != null)
+                {
+                    Autoridad.Emitir(
+                        new OrdenAyudarObra { Faccion = faccionJugador, Obra = obra },
+                        _seleccionadas);
+                    return;
+                }
+            }
+
+            if (propio != null && propio.centroDeEntrega && propio.Operativo && HayCargado())
             {
                 Autoridad.Emitir(new OrdenEntregar { Faccion = faccionJugador }, _seleccionadas);
                 return;
@@ -625,6 +812,11 @@ namespace TinyTactics.Entrada
                 _seleccionadas.RemoveAt(i);
                 VersionSeleccion++;
             }
+
+            // La rejilla de edificios pertenece al pawn que la abrió. Si deja de estar
+            // seleccionado —porque el jugador eligió otra cosa o porque murió— el menú se
+            // cierra solo en vez de quedarse ofreciendo casas que nadie puede levantar.
+            if (EligiendoEdificio && !HayRecolector()) AbrirConstruccion(false);
         }
 
         // -----------------------------------------------------------------

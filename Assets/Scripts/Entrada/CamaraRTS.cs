@@ -106,6 +106,12 @@ namespace TinyTactics.Entrada
             var mouse = Mouse.current;
             if (mouse == null) return;
 
+            // Con una silueta en la mano, la rueda cambia de fachada en vez de acercar. Son
+            // dos usos del mismo gesto y hay que elegir uno: mientras colocas, lo que quieres
+            // mirar es el edificio, no el mapa.
+            var colocador = Edificios.ColocadorEdificios.Actual;
+            if (colocador != null && colocador.Activo) return;
+
             float rueda = mouse.scroll.ReadValue().y;
 
             // El valor bruto de la rueda varía mucho entre plataformas (120 en Windows,
