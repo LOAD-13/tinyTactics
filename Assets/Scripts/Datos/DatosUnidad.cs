@@ -56,6 +56,12 @@ namespace TinyTactics.Datos
         [Tooltip("Recurso con el que trabaja o que lleva encima. Solo lo usa el pawn.")]
         public TipoRecurso recurso = TipoRecurso.Ninguno;
 
+        [Tooltip("Tira de obra: el pawn con el martillo. Va en un campo aparte y no como un " +
+                 "cuarto valor de TipoRecurso porque un martillo no es un recurso — meterlo " +
+                 "en ese enum lo habría colado en las tablas de extracción y de carga de la " +
+                 "economía, que se indexan por él.")]
+        public bool martillo;
+
         [Tooltip("Reposo y caminar se repiten; atacar y morir se reproducen una sola vez.")]
         public bool enBucle = true;
     }
@@ -100,6 +106,11 @@ namespace TinyTactics.Datos
         [Header("Coste")]
         public int oro = 50;
         public int madera;
+
+        [Tooltip("Población que ocupa. El tope de 50 puntos por bando es lo que garantiza el " +
+                 "presupuesto de rendimiento: como nadie cuesta menos de 1, nunca puede haber " +
+                 "más de 50 unidades por bando.")]
+        [Range(1, 10)] public int poblacion = 1;
 
         [Header("Animación")]
         [Tooltip("Una entrada por estado. Los estados sin entrada caen a la de reposo.")]

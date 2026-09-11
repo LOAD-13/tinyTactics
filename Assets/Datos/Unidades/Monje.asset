@@ -23,22 +23,26 @@ MonoBehaviour:
   carnePorSegundo: 0.15
   oro: 120
   madera: 0
+  poblacion: 3
   clips:
   - estado: 0
     ruta: Assets/Tiny Swords/Units/{color} Units/Monk/Idle.png
     fps: 7
     direccion: 0
     recurso: 0
+    martillo: 0
     enBucle: 1
   - estado: 1
     ruta: Assets/Tiny Swords/Units/{color} Units/Monk/Run.png
     fps: 11
     direccion: 0
     recurso: 0
+    martillo: 0
     enBucle: 1
   - estado: 2
     ruta: Assets/Tiny Swords/Units/{color} Units/Monk/Heal.png
     fps: 12
     direccion: 0
     recurso: 0
+    martillo: 0
     enBucle: 0

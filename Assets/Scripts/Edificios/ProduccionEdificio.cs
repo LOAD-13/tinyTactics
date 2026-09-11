@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TinyTactics.Datos;
 using TinyTactics.Nucleo;
+using TinyTactics.Unidades;
 
 namespace TinyTactics.Edificios
 {
@@ -9,24 +10,17 @@ namespace TinyTactics.Edificios
     /// Lo que un edificio sabe fabricar, con su coste, su cola y su espera.
     ///
     /// Es la pieza que <b>cierra el bucle económico</b>: sin ella, recolectar no sirve para
-    /// nada y el oro solo es un número que sube. Con ella, el oro se convierte en pawns y
-    /// los pawns en más oro, que es de lo que va el género entero.
+    /// nada y el oro solo es un número que sube. Con ella, el oro se convierte en unidades y
+    /// las unidades en más oro, que es de lo que va el género entero.
     ///
-    /// El cobro va al encolar y no al terminar, como en Warcraft: si se cobrara al final,
-    /// se podría encolar diez unidades sin tener con qué pagarlas y el jugador descubriría
-    /// que no tiene oro justo cuando ya contaba con el ejército.
+    /// El cobro va al encolar y no al terminar, como en Warcraft: si se cobrara al final, se
+    /// podría encolar diez unidades sin tener con qué pagarlas y el jugador descubriría que
+    /// no tiene oro justo cuando ya contaba con el ejército.
     /// </summary>
     [RequireComponent(typeof(Edificio))]
     [AddComponentMenu("Tiny Tactics/Producción de edificio")]
     public class ProduccionEdificio : MonoBehaviour
     {
-        [Header("Qué fabrica")]
-        [Tooltip("Datos de la unidad que produce. Esta semana, el pawn.")]
-        public DatosUnidad datosUnidad;
-
-        [Tooltip("Copia inactiva de la unidad, con sus animaciones ya resueltas a sprites.")]
-        public GameObject plantilla;
-
         [Header("Punto de reunión")]
         [Tooltip("Si está puesto, las unidades nuevas caminan hasta aquí al salir.")]
         public bool tienePuntoDeReunion;
@@ -48,13 +42,41 @@ namespace TinyTactics.Edificios
         readonly List<Encargo> _cola = new List<Encargo>();
 
         /// <summary>Lista de un solo hueco para emitir órdenes sin reservar memoria cada vez.</summary>
-        readonly Unidades.Unidad[] _destinatario = new Unidades.Unidad[1];
+        readonly Unidad[] _destinatario = new Unidad[1];
 
         Edificio _edificio;
         int _producidas;
 
         public int EnCola => _cola.Count;
         public int Producidas => _producidas;
+
+        /// <summary>Qué sabe fabricar este edificio, según su ficha del catálogo.</summary>
+        public DatosUnidad[] Catalogo =>
+            _edificio != null && _edificio.datos != null && _edificio.datos.fabrica != null
+                ? _edificio.datos.fabrica
+                : new DatosUnidad[0];
+
+        /// <summary>Lo primero de la cola, para que el panel sepa qué retrato enseñar.</summary>
+        public DatosUnidad EnCurso => _cola.Count > 0 ? _cola[0].Datos : null;
+
+        /// <summary>
+        /// Población ya comprometida por lo que está en cola.
+        ///
+        /// La cuenta el sistema de población para que encolar diez guerreros con sitio para
+        /// dos sea imposible. Sin esto, el tope solo se notaría al salir la tercera unidad,
+        /// con el oro de las diez ya cobrado.
+        /// </summary>
+        public int PoblacionEncolada
+        {
+            get
+            {
+                int n = 0;
+                for (int i = 0; i < _cola.Count; i++)
+                    if (_cola[i].Datos != null) n += Mathf.Max(1, _cola[i].Datos.poblacion);
+
+                return n;
+            }
+        }
 
         /// <summary>Cuánto lleva hecho lo que se está fabricando, de 0 a 1.</summary>
         public float Progreso
@@ -64,9 +86,7 @@ namespace TinyTactics.Edificios
                 if (_cola.Count == 0) return 0f;
 
                 var e = _cola[0];
-                if (e.Total <= 0f) return 1f;
-
-                return Mathf.Clamp01(1f - e.Restante / e.Total);
+                return e.Total <= 0f ? 1f : Mathf.Clamp01(1f - e.Restante / e.Total);
             }
         }
 
@@ -74,7 +94,8 @@ namespace TinyTactics.Edificios
 
         void Update()
         {
-            if (_cola.Count == 0) return;
+            // Una obra a medio levantar no fabrica nada.
+            if (_cola.Count == 0 || !_edificio.Operativo) return;
 
             var encargo = _cola[0];
             encargo.Restante -= Time.deltaTime;
@@ -90,11 +111,17 @@ namespace TinyTactics.Edificios
         /// <summary>
         /// Mete una unidad en la cola. Devuelve por qué no, si no ha podido.
         /// </summary>
-        public bool Encolar(out string motivo)
+        public bool Encolar(DatosUnidad datos, out string motivo)
         {
             motivo = null;
 
-            if (datosUnidad == null || plantilla == null)
+            if (!_edificio.Operativo)
+            {
+                motivo = "Todavía en obras";
+                return false;
+            }
+
+            if (datos == null)
             {
                 motivo = "Este edificio no sabe producir";
                 return false;
@@ -113,22 +140,51 @@ namespace TinyTactics.Edificios
                 return false;
             }
 
-            if (!eco.Cobrar(_edificio.faccion, datosUnidad.oro, datosUnidad.madera))
+            // La población se comprueba antes que el oro: si no cabe, no tiene sentido
+            // cobrarle nada al jugador.
+            var poblacion = Poblacion.Actual;
+            if (poblacion != null &&
+                !poblacion.Cabe(_edificio.faccion, Mathf.Max(1, datos.poblacion)))
+            {
+                motivo = "Sin población. Construye una casa";
+                return false;
+            }
+
+            if (!eco.Cobrar(_edificio.faccion, datos.oro, datos.madera))
             {
                 motivo = "Faltan recursos";
                 return false;
             }
 
+            float tiempo = TiempoDe(datos, eco);
+
             _cola.Add(new Encargo
             {
-                Datos = datosUnidad,
-                Restante = eco.datos.tiempoPawn,
-                Total = eco.datos.tiempoPawn,
-                Oro = datosUnidad.oro,
-                Madera = datosUnidad.madera
+                Datos = datos,
+                Restante = tiempo,
+                Total = tiempo,
+                Oro = datos.oro,
+                Madera = datos.madera
             });
 
             return true;
+        }
+
+        /// <summary>
+        /// Cuánto tarda una unidad.
+        /// </summary>
+        /// <remarks>
+        /// Se deriva del coste en oro tomando el pawn como referencia, en vez de guardar un
+        /// tiempo por unidad. Así una unidad cara tarda más sin que nadie tenga que mantener
+        /// dos tablas coherentes entre sí, que es justo el tipo de pareja de números que se
+        /// acaba desincronizando en la semana de balance.
+        /// </remarks>
+        static float TiempoDe(DatosUnidad datos, Economia eco)
+        {
+            float referencia = Mathf.Max(1, 50);
+            float proporcion = Mathf.Max(0.5f, datos.oro / referencia);
+
+            return eco.datos.tiempoPawn * proporcion;
         }
 
         /// <summary>Cancela el último encargo y devuelve lo que costó.</summary>
@@ -145,40 +201,44 @@ namespace TinyTactics.Edificios
 
         // -----------------------------------------------------------------
 
-        /// <summary>
-        /// Saca la unidad terminada.
-        /// </summary>
-        /// <remarks>
-        /// Se clona una <b>plantilla inactiva</b> en vez de construir la unidad desde cero.
-        /// El motivo es que las animaciones se resuelven a sprites en el editor, con
-        /// <c>AssetDatabase</c>, que no existe al ejecutar: una unidad creada en caliente
-        /// saldría muda de dibujos. La plantilla ya los lleva serializados, y al estar
-        /// inactiva no se registra ni se puede seleccionar mientras espera.
-        /// </remarks>
+        /// <summary>Saca la unidad terminada junto al edificio que la fabricó.</summary>
         void Sacar(DatosUnidad datos)
         {
+            if (datos == null) return;
+
+            var catalogo = CatalogoDePlantillas.Actual;
+            var plantilla = catalogo != null
+                ? catalogo.Obtener(datos.tipo, _edificio.faccion)
+                : null;
+
+            if (plantilla == null)
+            {
+                Debug.LogWarning(
+                    $"[Tiny Tactics] {name}: sin plantilla de {datos.tipo} para el bando " +
+                    $"{_edificio.faccion}. Regenera la escena.", this);
+                return;
+            }
+
             _producidas++;
 
-            // El punto de salida cae dentro del disco que el castillo bloquea en la grilla.
-            // Se busca la celda pisable más cercana antes de soltar la unidad: nacer sobre
-            // terreno bloqueado no es un problema de dibujo, es que el pathfinding no tiene
-            // por dónde empezar.
+            // El punto de salida cae dentro del terreno que el edificio bloquea. Se busca la
+            // celda pisable más cercana antes de soltar la unidad: nacer sobre terreno
+            // bloqueado no es un problema de dibujo, es que el pathfinding no tiene por dónde
+            // empezar.
             Vector3 salida = _edificio.PuntoDeSalida;
 
             var grilla = Mundo.MundoJuego.Actual != null ? Mundo.MundoJuego.Actual.Grilla : null;
             if (grilla != null &&
-                grilla.CeldaTransitableCercana(grilla.MundoACelda(salida), 8, out var libre))
+                grilla.CeldaTransitableCercana(grilla.MundoACelda(salida), 10, out var libre))
             {
                 salida = grilla.CeldaAMundo(libre);
             }
 
-            var copia = Instantiate(plantilla, salida,
-                                    Quaternion.identity, transform.parent);
-
+            var copia = Instantiate(plantilla, salida, Quaternion.identity, transform.parent);
             copia.name = $"{datos.tipo}_p{_producidas}";
             copia.SetActive(true);
 
-            var unidad = copia.GetComponent<Unidades.Unidad>();
+            var unidad = copia.GetComponent<Unidad>();
             if (unidad != null) unidad.Configurar(datos, _edificio.faccion);
 
             if (!tienePuntoDeReunion || unidad == null) return;
@@ -188,7 +248,8 @@ namespace TinyTactics.Edificios
             // el mismo sitio que el jugador (ADR-01).
             _destinatario[0] = unidad;
 
-            if (nodoDeReunion != null && !nodoDeReunion.Agotado)
+            if (nodoDeReunion != null && !nodoDeReunion.Agotado &&
+                copia.GetComponent<RecolectorPawn>() != null)
             {
                 Autoridad.Emitir(
                     new OrdenRecolectar { Faccion = _edificio.faccion, Nodo = nodoDeReunion },

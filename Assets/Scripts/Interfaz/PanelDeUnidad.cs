@@ -184,6 +184,7 @@ namespace TinyTactics.Interfaz
         void LateUpdate()
         {
             CaducarAviso();
+            RefrescarAsequibles();
 
             var selector = SelectorDeUnidades.Actual;
             var seleccion = selector != null ? selector.Seleccionadas : null;
@@ -226,9 +227,51 @@ namespace TinyTactics.Interfaz
 
             RefrescarEspera(seleccion);
 
-            if (individual) RefrescarVida(seleccion[0]);
-            else RefrescarVidasRejilla(seleccion);
+            if (individual)
+            {
+                RefrescarVida(seleccion[0]);
+                RefrescarFaena(seleccion[0]);
+            }
+            else
+            {
+                RefrescarVidasRejilla(seleccion);
+            }
         }
+
+        /// <summary>
+        /// Si el pawn está levantando algo, el panel lo dice y enseña cuánto lleva.
+        /// </summary>
+        /// <remarks>
+        /// Es la mitad del HU-043 que mira al pawn y no al edificio. Sin esto, un pawn que
+        /// se ha ido solo a una obra al otro lado del mapa es indistinguible de un pawn
+        /// parado: se selecciona, pone «Pawn», y no hay pista de por qué no obedece a lo
+        /// que se le mandó antes.
+        /// </remarks>
+        void RefrescarFaena(Unidad unidad)
+        {
+            if (unidad == null || _nombre == null) return;
+
+            var constructor = unidad.GetComponent<ConstructorPawn>();
+            var obra = constructor != null ? constructor.Obra : null;
+
+            if (obra == null)
+            {
+                var selector = SelectorDeUnidades.Actual;
+                if (_faenaPintada && selector != null) RefrescarCabecera(selector.Seleccionadas);
+
+                _faenaPintada = false;
+                return;
+            }
+
+            var edificio = obra.GetComponent<Edificios.Edificio>();
+            string que = edificio != null ? edificio.nombreVisible : "un edificio";
+
+            _nombre.text = $"Construyendo {que}  ·  {Mathf.RoundToInt(obra.Progreso * 100f)} %";
+            _faenaPintada = true;
+        }
+
+        /// <summary>Testigo para devolver el nombre a su sitio al terminar la obra.</summary>
+        bool _faenaPintada;
 
         void Mostrar(bool individual, bool grupo)
         {
@@ -388,9 +431,22 @@ namespace TinyTactics.Interfaz
                     _cara.enabled = edificio.retrato != null;
                 }
 
-                if (_nombre != null) _nombre.text = edificio.nombreVisible;
+                // Una obra dice que lo es en el nombre. Sin eso, un cuartel a medio levantar
+                // se lee como un cuartel roto: el jugador pulsa entrenar, no pasa nada, y
+                // no hay forma de saber que solo hay que esperar.
+                bool enObras = !edificio.Operativo;
 
-                var datos = produccion != null ? produccion.datosUnidad : null;
+                if (_nombre != null)
+                    _nombre.text = enObras
+                        ? $"{edificio.nombreVisible} (en obras)"
+                        : edificio.nombreVisible;
+
+                // Lo que se esté fabricando ahora; si la cola está vacía, lo primero que
+                // sabe hacer. Así la ficha nunca se queda sin coste que mostrar.
+                var datos = produccion == null
+                    ? null
+                    : produccion.EnCurso ??
+                      (produccion.Catalogo.Length > 0 ? produccion.Catalogo[0] : null);
 
                 // Azul, no rojo. La barra roja del panel significa vida, y una fabricacion
                 // a medias no es un edificio a medio matar.
@@ -411,16 +467,48 @@ namespace TinyTactics.Interfaz
                 if (_velocidad != null) _velocidad.text = "—";
                 if (_oro != null) _oro.text = datos != null ? datos.oro.ToString() : "—";
 
-                RefrescarAccionesEdificio(produccion);
+                // Una obra no fabrica nada todavía, así que la rejilla se queda vacía en vez
+                // de ofrecer botones que solo saben decir «todavía en obras».
+                if (enObras)
+                {
+                    ApagarRanuras();
+
+                    for (int i = 0; i < _botones.Count; i++)
+                        if (_botones[i].Raiz.activeSelf) _botones[i].Raiz.SetActive(false);
+                }
+                else
+                {
+                    RefrescarAccionesEdificio(produccion);
+                }
             }
 
-            RefrescarProduccion(produccion);
+            RefrescarProduccion(edificio, produccion);
         }
 
-        void RefrescarProduccion(Edificios.ProduccionEdificio produccion)
+        void RefrescarProduccion(Edificios.Edificio edificio,
+                                 Edificios.ProduccionEdificio produccion)
         {
+            // La barra grande sirve para las dos cosas y no hay ambigüedad posible: o el
+            // edificio se está levantando, o ya está en pie y fabrica.
+            var obra = edificio != null ? edificio.GetComponent<Edificios.ObraEnConstruccion>() : null;
+
+            if (obra != null)
+            {
+                if (_rellenoVida != null) _rellenoVida.fillAmount = obra.Progreso;
+
+                if (_vida != null)
+                {
+                    if (!_vida.enabled) _vida.enabled = true;
+
+                    _vida.text = obra.Obreros > 0
+                        ? $"{Mathf.RoundToInt(obra.Progreso * 100f)} %  ·  {obra.Obreros} obreros"
+                        : $"{Mathf.RoundToInt(obra.Progreso * 100f)} %  ·  sin obreros";
+                }
+
+                return;
+            }
+
             float progreso = produccion != null ? produccion.Progreso : 0f;
-            int cola = produccion != null ? produccion.EnCola : 0;
 
             if (_rellenoVida != null && !Mathf.Approximately(_rellenoVida.fillAmount, progreso))
                 _rellenoVida.fillAmount = progreso;
@@ -432,20 +520,19 @@ namespace TinyTactics.Interfaz
             if (_vida != null && _vida.enabled) _vida.enabled = false;
         }
 
-        /// <summary>Un edificio solo enseña lo que sabe fabricar.</summary>
+        /// <summary>
+        /// Un edificio solo enseña lo que sabe fabricar, una unidad por hueco.
+        /// </summary>
+        /// <remarks>
+        /// Ninguno de los seis comandos fijos tiene sentido aquí: un castillo no ataca, no
+        /// se mueve y no se detiene. La rejilla se queda entera para la producción.
+        /// </remarks>
         void RefrescarAccionesEdificio(Edificios.ProduccionEdificio produccion)
         {
-            bool produce = produccion != null && produccion.datosUnidad != null;
-            var color = tema != null ? tema.BotonDe(_faccionPintada) : null;
+            RefrescarFabrica(produccion, _faccionPintada);
 
             for (int i = 0; i < _botones.Count; i++)
-            {
-                var b = _botones[i];
-                bool visible = b.Accion == Accion.EntrenarPawn && produce;
-
-                if (b.Raiz.activeSelf != visible) b.Raiz.SetActive(visible);
-                if (color != null && b.Fondo.sprite != color) b.Fondo.sprite = color;
-            }
+                if (_botones[i].Raiz.activeSelf) _botones[i].Raiz.SetActive(false);
         }
 
         void RefrescarFicha(Unidad unidad)
@@ -742,7 +829,7 @@ namespace TinyTactics.Interfaz
         // -----------------------------------------------------------------
 
         /// <summary>Qué hace un botón de la rejilla de comandos.</summary>
-        public enum Accion { Atacar, AtacarAuto, Mover, Detener, Curar, Construir, EntrenarPawn }
+        public enum Accion { Atacar, AtacarAuto, Mover, Detener, Curar, Construir, EntrenarPawn, Cancelar }
 
         class Boton
         {
@@ -794,7 +881,11 @@ namespace TinyTactics.Interfaz
             {
                 (Accion.Atacar, 0), (Accion.AtacarAuto, 1), (Accion.Detener, 2),
                 (Accion.Mover, 3), (Accion.Curar, 4), (Accion.Construir, 5),
-                (Accion.EntrenarPawn, 0),
+
+                // Cancelar cae siempre en la misma esquina, se esté eligiendo un edificio o
+                // una unidad. Que la salida no se mueva es más importante que aprovechar el
+                // hueco: es el botón que se pulsa con prisa.
+                (Accion.Cancelar, 5),
             };
 
             float x0 = -(Columnas - 1) * Paso * 0.5f;
@@ -844,6 +935,230 @@ namespace TinyTactics.Interfaz
 
                 _botones.Add(boton);
             }
+
+            ConstruirDinamicos(marco, Columnas, Lado, Paso, x0, y0);
+        }
+
+        // -----------------------------------------------------------------
+        // Rejilla dinámica
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Un botón cuyo significado se decide al refrescar, no al construirlo.
+        ///
+        /// Los comandos de arriba son siempre los mismos seis; esto no. Cuántos edificios
+        /// puede levantar un pawn y cuántas unidades entrena un cuartel dependen de unos
+        /// assets que se pueden añadir sin tocar una línea de código, y una rejilla con una
+        /// entrada fija por cada uno habría anulado justo esa ventaja.
+        /// </summary>
+        class Ranura
+        {
+            public GameObject Raiz;
+            public Image Fondo;
+            public Image Icono;
+            public Text Coste;
+
+            public Datos.DatosEdificio Edificio;
+            public Datos.DatosUnidad Unidad;
+        }
+
+        /// <summary>
+        /// Cuatro huecos. Es lo que cabe en la fila de arriba dejando la de abajo para
+        /// cancelar, y da de sobra: el edificio que más produce entrena dos unidades.
+        /// </summary>
+        const int RanurasDinamicas = 4;
+
+        readonly List<Ranura> _ranuras = new List<Ranura>();
+
+        void ConstruirDinamicos(RectTransform marco, int columnas, float lado, float paso,
+                                float x0, float y0)
+        {
+            for (int i = 0; i < RanurasDinamicas; i++)
+            {
+                var ranura = new Ranura();
+
+                ranura.Raiz = new GameObject($"Ranura{i}", typeof(RectTransform));
+                var rt = (RectTransform)ranura.Raiz.transform;
+                rt.SetParent(marco, false);
+                Colocar(rt,
+                        new Vector2(x0 + (i % columnas) * paso, y0 - (i / columnas) * paso),
+                        new Vector2(lado, lado));
+
+                var fondo = Caja("Fondo", rt, tema != null ? tema.BotonDe(0) : null, true);
+                Estirar(fondo);
+                ranura.Fondo = fondo.GetComponent<Image>();
+                ranura.Fondo.raycastTarget = true;
+
+                var icono = Caja("Icono", rt, null, false);
+                Colocar(icono, new Vector2(0f, 4f), new Vector2(lado * 0.74f, lado * 0.74f));
+                ranura.Icono = icono.GetComponent<Image>();
+                ranura.Icono.preserveAspect = true;
+
+                // El coste va DENTRO del botón y no solo en el aviso al pasar por encima:
+                // decidir qué construir es comparar precios, y obligar a pasear el ratón
+                // por los cuatro para poder compararlos convierte una ojeada en un trámite.
+                ranura.Coste = Etiqueta("Coste", rt, 15, TextAnchor.LowerCenter, FontStyle.Bold);
+                Estirar((RectTransform)ranura.Coste.transform);
+                ranura.Coste.color = new Color(1f, 0.97f, 0.88f);
+
+                var contorno = ranura.Coste.gameObject.AddComponent<Outline>();
+                contorno.effectColor = new Color(0.05f, 0.04f, 0.03f, 0.9f);
+                contorno.effectDistance = new Vector2(1.3f, -1.3f);
+
+                var aviso = ranura.Raiz.AddComponent<AvisoDeBoton>();
+                aviso.Configurar("", MostrarAviso);
+
+                var interactivo = ranura.Raiz.AddComponent<Button>();
+                interactivo.targetGraphic = ranura.Fondo;
+
+                var copia = ranura;
+                interactivo.onClick.AddListener(() => Pulsar(copia));
+
+                ranura.Raiz.SetActive(false);
+                _ranuras.Add(ranura);
+            }
+        }
+
+        /// <summary>
+        /// Apaga los botones de lo que ahora mismo no se puede pagar.
+        /// </summary>
+        /// <remarks>
+        /// Apagado y no escondido, a propósito. Si el cuartel desapareciera de la rejilla
+        /// cuando falta madera, el jugador que todavía no lo conoce no tendría forma de
+        /// enterarse de que existe: la interfaz solo le enseñaría lo que ya se puede pagar,
+        /// y nunca sabría hacia dónde ahorrar.
+        ///
+        /// Corre cada fotograma porque el oro sube solo, sin que la selección cambie: un
+        /// botón que se enciende al depositar la carga es exactamente la señal que el
+        /// jugador está esperando mientras mira volver a sus pawns.
+        /// </remarks>
+        void RefrescarAsequibles()
+        {
+            var eco = Nucleo.Economia.Actual;
+            if (eco == null) return;
+
+            for (int i = 0; i < _ranuras.Count; i++)
+            {
+                var r = _ranuras[i];
+                if (!r.Raiz.activeSelf) continue;
+
+                bool alcanza = r.Edificio != null
+                    ? eco.PuedePagar(_faccionPintada, r.Edificio.oro, r.Edificio.madera)
+                    : r.Unidad == null ||
+                      eco.PuedePagar(_faccionPintada, r.Unidad.oro, r.Unidad.madera);
+
+                // La población también cuenta: un guerrero que se puede pagar pero no cabe
+                // está igual de fuera de alcance, y por el mismo motivo se enseña apagado.
+                if (alcanza && r.Unidad != null)
+                {
+                    var censo = Nucleo.Poblacion.Actual;
+                    if (censo != null)
+                        alcanza = censo.Cabe(_faccionPintada, Mathf.Max(1, r.Unidad.poblacion));
+                }
+
+                float alfa = alcanza ? 1f : 0.35f;
+
+                var c = r.Icono.color;
+                if (Mathf.Approximately(c.a, alfa)) continue;
+
+                c.a = alfa;
+                r.Icono.color = c;
+
+                var t = r.Coste.color;
+                t.a = alfa;
+                r.Coste.color = t;
+            }
+        }
+
+        void Pulsar(Ranura ranura)
+        {
+            var selector = SelectorDeUnidades.Actual;
+            if (selector == null || ranura == null) return;
+
+            if (ranura.Edificio != null) selector.PedirConstruir(ranura.Edificio);
+            else if (ranura.Unidad != null) selector.PedirFabricar(ranura.Unidad);
+        }
+
+        /// <summary>Apaga la rejilla dinámica entera. Se llama al entrar en cualquier modo.</summary>
+        void ApagarRanuras()
+        {
+            for (int i = 0; i < _ranuras.Count; i++)
+                if (_ranuras[i].Raiz.activeSelf) _ranuras[i].Raiz.SetActive(false);
+        }
+
+        /// <summary>Rellena un hueco con lo que sea y lo enciende.</summary>
+        void Llenar(int indice, Sprite icono, string coste, string aviso,
+                    Datos.DatosEdificio edificio, Datos.DatosUnidad unidad)
+        {
+            if (indice < 0 || indice >= _ranuras.Count) return;
+
+            var r = _ranuras[indice];
+
+            r.Edificio = edificio;
+            r.Unidad = unidad;
+
+            r.Icono.sprite = icono;
+            r.Icono.enabled = icono != null;
+
+            r.Coste.text = coste;
+
+            var color = tema != null ? tema.BotonDe(_faccionPintada) : null;
+            if (color != null && r.Fondo.sprite != color) r.Fondo.sprite = color;
+
+            var pista = r.Raiz.GetComponent<AvisoDeBoton>();
+            if (pista != null) pista.Configurar(aviso, MostrarAviso);
+
+            if (!r.Raiz.activeSelf) r.Raiz.SetActive(true);
+        }
+
+        /// <summary>Los edificios que un pawn puede levantar, con su coste a la vista.</summary>
+        void RefrescarConstruccion(int faccion)
+        {
+            ApagarRanuras();
+
+            var catalogo = Edificios.CatalogoDeEdificios.Actual;
+            if (catalogo == null) return;
+
+            var lista = catalogo.Construibles;
+            int total = Mathf.Min(lista.Count, RanurasDinamicas);
+
+            for (int i = 0; i < total; i++)
+            {
+                var ficha = lista[i];
+
+                Llenar(i,
+                       catalogo.SpriteDe(ficha, faccion),
+                       ficha.CosteVisible(),
+                       $"{ficha.nombreVisible}  ·  {ficha.CosteVisible()}",
+                       ficha, null);
+            }
+        }
+
+        /// <summary>Lo que un edificio sabe entrenar, uno por hueco.</summary>
+        void RefrescarFabrica(Edificios.ProduccionEdificio produccion, int faccion)
+        {
+            ApagarRanuras();
+
+            if (produccion == null) return;
+
+            var catalogo = produccion.Catalogo;
+            int total = Mathf.Min(catalogo.Length, RanurasDinamicas);
+
+            for (int i = 0; i < total; i++)
+            {
+                var datos = catalogo[i];
+                if (datos == null) continue;
+
+                string coste = datos.madera > 0
+                    ? $"{datos.oro}o {datos.madera}m"
+                    : $"{datos.oro} oro";
+
+                Llenar(i,
+                       tema != null ? tema.RetratoDe(datos.tipo, faccion) : null,
+                       coste,
+                       $"{datos.nombreVisible}  ·  {coste}  ·  {datos.poblacion} de población",
+                       null, datos);
+            }
         }
 
         Image _listonAviso;
@@ -860,7 +1175,8 @@ namespace TinyTactics.Interfaz
                 case Accion.Detener: return "Detener  ·  S";
                 case Accion.Curar: return "Curar";
                 case Accion.EntrenarPawn: return "Entrenar pawn  ·  50 oro  ·  P";
-                default: return "Construir  ·  semana 06";
+                case Accion.Cancelar: return "Cancelar  ·  Esc";
+                default: return "Construir  ·  B";
             }
         }
 
@@ -918,6 +1234,10 @@ namespace TinyTactics.Interfaz
                 case Accion.Detener: return tema.iconoDetener;
                 case Accion.Curar: return tema.iconoCurar;
                 case Accion.EntrenarPawn: return tema.iconoEntrenar;
+
+                // Cancelar reutiliza el icono de detener. Son el mismo gesto —«deja lo que
+                // estás haciendo»— y nunca aparecen los dos a la vez.
+                case Accion.Cancelar: return tema.iconoDetener;
                 default: return tema.iconoConstruir;
             }
         }
@@ -942,18 +1262,36 @@ namespace TinyTactics.Interfaz
                 if (d.tipo == TipoUnidad.Pawn) hayConstructor = true;
             }
 
+            var selector = SelectorDeUnidades.Actual;
+            bool eligiendo = selector != null && selector.EligiendoEdificio;
+
+            // Mientras se elige qué construir, la rejilla entera cambia de contenido. Dejar
+            // los comandos normales visibles por debajo daría una pantalla de nueve botones
+            // donde solo cinco significan algo.
+            if (eligiendo) RefrescarConstruccion(_faccionPintada);
+            else ApagarRanuras();
+
             var color = tema != null ? tema.BotonDe(_faccionPintada) : null;
 
             for (int i = 0; i < _botones.Count; i++)
             {
                 var b = _botones[i];
+                bool visible;
 
-                bool visible = b.Accion != Accion.Curar &&
-                               b.Accion != Accion.Construir &&
-                               b.Accion != Accion.EntrenarPawn;
+                if (eligiendo)
+                {
+                    visible = b.Accion == Accion.Cancelar;
+                }
+                else
+                {
+                    visible = b.Accion != Accion.Curar &&
+                              b.Accion != Accion.Construir &&
+                              b.Accion != Accion.EntrenarPawn &&
+                              b.Accion != Accion.Cancelar;
 
-                if (b.Accion == Accion.Curar) visible = hayCurandero;
-                if (b.Accion == Accion.Construir) visible = hayConstructor;
+                    if (b.Accion == Accion.Curar) visible = hayCurandero;
+                    if (b.Accion == Accion.Construir) visible = hayConstructor;
+                }
 
                 if (b.Raiz.activeSelf != visible) b.Raiz.SetActive(visible);
                 if (color != null && b.Fondo.sprite != color) b.Fondo.sprite = color;

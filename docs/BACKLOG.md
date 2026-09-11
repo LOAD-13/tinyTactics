@@ -15,7 +15,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E02` | Núcleo de simulación — grilla, A*, movimiento, selección, órdenes | 03 | 🟢 Cerrada |
 | `E03` | Unidades y animación | 04 | 🟢 Cerrada |
 | `E04` | Economía | 05 | 🟢 Cerrada |
-| `E05` | Construcción y producción | 06 | ⚪ Pendiente |
+| `E05` | Construcción y producción | 06 | 🔵 En curso |
 | `E06` | Combate | 07-08 | ⚪ Pendiente |
 | `E07` | Percepción — niebla y minimapa | 09 | ⚪ Pendiente |
 | `E08` | IA rival | 10-11 | ⚪ Pendiente |
@@ -677,14 +677,209 @@ poder calibrarlos en la semana 16 sin recompilar, tal como el propio GDD anticip
 ### HU-036 · Resaltado del nodo bajo el cursor *(bloque B)*
 **Épica:** E04 · **Semana:** 05
 
-- [ ] Al pasar el ratón sobre un recurso se resalta, usando los sprites `_Highlight` del pack.
-- [ ] Muestra cuánto le queda por dar.
+> ⛔ **No entregada. Se arrastra a la semana 06** con los criterios corregidos, más abajo.
+>
+> El criterio original decía «usando los sprites `_Highlight` del pack», y al mirar el
+> paquete resulta que **solo el oro los trae**: las seis vetas sí, los árboles y las ovejas
+> no. Escrito así era imposible de cumplir de forma uniforme, y un juego donde el oro se
+> ilumina y los árboles no se lee como un fallo, no como una función. Es el mismo error de
+> siempre —dar por hecho lo que hay en el pack en vez de mirarlo— solo que esta vez salió
+> barato porque la HU era opcional.
 
 ---
 
 ### Semana 06 — Construcción y producción (E05)
-Modo de colocación con silueta · validación de terreno · pawn construye · sistema de población ·
-casa sube el límite · cuartel, campo de tiro y monasterio · cola de producción de tropas.
+
+> 📌 **Viene arrastrada de la semana 05:** HU-036, con los criterios rehechos.
+
+### HU-036 · Resaltado del nodo bajo el cursor *(arrastrada de la semana 05)*
+**Épica:** E05 · **Semana:** 06
+
+**Como** jugador **quiero** saber de un vistazo qué recurso estoy señalando y cuánto le queda
+**para** no tener que contar viajes para saber si una veta está a punto de secarse.
+
+**Criterios de aceptación**
+- [ ] El resaltado se hace **por código**, aclarando el color del sprite, y no con arte del
+      pack: solo el oro trae variante `_Highlight`.
+- [ ] Funciona igual en árbol, veta y oveja. Ninguno se queda sin él.
+- [ ] Al señalar un nodo se ve cuántas cargas le quedan.
+- [ ] El resaltado se apaga al salir el cursor, aunque el nodo se agote mientras tanto.
+
+**Meta de la semana:** que el jugador construya. Al retirar la escuadra regalada, la partida
+pasa a ser una de verdad: dos pawns, recolectar, levantar una casa, levantar un cuartel y sacar
+el primer guerrero. Sin construcción no hay ejército.
+
+> **Una sola rama para la épica:** `feat/E05-construccion`.
+>
+> **Sin bloque B esta semana.** Las diez HUs son obligatorias.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-036 | Resaltado del nodo bajo el cursor *(arrastrada de la semana 05)* | bajo |
+| HU-037 | Catálogo de edificios | bajo |
+| HU-038 | Modo de colocación con silueta y validación de terreno | alto |
+| HU-039 | El pawn construye | alto |
+| HU-040 | Sistema de población y contador en el HUD | medio |
+| HU-041 | La casa sube el límite | bajo |
+| HU-042 | Cuartel, campo de tiro y monasterio entrenan su unidad | bajo |
+| HU-043 | El panel muestra qué fabrica cada edificio y qué construye el pawn | medio |
+| HU-044 | Tocón acorde al tipo de árbol | bajo |
+| HU-045 | Retirar el andamio de la escuadra inicial | medio |
+
+> ⛔ **Fuera de alcance, declarado antes de empezar.** La **torre** es defensa estática: necesita
+> combate y va a E06. La **vida y destrucción de edificios**, lo mismo. Declararlo ahora evita
+> que acaben siendo dos HUs a medias.
+
+---
+
+### HU-037 · Catálogo de edificios
+**Épica:** E05 · **Semana:** 06
+
+**Como** diseñador **quiero** que cada edificio declare su coste, su huella y lo que produce
+**para** poder añadir uno nuevo sin tocar código.
+
+**Criterios de aceptación**
+- [ ] Un asset por edificio con coste en oro y madera, huella medida sobre el PNG, población
+      que aporta, coste de obra y qué unidades fabrica.
+- [ ] Las huellas se **miden** sobre el archivo de imagen, no se estiman.
+- [ ] El catálogo se reconstruye desde el menú del editor, como el de unidades.
+- [ ] Añadir un edificio al catálogo lo hace aparecer en el panel sin más cambios.
+
+**Huella y planta son dos medidas distintas.** La **huella** es el recuadro del dibujo, en
+decimales, y sirve para saber a qué distancia está un pawn del borde y para estirar el corchete
+de selección. La **planta** son las celdas que el edificio ocupa en el suelo, en tiles enteros,
+y es lo que bloquea la grilla. No coinciden y no deben: el monasterio dibuja 4,14 tiles de alto
+pero su planta son 3, porque lo de arriba es la aguja. Usar la huella para bloquear habría hecho
+imposible construirlo en sitios donde cabe de sobra.
+
+**La obra se mide en martillazos, no en segundos** (ADR-13). Así dos pawns tardan la mitad sin
+ninguna regla especial, y parar la obra a medias no regala progreso. Es el mismo razonamiento
+que cerró el exploit de la tala en la semana 05.
+
+---
+
+### HU-038 · Modo de colocación con silueta y validación de terreno
+**Épica:** E05 · **Semana:** 06
+
+**Como** jugador **quiero** ver dónde va a quedar el edificio antes de confirmar **para** no
+gastar recursos en una colocación que no quería.
+
+**Criterios de aceptación**
+- [ ] Al elegir un edificio, una silueta sigue al cursor con la huella real del edificio.
+- [ ] La silueta se tiñe de verde si el sitio vale y de rojo si no.
+- [ ] No se puede colocar sobre agua, sobre otro edificio, sobre un recurso ni a distinto nivel.
+- [ ] Clic derecho o Escape cancelan sin gastar nada.
+- [ ] Sin recursos suficientes, el comando avisa y no entra en modo de colocación.
+
+---
+
+### HU-039 · El pawn construye
+**Épica:** E05 · **Semana:** 06
+
+**Como** jugador **quiero** que un pawn levante lo que he colocado **para** que construir cueste
+tiempo y ocupe a un trabajador, como en cualquier RTS.
+
+**Criterios de aceptación**
+- [ ] Al confirmar se cobra el coste y aparece una **obra** en el sitio.
+- [ ] El pawn camina hasta la obra y la martillea con la animación del pack.
+- [ ] La obra se va **opacando** conforme avanza y muestra una barra de progreso.
+- [ ] Al terminar se convierte en edificio funcional y el pawn queda libre.
+- [ ] Una orden de mover o recolectar abandona la obra, que se queda a medias esperando.
+- [ ] Varios pawns sobre la misma obra la levantan más rápido.
+
+**Nota técnica.** El pack no trae andamios, así que la obra es el sprite del propio edificio con
+transparencia creciente. Cero arte nuevo, y se lee sin explicación.
+
+---
+
+### HU-040 · Sistema de población y contador en el HUD
+**Épica:** E05 · **Semana:** 06
+
+**Como** jugador **quiero** ver cuánta población tengo y cuánta me queda **para** saber cuándo
+necesito otra casa.
+
+**Criterios de aceptación**
+- [ ] Cada unidad cuesta población: pawn 1, guerrero, lancero y arquero 2, monje 3.
+- [ ] El castillo aporta 10 y el tope duro es 50.
+- [ ] Contador con el icono del pawn, en formato «usada / tope».
+- [ ] Sin población libre, entrenar avisa y no encola.
+- [ ] El contador avisa visualmente cuando el tope está lleno.
+
+**Dónde va el contador.** Arriba a la izquierda, en su propia caja, separado de los tres
+recursos. Se probó como cuarta caja de la fila y se descartó: la población no es un recurso
+—no se recolecta, no se gasta en construir y no sube al depositar—, es un límite. Junto al oro
+y la madera se lee como «cuánto tengo» cuando lo que dice es «cuánto me cabe».
+
+**Nota de diseño.** El tope de 50 **puntos** garantiza por sí solo el presupuesto de rendimiento:
+como ninguna unidad cuesta menos de 1 punto, un bando nunca puede pasar de 50 unidades.
+
+---
+
+### HU-041 · La casa sube el límite
+**Épica:** E05 · **Semana:** 06
+
+**Criterios de aceptación**
+- [ ] Solo las casas aportan población. Cuartel, campo de tiro y monasterio no aportan nada.
+- [ ] Cada casa terminada suma 5, y solo al **terminar** la obra, no al colocarla.
+- [ ] El tope nunca pasa de 50 por muchas casas que se construyan.
+
+**Una ficha, tres fachadas.** El pack trae `House1`, `House2` y `House3`. No son tres edificios
+—cuestan lo mismo, ocupan lo mismo y dan los mismos cinco de población— así que son **una sola
+ficha con tres dibujos**, y la rueda del ratón pasa de uno a otro mientras la silueta está en la
+mano. Tres fichas se habrían comido tres de las cuatro ranuras de la rejilla y habrían obligado
+al jugador a elegir entre casas idénticas creyendo que se diferencian en algo.
+
+Cada fachada lleva su propia huella medida: la casa más alta y la más baja se llevan un tercio
+de tile, y con una medida compartida una de las tres quedaría flotando sobre su sombra.
+
+---
+
+### HU-042 · Cuartel, campo de tiro y monasterio entrenan su unidad
+**Épica:** E05 · **Semana:** 06
+
+**Criterios de aceptación**
+- [ ] El cuartel entrena guerreros y lanceros; el campo de tiro, arqueros; el monasterio, monjes.
+- [ ] Cada uno cobra el coste de la unidad y respeta la población libre.
+- [ ] Las unidades salen del edificio que las fabricó, no del castillo.
+- [ ] Cada edificio tiene su propia cola y su propia barra.
+
+---
+
+### HU-043 · El panel muestra qué fabrica cada edificio y qué construye el pawn
+**Épica:** E05 · **Semana:** 06
+
+**Criterios de aceptación**
+- [ ] Con un pawn seleccionado, el botón Construir abre la rejilla de edificios disponibles.
+- [ ] Con un edificio seleccionado, la rejilla muestra lo que sabe fabricar con su coste.
+- [ ] Al pasar el ratón por un botón se lee el nombre y el coste.
+- [ ] Lo que no se puede pagar se ve apagado, no oculto: el jugador tiene que saber que existe.
+
+---
+
+### HU-044 · Tocón acorde al tipo de árbol
+**Épica:** E05 · **Semana:** 06
+
+**Criterios de aceptación**
+- [ ] Al talar un `TreeN` queda el `Stump N` que le corresponde, nunca otro.
+- [ ] El tocón queda alineado con el suelo, sin flotar ni hundirse.
+
+**Nota técnica.** `Tree1` y `Tree2` tienen fotogramas de 192×256 y `Tree3` y `Tree4` de 192×192,
+y los tocones siguen el mismo reparto. Elegir el tocón al azar desalineaba media casilla los
+árboles bajos. El generador tiene que **recordar qué variante sembró** en cada sitio.
+
+---
+
+### HU-045 · Retirar el andamio de la escuadra inicial
+**Épica:** E05 · **Semana:** 06
+
+**Criterios de aceptación**
+- [ ] Cada bando empieza con **dos pawns** y su castillo, nada más.
+- [ ] Con los recursos iniciales se puede levantar la primera casa sin quedarse bloqueado.
+- [ ] El poste de entrenamiento **se mantiene** hasta la épica E06: sigue siendo la única forma
+      de probar daño y muerte hasta que haya enemigos de verdad.
+
+**Nota de alcance.** Es lo que convierte el avance en una partida: sin ejército regalado, el
+jugador tiene que construir para tener tropas.
 
 > **Interfaz de producción.** Al seleccionar un edificio, el panel de acciones (HU-025) muestra
 > qué puede fabricar con su coste, y al pulsar encola la unidad con su tiempo de espera y una
