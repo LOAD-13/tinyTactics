@@ -412,9 +412,9 @@ namespace TinyTactics.EditorHerramientas
             go.AddComponent<HudRecursos>().tema = tema;
             go.AddComponent<CursorJuego>().tema = tema;
 
-            // Sin tema: el resaltado tiñe el sprite que ya está puesto en el mapa y dibuja
-            // su cartel con el estilo por defecto. No necesita ninguna pieza del pack.
-            go.AddComponent<ResaltadoDeNodo>();
+            // El resaltado tiñe el sprite que ya está en el mapa; del tema solo saca la caja
+            // de madera del cartel de existencias.
+            go.AddComponent<ResaltadoDeNodo>().tema = tema;
 
             // Sin EventSystem los botones de uGUI no reciben un solo clic. No hacía falta
             // hasta ahora porque toda la entrada se leía del ratón directamente.

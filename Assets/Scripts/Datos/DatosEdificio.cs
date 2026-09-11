@@ -21,21 +21,43 @@ namespace TinyTactics.Datos
         public TipoEdificio tipo = TipoEdificio.Casa;
         public string nombreVisible = "Casa";
 
-        [Tooltip("Ruta dentro del pack. {color} se sustituye por el bando.")]
-        public string ruta = "Assets/Tiny Swords/Buildings/{color} Buildings/House1.png";
+        [Tooltip("Carpeta dentro del pack. {color} se sustituye por el bando.")]
+        public string carpeta = "Assets/Tiny Swords/Buildings/{color} Buildings";
+
+        /// <summary>
+        /// Un dibujo alternativo del mismo edificio.
+        /// </summary>
+        /// <remarks>
+        /// El pack trae tres casas —<c>House1</c>, <c>House2</c> y <c>House3</c>— que hacen
+        /// exactamente lo mismo. No son tres edificios: son tres fachadas. Meterlas como tres
+        /// fichas se habría comido tres de las cuatro ranuras de la rejilla y habría obligado
+        /// al jugador a decidir entre casas idénticas creyendo que se diferencian en algo.
+        ///
+        /// Cada variante lleva su propia huella <b>medida</b>. La casa más alta y la más baja
+        /// se llevan un tercio de tile, y compartir una sola medida habría dejado a una de las
+        /// tres flotando sobre su propia sombra.
+        /// </remarks>
+        [System.Serializable]
+        public class Variante
+        {
+            [Tooltip("Nombre del PNG dentro de la carpeta del bando, sin extensión.")]
+            public string archivo = "House1";
+
+            [Tooltip("Tamaño del dibujo en tiles. Lo MIDE el generador; no se toca a mano.")]
+            public Vector2 huella;
+
+            public Vector2 huellaCentro;
+        }
+
+        [Tooltip("Fachadas del mismo edificio. La rueda del ratón pasa de una a otra al " +
+                 "colocar. Una sola entrada = edificio sin variantes.")]
+        public Variante[] variantes = new Variante[0];
 
         [Header("Coste")]
         [Min(0)] public int oro;
         [Min(0)] public int madera = 60;
 
         [Header("Huella")]
-        [Tooltip("Tamaño real del DIBUJO en tiles. Lo MIDE el generador sobre el PNG; no se " +
-                 "estima a ojo. Sirve para seleccionar y para medir distancias al borde.")]
-        public Vector2 huella;
-
-        [Tooltip("Desplazamiento del centro del dibujo respecto al centro del lienzo.")]
-        public Vector2 huellaCentro;
-
         [Tooltip("Celdas que ocupa en el SUELO. No es lo mismo que la huella del dibujo: el " +
                  "monasterio mide 4,14 tiles de alto y su planta no llega a tres, porque lo " +
                  "de arriba es la aguja. Pedirle cuatro tiles libres lo haría imposible de " +
@@ -61,8 +83,40 @@ namespace TinyTactics.Datos
         [Tooltip("Qué unidades sabe entrenar. Vacío = no produce nada.")]
         public DatosUnidad[] fabrica = new DatosUnidad[0];
 
-        /// <summary>Ruta del sprite ya resuelta al color de un bando.</summary>
-        public string RutaDe(string color) => ruta.Replace("{color}", color);
+        /// <summary>Cuántas fachadas tiene. Nunca menos de una.</summary>
+        public int Fachadas => variantes != null && variantes.Length > 0 ? variantes.Length : 1;
+
+        /// <summary>Deja un índice de variante dentro de rango, dé lo que dé la rueda.</summary>
+        public int Ajustar(int variante)
+        {
+            int total = Fachadas;
+            return ((variante % total) + total) % total;
+        }
+
+        Variante Cual(int variante) =>
+            variantes != null && variantes.Length > 0 ? variantes[Ajustar(variante)] : null;
+
+        /// <summary>Ruta del sprite, ya resuelta al color de un bando y a la fachada.</summary>
+        public string RutaDe(string color, int variante = 0)
+        {
+            var v = Cual(variante);
+            string archivo = v != null ? v.archivo : nombreVisible;
+
+            return $"{carpeta.Replace("{color}", color)}/{archivo}.png";
+        }
+
+        /// <summary>Tamaño del dibujo de una fachada, en tiles.</summary>
+        public Vector2 HuellaDe(int variante)
+        {
+            var v = Cual(variante);
+            return v != null ? v.huella : Vector2.one;
+        }
+
+        public Vector2 HuellaCentroDe(int variante)
+        {
+            var v = Cual(variante);
+            return v != null ? v.huellaCentro : Vector2.zero;
+        }
 
         /// <summary>
         /// Del origen del objeto al centro de las celdas que pisa.
@@ -77,9 +131,13 @@ namespace TinyTactics.Datos
         /// mantener coherente con la huella y con la planta se desincroniza el día que
         /// alguien ajuste una de las dos.
         /// </remarks>
-        public Vector2 DesplazamientoBase => new Vector2(
-            huellaCentro.x,
-            huellaCentro.y - huella.y * 0.5f + planta.y * 0.5f);
+        public Vector2 DesplazamientoBase(int variante)
+        {
+            Vector2 dibujo = HuellaDe(variante);
+            Vector2 centro = HuellaCentroDe(variante);
+
+            return new Vector2(centro.x, centro.y - dibujo.y * 0.5f + planta.y * 0.5f);
+        }
 
         /// <summary>Celdas que ocupa si su planta se centra en una celda dada.</summary>
         public RectInt CeldasDesde(Vector2Int celda)

@@ -104,6 +104,9 @@ namespace TinyTactics.Nucleo
         public Datos.DatosEdificio Edificio;
         public RectInt Celdas;
 
+        /// <summary>Fachada elegida con la rueda. Solo cambia el dibujo.</summary>
+        public int Variante;
+
         /// <summary>
         /// Obra ya plantada por esta misma orden. Vive en la orden y no en un registro
         /// global porque su alcance es exactamente el de la orden: un clic del jugador.
@@ -120,7 +123,7 @@ namespace TinyTactics.Nucleo
 
             if (_obra == null)
             {
-                _obra = Edificios.ObraEnConstruccion.Plantar(Edificio, Faccion, Celdas);
+                _obra = Edificios.ObraEnConstruccion.Plantar(Edificio, Faccion, Celdas, Variante);
                 if (_obra == null) return;
             }
 

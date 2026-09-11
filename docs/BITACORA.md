@@ -65,6 +65,50 @@ debajo: exactamente las cifras que se habían sacado a mano en la semana 05. La 
 corchete de selección, generalizada a `huella.x / 1.33`, da 3,67 donde había un 3,7 puesto a
 ojo.
 
+### Lo que salió en la prueba de Joaquín
+
+Seis cosas, y dos de ellas eran fallos de verdad.
+
+**El pawn se quedaba plantado tras matar una oveja.** El más interesante de la semana, porque el
+síntoma señalaba al sitio equivocado. Al buscar relevo, el tipo de recurso se deducía del nodo
+que acababa de trabajar; pero la oveja **se destruye** al sacrificarla, y un objeto destruido de
+Unity finge ser `null`, así que el tipo caía al de la carga… que se acababa de vaciar al
+depositar. Resultado: tipo «ninguno» y a casa.
+
+Con los árboles no pasaba, porque el tronco talado sigue existiendo como tocón. Por eso parecía
+un problema de las ovejas y era un problema de suponer que un nodo sigue ahí después de
+explotarlo. Ahora el tipo se guarda en un testigo al empezar la faena.
+
+**Un pawn encerrado entre dos construcciones.** Seleccionable, aceptando órdenes y sin dar un
+paso: las ocho celdas de alrededor habían quedado bloqueadas. El A* no falla, simplemente no
+encuentra ruta, así que no hay ni un mensaje que lo delate. Se añade una comprobación al
+confirmar la colocación —un barrido acotado que busca bolsas sin salida— y, aparte, el edificio
+aparta a quien se le quede debajo. Lo primero evita la ratonera; lo segundo evita tener que
+mover las unidades a mano antes de cada casa.
+
+**Y cuatro añadidos.** Las piedras y los arbustos se pueden despejar. Los tocones se van solos al
+medio minuto. Las tres casas del pack se eligen con la rueda. Y el cartel del resaltado pasa de
+un rectángulo negro a la caja de madera del propio pack: se leía bien, pero un solo elemento con
+estética de menú de depuración basta para que toda la interfaz parezca provisional.
+
+**En la segunda pasada salieron dos más, y los dos eran del mismo día.** El pawn se ponía
+literalmente encima de la piedra a picarla: los estorbos se dejaron sin bloquear la grilla —son
+decoración, razoné— y por eso su casilla era la más cercana y estaba libre. Con el terreno
+tapado, como el árbol, se arrima por fuera sin tocar una línea del recolector.
+
+El otro fue peor porque lo había dado por arreglado. Una casa colocada justo encima de un pawn
+lo dejaba dentro, sin poder moverse, pese a que el código ya buscaba apartarlo. El motivo es de
+manual y lo pasé por alto: al encender un objeto en caliente, Unity ejecuta su `Awake` en el
+acto pero **aplaza el `Start` hasta antes del siguiente Update**, y era `Start` quien bloqueaba
+el terreno. Así que se le buscaba sitio libre al pawn preguntándole a una grilla que todavía no
+sabía que la casa estaba ahí, y la respuesta era «donde estás ya vale». Ahora el edificio reclama
+su terreno en el acto y el apartado va después.
+
+**El contador de población vuelve a la esquina.** Lo había puesto en la fila de recursos
+razonando que se gasta como el oro. Joaquín lo quería aparte y tiene razón por un motivo mejor
+que el mío: la población no es un recurso, es un límite. Junto al oro y la madera se lee como
+«cuánto tengo» cuando lo que dice es «cuánto me cabe».
+
 ### Decisiones tomadas
 - **La obra se cuenta en martillazos, no en segundos** ([ADR-13](ARQUITECTURA.md#adr-13)). Que
   dos pawns tarden la mitad sale gratis y parar a medias no regala progreso.
@@ -75,12 +119,15 @@ ojo.
   una línea más.
 - **La rejilla del panel se volvió dinámica.** El cuartel entrena dos unidades, y con un botón
   fijo por acción el lancero no habría tenido dónde salir.
-- **El contador de población fue a la fila de recursos**, no a una esquina. Se gasta al entrenar
-  y se amplía construyendo: pertenece al sitio donde el jugador ya mira antes de pulsar.
+- **El contador de población va aparte**, arriba a la izquierda. No es un recurso: es un límite.
 - **Lo que no se puede pagar se ve apagado, no escondido.** Un cuartel que desaparece cuando
   falta madera nunca le enseña al jugador hacia dónde ahorrar.
-- **Una ficha de casa, no tres.** `House2` y `House3` son variantes de dibujo del mismo edificio;
-  tres fichas se habrían comido tres de las cuatro ranuras de construcción.
+- **Una ficha de casa con tres fachadas**, no tres fichas. Cuestan y dan lo mismo, así que son
+  un edificio con tres dibujos; la rueda pasa de uno a otro al colocar.
+- **Los estorbos tapan su casilla, como un árbol.** Se probó sin bloquear —total, son
+  decoración— y el pawn se plantaba encima de la piedra a picarla, porque la celda estaba libre
+  y era la más cercana. Con el terreno tapado se arrima por fuera, que es lo que ya hacía bien
+  con los árboles, y de paso «despejar la zona» significa algo también para el paso.
 
 ### Andamio que hay que retirar
 - El **poste de entrenamiento** sigue. Es la única forma de ver daño y muerte hasta que haya

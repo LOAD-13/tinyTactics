@@ -138,6 +138,11 @@ namespace TinyTactics.Entrada
             bool sobrePanel = SobreLaInterfaz(pantalla);
             if (!sobrePanel) colocador.Apuntar(PuntoEnMundo(pantalla));
 
+            // La rueda pasa de una fachada a otra. El valor bruto varía mucho entre ratones
+            // y trackpads, así que solo se usa el signo, igual que hace el zoom de la cámara.
+            float rueda = raton.scroll.ReadValue().y;
+            if (Mathf.Abs(rueda) > 0.01f) colocador.Girar((int)Mathf.Sign(rueda));
+
             // Clic derecho o Escape cancelan, que son los dos gestos que cualquiera prueba.
             if (raton.rightButton.wasPressedThisFrame)
             {
@@ -250,6 +255,11 @@ namespace TinyTactics.Entrada
 
             _apuntando = null;
             AbrirConstruccion(false);
+
+            // Un edificio con varias fachadas no lo anuncia por sí solo: la rueda es un
+            // gesto que nadie prueba si no se lo dicen, y en el resto del juego hace zoom.
+            if (panel != null && colocador.TieneFachadas)
+                panel.Avisar("Rueda del ratón: cambiar de fachada");
         }
 
         /// <summary>Resuelve el clic que planta el edificio.</summary>
@@ -281,6 +291,7 @@ namespace TinyTactics.Entrada
                     Faccion = faccionJugador,
                     Edificio = ficha,
                     Celdas = colocador.Celdas,
+                    Variante = colocador.VarianteElegida,
                 },
                 _seleccionadas);
 

@@ -697,7 +697,7 @@ namespace TinyTactics.EditorHerramientas
 
             MarcarNodos(arboles.Padre, mapa.Arboles, TipoRecurso.Madera,
                         mundo != null ? mundo.radioArbol : 1.1f, CargarTocones(),
-                        especies: especies);
+                        especies: especies, segundosDeResto: SegundosDeTocon);
 
             MarcarNodos(oro.Padre, mapa.Oro, TipoRecurso.Oro,
                         mundo != null ? mundo.radioOro : 1.0f, null);
@@ -705,6 +705,15 @@ namespace TinyTactics.EditorHerramientas
             // La oveja no bloquea la grilla porque se mueve, y marcar celdas con algo que
             // cambia de sitio ensuciaría el pathfinding sin arreglar nada.
             MarcarNodos(ovejas.Padre, mapa.Ovejas, TipoRecurso.Carne, 0f, null, seMueve: true);
+
+            // Piedras y arbustos: estorbos que el pawn puede quitar. No dan nada y no
+            // bloquean el paso —nunca lo hicieron—, pero sí estorban para construir, que es
+            // justo lo que hace que despejar el terreno signifique algo.
+            //
+            // El recurso que llevan no es lo que dan, sino con qué se pican: el pico para la
+            // piedra y el hacha para la maleza.
+            MarcarEstorbos(rocas.Padre, mapa.Rocas, TipoRecurso.Oro);
+            MarcarEstorbos(arbustos.Padre, mapa.Arbustos, TipoRecurso.Madera);
 
             // El rebaño pasta, o sea que se mueve: mismo tratamiento que las unidades.
             for (int i = 0; i < ovejas.Padre.childCount; i++)
@@ -734,9 +743,62 @@ namespace TinyTactics.EditorHerramientas
         /// <see cref="SoltarAPastar"/>, y depende de ese contrato: si algún día se
         /// sembraran objetos salteados habría que guardar la celda en el propio objeto.
         /// </remarks>
+        /// <summary>Cuánto aguanta un tocón en el mapa antes de irse.</summary>
+        const float SegundosDeTocon = 30f;
+
+        /// <summary>
+        /// Radio con el que una piedra o un arbusto tapan la grilla.
+        /// </summary>
+        /// <remarks>
+        /// Por debajo de 0,5 solo cae su propia celda: el marcado toma las celdas cuyo centro
+        /// queda dentro del radio, y la vecina más próxima está a distancia 1. Es el mismo
+        /// truco que usan el árbol (0,7) y la veta (0,6), que también tapan un solo cuadro.
+        ///
+        /// Da además el alcance de trabajo: el pawn pica desde <c>alcanceTrabajo + radio</c>,
+        /// o sea 1,65, y la diagonal desde la celda de al lado son 1,41. Justo, pero cabe.
+        /// </remarks>
+        const float RadioEstorbo = 0.45f;
+
+        /// <summary>
+        /// Piedras y arbustos: se pueden quitar, no dan nada y estorban para construir.
+        /// </summary>
+        /// <remarks>
+        /// Son nodos como los demás y no un sistema aparte a propósito. Despejar es el mismo
+        /// gesto que talar —ir, dar unos golpes y que desaparezca— así que reutiliza el
+        /// ciclo del recolector entero: la orden contextual, el resaltado del cursor y el
+        /// reparto de varios pawns sobre lo mismo ya funcionan sin escribir nada.
+        /// </remarks>
+        static void MarcarEstorbos(Transform padre, List<Vector2Int> celdas, TipoRecurso herramienta)
+        {
+            if (padre == null || celdas == null) return;
+
+            int total = Mathf.Min(padre.childCount, celdas.Count);
+
+            for (int i = 0; i < total; i++)
+            {
+                var nodo = padre.GetChild(i).gameObject.AddComponent<NodoRecurso>();
+                nodo.recurso = herramienta;
+                nodo.celda = celdas[i];
+
+                // Tapan SU celda, igual que un árbol o una veta.
+                //
+                // Se probó dejándolos sin bloquear —total, son decoración— y el resultado fue
+                // que el pawn se plantaba literalmente encima de la piedra a picarla, porque
+                // la celda estaba libre y era la más cercana. Con el terreno tapado se arrima
+                // por fuera, que es lo que ya hacía bien con los árboles.
+                //
+                // De paso, «despejar la zona» pasa a significar algo también para el paso, y
+                // no solo para construir. Son cuadros sueltos —medio por ciento de piedras y
+                // uno y pico de arbustos— así que no forman muros ni cierran caminos.
+                nodo.radioBloqueo = RadioEstorbo;
+                nodo.soloDespejar = true;
+                nodo.extraccionesFijas = 1;
+            }
+        }
+
         static void MarcarNodos(Transform padre, List<Vector2Int> celdas, TipoRecurso recurso,
                                 float radioBloqueo, Sprite[] restos, bool seMueve = false,
-                                List<int> especies = null)
+                                List<int> especies = null, float segundosDeResto = 0f)
         {
             if (padre == null || celdas == null) return;
 
@@ -749,6 +811,7 @@ namespace TinyTactics.EditorHerramientas
                 nodo.celda = celdas[i];
                 nodo.radioBloqueo = radioBloqueo;
                 nodo.seMueve = seMueve;
+                nodo.segundosDeResto = segundosDeResto;
 
                 if (restos == null || restos.Length == 0) continue;
 
@@ -1148,18 +1211,23 @@ namespace TinyTactics.EditorHerramientas
         /// domingo.
         /// </remarks>
         static GameObject CrearEdificio(Transform padre, DatosEdificio datos, int faccion,
-                                        Vector2Int celda, int alto, string nombre)
+                                        Vector2Int celda, int alto, string nombre,
+                                        int variante = 0)
         {
             if (datos == null) return null;
 
             string color = ColoresFaccion[faccion % ColoresFaccion.Length];
+            string ruta = datos.RutaDe(color, variante);
 
-            var sprites = CargarSpritesOrdenados(datos.RutaDe(color));
+            var sprites = CargarSpritesOrdenados(ruta);
             if (sprites.Count == 0)
             {
-                Debug.LogWarning($"[Tiny Tactics] No encuentro {datos.RutaDe(color)}.");
+                Debug.LogWarning($"[Tiny Tactics] No encuentro {ruta}.");
                 return null;
             }
+
+            Vector2 dibujo = datos.HuellaDe(variante);
+            Vector2 centroDibujo = datos.HuellaCentroDe(variante);
 
             var go = new GameObject(nombre);
             go.transform.SetParent(padre, false);
@@ -1178,7 +1246,7 @@ namespace TinyTactics.EditorHerramientas
             edificio.puntoSalida = new Vector2(0f, -(datos.planta.y * 0.5f + 1.4f));
 
             var celdas = datos.CeldasDesde(celda);
-            edificio.Colocar(datos, faccion, celdas);
+            edificio.Colocar(datos, faccion, celdas, variante);
 
             // Un edificio se ordena por donde SE APOYA, no por el centro de su dibujo. El
             // castillo mide tres tiles de alto: usando su centro, todo lo que pasara por
@@ -1186,7 +1254,7 @@ namespace TinyTactics.EditorHerramientas
             //
             // El desplazamiento sale de la huella medida y no de la posición, para que
             // valga igual cuando el jugador plante el edificio en otro sitio en partida.
-            float aLaBase = datos.huella.y * 0.5f - datos.huellaCentro.y;
+            float aLaBase = dibujo.y * 0.5f - centroDibujo.y;
 
             var profundidad = go.AddComponent<OrdenPorProfundidad>();
             profundidad.alto = alto;
@@ -1206,12 +1274,11 @@ namespace TinyTactics.EditorHerramientas
             var anillo = go.transform.Find("Seleccion");
             if (anillo != null)
             {
-                anillo.localPosition = new Vector3(datos.huellaCentro.x,
-                                                   datos.huellaCentro.y - 0.03f, 0f);
+                anillo.localPosition = new Vector3(centroDibujo.x, centroDibujo.y - 0.03f, 0f);
 
                 // El corchete del pack mide 1,33 unidades de ancho (128 px a 96 ppu).
                 var marcador = anillo.GetComponent<MarcadorSeleccion>();
-                if (marcador != null) marcador.escalaBase = datos.huella.x / 1.33f;
+                if (marcador != null) marcador.escalaBase = dibujo.x / 1.33f;
             }
 
             // Barra de obra, apagada. Solo la enciende la obra en construcción: un edificio
@@ -1295,21 +1362,27 @@ namespace TinyTactics.EditorHerramientas
             foreach (var ficha in FichasDeEdificio.ObtenerTodas())
             {
                 if (ficha == null) continue;
-                if (catalogo.PlantillaDe(ficha, faccion) != null) continue;
 
-                var plantilla = CrearEdificio(plantillas, ficha, faccion, celdaMolde,
-                                              _altoMapa, $"Plantilla{ficha.tipo}");
+                // Una plantilla por FACHADA. Las tres casas del pack son tres dibujos del
+                // mismo edificio, y el jugador elige cuál con la rueda al colocarla.
+                for (int v = 0; v < ficha.Fachadas; v++)
+                {
+                    if (catalogo.PlantillaDe(ficha, faccion, v) != null) continue;
 
-                if (plantilla == null) continue;
+                    var plantilla = CrearEdificio(plantillas, ficha, faccion, celdaMolde,
+                                                  _altoMapa, $"Plantilla{ficha.tipo}_{v}", v);
 
-                // Sin celdas no reclama terreno al encenderse: se las pone el colocador.
-                var edificio = plantilla.GetComponent<Edificio>();
-                if (edificio != null) edificio.celdas = new RectInt(0, 0, 0, 0);
+                    if (plantilla == null) continue;
 
-                plantilla.SetActive(false);
+                    // Sin celdas no reclama terreno al encenderse: se las pone el colocador.
+                    var edificio = plantilla.GetComponent<Edificio>();
+                    if (edificio != null) edificio.celdas = new RectInt(0, 0, 0, 0);
 
-                var sr = plantilla.GetComponent<SpriteRenderer>();
-                catalogo.Registrar(ficha, faccion, sr != null ? sr.sprite : null, plantilla);
+                    plantilla.SetActive(false);
+
+                    var sr = plantilla.GetComponent<SpriteRenderer>();
+                    catalogo.Registrar(ficha, faccion, v, sr != null ? sr.sprite : null, plantilla);
+                }
             }
         }
 

@@ -29,11 +29,19 @@ namespace TinyTactics.Interfaz
                  "árbol iluminado y la orden caería en el de al lado.")]
         public float radio = 1.1f;
 
-        [Header("Aspecto")]
-        [Tooltip("Multiplicador de color. Por encima de 1 aclara sin desteñir el dibujo.")]
-        public Color tinte = new Color(1.35f, 1.32f, 1.15f, 1f);
+        [Header("Tema")]
+        [Tooltip("De aquí sale la caja de madera del cartel. Sin tema, el cartel no se pinta.")]
+        public TemaInterfaz tema;
 
-        [Tooltip("Color del cartel de existencias.")]
+        [Tooltip("Bando cuyo color lleva la caja del cartel.")]
+        public int faccion;
+
+        [Header("Aspecto")]
+        [Tooltip("Multiplicador de color. Por encima de 1 aclara; el tono cálido lo acerca " +
+                 "al dorado del pack en vez de dejarlo en un blanco de foco de quirófano.")]
+        public Color tinte = new Color(1.45f, 1.34f, 1.02f, 1f);
+
+        [Tooltip("Color del texto del cartel.")]
         public Color colorTexto = new Color(1f, 0.97f, 0.88f);
 
         [Tooltip("Píxeles por encima del recurso a los que flota el cartel.")]
@@ -49,12 +57,9 @@ namespace TinyTactics.Interfaz
 
         void Awake() => _camara = Camera.main;
 
+        // El fondo es la textura del tema, prestada. No se destruye aquí: destruirla se
+        // llevaría por delante las cajas del HUD y del panel, que usan la misma.
         void OnDisable() => Soltar();
-
-        void OnDestroy()
-        {
-            if (_fondo != null) Destroy(_fondo);
-        }
 
         void Update()
         {
@@ -137,37 +142,52 @@ namespace TinyTactics.Interfaz
 
             PrepararEstilo();
 
-            string texto = $"{NombreDe(_actual.recurso)}  ·  {_actual.Restantes}";
+            string texto = _actual.soloDespejar
+                ? "Despejar"
+                : $"{NombreDe(_actual.recurso)}  ·  {_actual.Restantes}";
 
             var medida = _estilo.CalcSize(new GUIContent(texto));
-            float ancho = medida.x + 16f;
-            float alto = medida.y + 8f;
+
+            // Relleno generoso: la caja del pack tiene un reborde de madera grueso, y un
+            // margen ajustado dejaría el texto montado encima del marco.
+            float ancho = medida.x + 34f;
+            float alto = medida.y + 26f;
 
             // OnGUI mide desde arriba; el mundo, desde abajo.
             var caja = new Rect(pantalla.x - ancho * 0.5f,
                                 Screen.height - pantalla.y - alturaCartel - alto,
                                 ancho, alto);
 
-            GUI.color = new Color(0.05f, 0.04f, 0.03f, 0.72f);
-            GUI.DrawTexture(caja, _fondo);
-
             GUI.color = Color.white;
-            GUI.Label(caja, texto, _estilo);
+            if (_fondo != null) GUI.DrawTexture(caja, _fondo, ScaleMode.StretchToFill, true);
+
+            // El texto sube un poco: el reborde inferior de la caja es más grueso que el
+            // superior, así que un centrado geométrico se ve caído. Es el mismo ajuste que
+            // ya llevan los contadores del HUD.
+            GUI.Label(new Rect(caja.x, caja.y - 3f, caja.width, caja.height), texto, _estilo);
         }
 
+        /// <summary>
+        /// Prepara el cartel: la caja de madera del propio pack en vez de un rectángulo
+        /// negro.
+        /// </summary>
+        /// <remarks>
+        /// El negro plano funcionaba —se leía— pero no es del juego: cualquier otra cosa que
+        /// el jugador ve en pantalla está hecha de madera y tinta. Un solo elemento con
+        /// estética de menú de depuración basta para que toda la interfaz parezca provisional.
+        /// </remarks>
         void PrepararEstilo()
         {
             if (_estilo != null) return;
 
-            _fondo = new Texture2D(1, 1);
-            _fondo.SetPixel(0, 0, Color.white);
-            _fondo.Apply();
+            var sprite = tema != null ? tema.CajaChicaDe(faccion) : null;
+            _fondo = sprite != null ? sprite.texture : null;
 
             _estilo = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
-                fontSize = 14,
+                fontSize = 15,
             };
 
             _estilo.normal.textColor = colorTexto;

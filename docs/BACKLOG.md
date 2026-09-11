@@ -805,10 +805,10 @@ necesito otra casa.
 - [ ] Sin población libre, entrenar avisa y no encola.
 - [ ] El contador avisa visualmente cuando el tope está lleno.
 
-**Dónde va el contador.** Se planeó arriba a la izquierda, suelto, y acabó siendo la **cuarta
-caja de la fila de recursos**. La población se comporta como un recurso más —se gasta al
-entrenar y se amplía construyendo— así que pertenece al sitio donde el jugador ya mira antes de
-pulsar «entrenar». En una esquina aparte se consulta cuando ya es tarde.
+**Dónde va el contador.** Arriba a la izquierda, en su propia caja, separado de los tres
+recursos. Se probó como cuarta caja de la fila y se descartó: la población no es un recurso
+—no se recolecta, no se gasta en construir y no sube al depositar—, es un límite. Junto al oro
+y la madera se lee como «cuánto tengo» cuando lo que dice es «cuánto me cabe».
 
 **Nota de diseño.** El tope de 50 **puntos** garantiza por sí solo el presupuesto de rendimiento:
 como ninguna unidad cuesta menos de 1 punto, un bando nunca puede pasar de 50 unidades.
@@ -823,11 +823,14 @@ como ninguna unidad cuesta menos de 1 punto, un bando nunca puede pasar de 50 un
 - [ ] Cada casa terminada suma 5, y solo al **terminar** la obra, no al colocarla.
 - [ ] El tope nunca pasa de 50 por muchas casas que se construyan.
 
-**Una casa, no tres.** El pack trae `House1`, `House2` y `House3`, y la ficha de «Casa» usa
-`House1`. Las otras dos son variantes de dibujo del mismo edificio, no edificios distintos: con
-tres fichas en el catálogo se comerían tres de las cuatro ranuras de la rejilla de construcción
-y el cuartel se quedaría fuera. Sacar variedad visual de las tres es trabajo de la E10, cuando
-toque presentación.
+**Una ficha, tres fachadas.** El pack trae `House1`, `House2` y `House3`. No son tres edificios
+—cuestan lo mismo, ocupan lo mismo y dan los mismos cinco de población— así que son **una sola
+ficha con tres dibujos**, y la rueda del ratón pasa de uno a otro mientras la silueta está en la
+mano. Tres fichas se habrían comido tres de las cuatro ranuras de la rejilla y habrían obligado
+al jugador a elegir entre casas idénticas creyendo que se diferencian en algo.
+
+Cada fachada lleva su propia huella medida: la casa más alta y la más baja se llevan un tercio
+de tile, y con una medida compartida una de las tres quedaría flotando sobre su sombra.
 
 ---
 

@@ -14,11 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosEdificio
   tipo: 4
   nombreVisible: Monasterio
-  ruta: Assets/Tiny Swords/Buildings/{color} Buildings/Monastery.png
+  carpeta: Assets/Tiny Swords/Buildings/{color} Buildings
+  variantes:
+  - archivo: Monastery
+    huella: {x: 2.5, y: 4.140625}
+    huellaCentro: {x: 0, y: -0.2734375}
   oro: 80
   madera: 80
-  huella: {x: 2.5, y: 4.140625}
-  huellaCentro: {x: 0, y: -0.2734375}
   planta: {x: 3, y: 3}
   golpesDeObra: 56
   centroDeEntrega: 0

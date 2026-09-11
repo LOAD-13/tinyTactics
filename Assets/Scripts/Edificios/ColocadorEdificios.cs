@@ -31,6 +31,7 @@ namespace TinyTactics.Edificios
 
         DatosEdificio _ficha;
         int _faccion;
+        int _variante;
 
         SpriteRenderer _silueta;
         SpriteRenderer _mancha;
@@ -48,6 +49,12 @@ namespace TinyTactics.Edificios
         /// <summary>Celdas bajo el cursor ahora mismo, y si valen.</summary>
         public RectInt Celdas => _celdas;
         public bool Valido => _valido;
+
+        /// <summary>Fachada elegida con la rueda.</summary>
+        public int VarianteElegida => _variante;
+
+        /// <summary>True si el edificio tiene más de una fachada entre las que elegir.</summary>
+        public bool TieneFachadas => _ficha != null && _ficha.Fachadas > 1;
 
         void Awake()
         {
@@ -75,12 +82,33 @@ namespace TinyTactics.Edificios
 
             _ficha = ficha;
             _faccion = faccion;
+            _variante = 0;
 
             _silueta.sprite = dibujo;
             _silueta.color = new Color(1f, 1f, 1f, opacidadSilueta);
 
             Mostrar(true);
             return true;
+        }
+
+        /// <summary>
+        /// Pasa a la fachada siguiente o a la anterior. La mueve la rueda del ratón.
+        /// </summary>
+        /// <remarks>
+        /// Cambiar de fachada cambia <b>solo el dibujo</b>: las tres casas cuestan lo mismo,
+        /// ocupan lo mismo y dan lo mismo. Es una decisión estética y por eso vale un gesto
+        /// tan barato como girar la rueda, sin confirmar nada.
+        /// </remarks>
+        public void Girar(int pasos)
+        {
+            if (!Activo || pasos == 0 || _ficha.Fachadas <= 1) return;
+
+            _variante = _ficha.Ajustar(_variante + pasos);
+
+            var catalogo = CatalogoDeEdificios.Actual;
+            var dibujo = catalogo != null ? catalogo.SpriteDe(_ficha, _faccion, _variante) : null;
+
+            if (dibujo != null) _silueta.sprite = dibujo;
         }
 
         public void Cancelar()
@@ -106,11 +134,11 @@ namespace TinyTactics.Edificios
             // silueta se colocara «donde está el ratón» y el edificio «donde dicen las
             // celdas», los dos coincidirían casi siempre y discreparían medio tile justo en
             // los bordes, que es donde el jugador mira.
-            transform.position = Edificio.PosicionPara(_ficha, _celdas);
+            transform.position = Edificio.PosicionPara(_ficha, _celdas, _variante);
 
             // La mancha marca el suelo, que no está en el centro del dibujo: el
             // desplazamiento entre los dos es justo el que el edificio usará al plantarse.
-            _mancha.transform.localPosition = _ficha.DesplazamientoBase;
+            _mancha.transform.localPosition = _ficha.DesplazamientoBase(_variante);
             _mancha.transform.localScale = new Vector3(_celdas.width, _celdas.height, 1f);
             _mancha.color = _valido ? colorValido : colorInvalido;
 
@@ -146,6 +174,8 @@ namespace TinyTactics.Edificios
             if (!grilla.EnRango(celdas.xMin, celdas.yMin)) return false;
             if (!grilla.EnRango(celdas.xMax - 1, celdas.yMax - 1)) return false;
 
+            // Las piedras y los arbustos no hacen falta comprobarlos aparte: tapan su propia
+            // celda como cualquier árbol, así que CajaLibre ya los ve. Una sola regla.
             return grilla.CajaLibre(celdas) && grilla.CajaAlMismoNivel(celdas);
         }
 
@@ -159,6 +189,11 @@ namespace TinyTactics.Edificios
             var grilla = MundoJuego.Actual != null ? MundoJuego.Actual.Grilla : null;
 
             if (!Cabe(grilla, _celdas)) return "Terreno ocupado o irregular";
+
+            // Solo al confirmar: es un barrido caro de repetir cada fotograma, y además la
+            // silueta ya dice que el terreno vale. Lo que falla aquí no es el sitio, es la
+            // consecuencia de taparlo.
+            if (grilla.CerrariaElPaso(_celdas)) return "Dejaría un hueco sin salida";
 
             var eco = Economia.Actual;
             if (eco != null && !eco.PuedePagar(_faccion, _ficha.oro, _ficha.madera))

@@ -134,10 +134,13 @@ namespace TinyTactics.Edificios
         /// resuelven con <c>AssetDatabase</c> al generar la escena, y eso no existe en
         /// partida. Un edificio construido en caliente saldría sin un solo dibujo.
         /// </remarks>
-        public static ObraEnConstruccion Plantar(DatosEdificio datos, int faccion, RectInt celdas)
+        public static ObraEnConstruccion Plantar(DatosEdificio datos, int faccion,
+                                                 RectInt celdas, int variante = 0)
         {
             var catalogo = CatalogoDeEdificios.Actual;
-            var plantilla = catalogo != null ? catalogo.PlantillaDe(datos, faccion) : null;
+            var plantilla = catalogo != null
+                ? catalogo.PlantillaDe(datos, faccion, variante)
+                : null;
 
             if (plantilla == null)
             {
@@ -157,7 +160,7 @@ namespace TinyTactics.Edificios
             copia.name = $"{datos.tipo}_{celdas.x}_{celdas.y}";
 
             var edificio = copia.GetComponent<Edificio>();
-            if (edificio != null) edificio.Colocar(datos, faccion, celdas);
+            if (edificio != null) edificio.Colocar(datos, faccion, celdas, variante);
 
             // La barra viene apagada en la plantilla: un edificio terminado no lleva barra.
             var barra = copia.GetComponentInChildren<Interfaz.BarraDeVida>(true);
@@ -169,7 +172,61 @@ namespace TinyTactics.Edificios
             obra.Configurar(datos, barra);
 
             copia.SetActive(true);
+
+            // El orden importa: primero el edificio reclama su terreno y solo después se
+            // aparta a quien estuviera dentro. Al revés se le buscaba sitio preguntándole a
+            // una grilla que todavía no sabía que la casa estaba ahí, y la respuesta era
+            // «donde estás ya vale».
+            if (edificio != null) edificio.ReclamarTerreno();
+
+            Apartar(celdas, datos.nombreVisible);
             return obra;
+        }
+
+        /// <summary>
+        /// Saca de debajo del edificio a quien se hubiera quedado dentro.
+        /// </summary>
+        /// <remarks>
+        /// Alguien tiene que estar dentro tarde o temprano: el pawn que va a construir suele
+        /// estar justo ahí, y prohibir la colocación por eso obligaría al jugador a mover a
+        /// mano sus propias unidades antes de cada casa.
+        ///
+        /// Se aparta a la celda libre más cercana, que siempre está pegada —no es un
+        /// teletransporte, es un empujón— y se le corta la orden que llevara: la ruta que
+        /// estuviera siguiendo salía de una celda que acaba de dejar de existir.
+        /// </remarks>
+        static void Apartar(RectInt celdas, string quien)
+        {
+            var mundo = Mundo.MundoJuego.Actual;
+            if (mundo == null || mundo.Grilla == null) return;
+
+            var unidades = Nucleo.RegistroDeUnidades.Todas;
+
+            for (int i = unidades.Count - 1; i >= 0; i--)
+            {
+                var u = unidades[i];
+                if (u == null || !u.Viva) continue;
+
+                var celda = mundo.Grilla.MundoACelda(u.transform.position);
+                if (!celdas.Contains(celda)) continue;
+
+                if (!mundo.Grilla.CeldaTransitableJuntoA(
+                        celda, u.transform.position, 12, out var libre))
+                {
+                    // No debería pasar: la colocación ya rechaza los sitios que dejarían un
+                    // hueco cerrado. Si pasa, se dice, porque el síntoma —una unidad que no
+                    // obedece— no tiene ninguna otra pista que lo delate.
+                    Debug.LogWarning(
+                        $"[Tiny Tactics] {u.name} se queda dentro de {quien}: " +
+                        "no hay celda libre cerca.", u);
+                    continue;
+                }
+
+                var movimiento = u.GetComponent<Movimiento.MovimientoUnidad>();
+                if (movimiento != null) movimiento.Detener();
+
+                u.transform.position = mundo.Grilla.CeldaAMundo(libre);
+            }
         }
 
         /// <summary>Obra propia más cercana a un punto, para mandar a un pawn a echar una mano.</summary>

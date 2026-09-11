@@ -142,7 +142,7 @@ debe perder contra uno mixto de costo equivalente.
 | Edificio | Sprite del pack | Costo | Planta | Obra | Función |
 |---|---|---|---|---|---|
 | **Castillo** | `Castle` | — (inicial) | 5×3 | — | Centro de entrega de recursos. Entrena pawns. Su destrucción = derrota. Aporta **10** de población |
-| **Casa** | `House1` | 60 🪵 | 2×2 | 32 (~10 s) | +5 al límite de población |
+| **Casa** | `House1-3` | 60 🪵 | 2×2 | 32 (~10 s) | +5 al límite de población |
 | **Cuartel** | `Barracks` | 100 🪵 + 40 🪙 | 3×3 | 50 (~15 s) | Entrena guerreros y lanceros |
 | **Campo de tiro** | `Archery` | 90 🪵 + 40 🪙 | 3×3 | 46 (~14 s) | Entrena arqueros |
 | **Monasterio** | `Monastery` | 80 🪵 + 80 🪙 | 3×3 | 56 (~17 s) | Entrena monjes |
@@ -173,6 +173,17 @@ validación de terreno, y al confirmar un pawn camina hasta el sitio y lo levant
 desde el primer momento como el propio edificio translúcido, que se va opacando a martillazos.
 Mientras dura no entrega recursos, no fabrica y no suma población.
 
+La casa tiene **tres fachadas** —`House1`, `House2` y `House3`— entre las que se pasa con la
+rueda del ratón mientras la silueta está en la mano. Las tres cuestan lo mismo, ocupan lo mismo
+y dan los mismos cinco de población: es una elección estética, para que una base con seis casas
+no parezca un bloque de pisos.
+
+**Despejar el terreno.** Las piedras y los arbustos ocupan su casilla igual que un árbol: se
+rodean al andar y no dejan construir encima. Un pawn los quita con unos golpes y **no dan nada a
+cambio** — despejar cuesta tiempo de trabajador, que es el recurso que de verdad escasea al
+principio. Los tocones de los árboles talados se retiran solos al cabo de medio minuto, para que
+un bosque explotado se lea como tal.
+
 ---
 
 ## 6. Controles
@@ -182,8 +193,9 @@ Mientras dura no entrega recursos, no fabrica y no suma población.
 | Seleccionar unidad | Clic izquierdo |
 | Selección múltiple | Arrastrar caja con clic izquierdo |
 | Sumar a la selección | Shift + clic / Shift + arrastre |
-| Mover / atacar / recolectar | Clic derecho sobre el destino (orden contextual) |
+| Mover / atacar / recolectar / despejar | Clic derecho sobre el destino (orden contextual) |
 | Abrir la rejilla de construcción | `B` con un pawn seleccionado |
+| Cambiar de fachada | Rueda del ratón mientras se coloca |
 | Colocar el edificio elegido | Clic izquierdo (Shift para encadenar varios) |
 | Cancelar la colocación | Clic derecho o `Esc` |
 | Ayudar en una obra | Clic derecho sobre ella con pawns seleccionados |

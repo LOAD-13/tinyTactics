@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TinyTactics.Mundo
@@ -219,6 +220,88 @@ namespace TinyTactics.Mundo
             for (int x = celdas.xMin; x < celdas.xMax; x++)
                 for (int y = celdas.yMin; y < celdas.yMax; y++)
                     if (!Transitable(x, y)) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// ¿Dejaría este rectángulo alguna bolsa de terreno sin salida?
+        /// </summary>
+        /// <remarks>
+        /// Es la comprobación que faltaba y que dejó a un pawn encerrado entre dos
+        /// construcciones: seleccionable, con la orden aceptada y sin dar un paso, porque
+        /// las ocho celdas de alrededor habían quedado bloqueadas. No hay error que lo
+        /// delate —el A* simplemente no encuentra ruta— así que la única forma de tratarlo
+        /// es no permitir que ocurra.
+        ///
+        /// Se comprueba <b>al confirmar y no mientras la silueta se mueve</b>: es un barrido
+        /// de hasta unos cientos de celdas, barato una vez por clic y caro sesenta veces por
+        /// segundo.
+        ///
+        /// El tope es lo que la hace barata y, de paso, correcta para lo que importa: no
+        /// hace falta saber si la bolsa tiene ochenta celdas o el mapa entero, solo si es lo
+        /// bastante grande como para no ser una ratonera.
+        /// </remarks>
+        public bool CerrariaElPaso(RectInt caja, int limite = 256)
+        {
+            var vistas = new HashSet<int>();
+            var cola = new Queue<Vector2Int>();
+
+            // Semillas: el anillo de celdas pegado al rectángulo. Si alguna queda aislada,
+            // el edificio la habría dejado sin salida.
+            for (int x = caja.xMin - 1; x <= caja.xMax; x++)
+            {
+                for (int y = caja.yMin - 1; y <= caja.yMax; y++)
+                {
+                    bool enElBorde = x == caja.xMin - 1 || x == caja.xMax ||
+                                     y == caja.yMin - 1 || y == caja.yMax;
+
+                    if (!enElBorde || !Transitable(x, y)) continue;
+                    if (vistas.Contains(x + y * Ancho)) continue;
+
+                    if (Aislada(new Vector2Int(x, y), caja, limite, vistas, cola)) return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Recorre la región de una celda tratando el rectángulo como macizo. Devuelve true
+        /// si se agota antes de llegar al tope: eso es una bolsa cerrada.
+        /// </summary>
+        bool Aislada(Vector2Int origen, RectInt caja, int limite,
+                     HashSet<int> vistas, Queue<Vector2Int> cola)
+        {
+            cola.Clear();
+            cola.Enqueue(origen);
+            vistas.Add(origen.x + origen.y * Ancho);
+
+            int contadas = 0;
+
+            while (cola.Count > 0)
+            {
+                if (++contadas >= limite) return false;
+
+                var c = cola.Dequeue();
+
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        if (dx == 0 && dy == 0) continue;
+
+                        int x = c.x + dx, y = c.y + dy;
+
+                        if (caja.Contains(new Vector2Int(x, y))) continue;
+                        if (!PuedePasar(c.x, c.y, x, y)) continue;
+
+                        if (!vistas.Add(x + y * Ancho)) continue;
+
+                        cola.Enqueue(new Vector2Int(x, y));
+                    }
+                }
+            }
 
             return true;
         }

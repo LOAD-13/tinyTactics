@@ -100,7 +100,8 @@ namespace TinyTactics.EditorHerramientas
         /// </remarks>
         static void Rellenar(DatosEdificio d, TipoEdificio tipo)
         {
-            d.ruta = $"{DirEdificios}/{ArchivoDe(tipo)}.png";
+            d.carpeta = DirEdificios;
+            d.variantes = FachadasDe(tipo);
 
             switch (tipo)
             {
@@ -176,18 +177,35 @@ namespace TinyTactics.EditorHerramientas
             }
         }
 
-        /// <summary>Nombre del PNG dentro del pack. La única traducción español → inglés.</summary>
-        static string ArchivoDe(TipoEdificio tipo)
+        /// <summary>
+        /// Los PNG del pack que dibujan cada edificio. La única traducción español → inglés.
+        /// </summary>
+        /// <remarks>
+        /// La casa tiene <b>tres</b> y el resto una. Son la misma casa con otra fachada:
+        /// mismo coste, misma planta y los mismos cinco de población. Estaban en el pack
+        /// desde el primer día y se quedaban sin usar.
+        /// </remarks>
+        static DatosEdificio.Variante[] FachadasDe(TipoEdificio tipo)
         {
             switch (tipo)
             {
-                case TipoEdificio.Casa: return "House1";
-                case TipoEdificio.Cuartel: return "Barracks";
-                case TipoEdificio.CampoDeTiro: return "Archery";
-                case TipoEdificio.Monasterio: return "Monastery";
-                case TipoEdificio.Torre: return "Tower";
-                default: return "Castle";
+                case TipoEdificio.Casa: return Fachadas("House1", "House2", "House3");
+                case TipoEdificio.Cuartel: return Fachadas("Barracks");
+                case TipoEdificio.CampoDeTiro: return Fachadas("Archery");
+                case TipoEdificio.Monasterio: return Fachadas("Monastery");
+                case TipoEdificio.Torre: return Fachadas("Tower");
+                default: return Fachadas("Castle");
             }
+        }
+
+        static DatosEdificio.Variante[] Fachadas(params string[] archivos)
+        {
+            var salida = new DatosEdificio.Variante[archivos.Length];
+
+            for (int i = 0; i < archivos.Length; i++)
+                salida[i] = new DatosEdificio.Variante { archivo = archivos[i] };
+
+            return salida;
         }
 
         // -----------------------------------------------------------------
@@ -208,7 +226,21 @@ namespace TinyTactics.EditorHerramientas
         /// </remarks>
         static void Medir(DatosEdificio datos)
         {
-            string ruta = datos.RutaDe("Blue");
+            if (datos.variantes == null) return;
+
+            // Cada fachada se mide por separado: la casa más alta y la más baja se llevan un
+            // tercio de tile, y compartir una sola medida dejaría a una de las tres flotando
+            // sobre su propia sombra.
+            for (int i = 0; i < datos.variantes.Length; i++)
+                MedirFachada(datos, i);
+        }
+
+        static void MedirFachada(DatosEdificio datos, int variante)
+        {
+            var ficha = datos.variantes[variante];
+            if (ficha == null) return;
+
+            string ruta = datos.RutaDe("Blue", variante);
 
             if (!System.IO.File.Exists(ruta))
             {
@@ -267,9 +299,9 @@ namespace TinyTactics.EditorHerramientas
                 // para que la medida siga valiendo si algún día se reimporta con otra escala.
                 float ppu = PixelesPorUnidad(ruta);
 
-                datos.huella = new Vector2((maxX - minX + 1) / ppu, (maxY - minY + 1) / ppu);
+                ficha.huella = new Vector2((maxX - minX + 1) / ppu, (maxY - minY + 1) / ppu);
 
-                datos.huellaCentro = new Vector2(
+                ficha.huellaCentro = new Vector2(
                     ((minX + maxX + 1) * 0.5f - ancho * 0.5f) / ppu,
                     ((minY + maxY + 1) * 0.5f - alto * 0.5f) / ppu);
             }

@@ -184,17 +184,8 @@ namespace TinyTactics.Interfaz
             raiz.anchorMax = new Vector2(0.5f, 1f);
             raiz.pivot = new Vector2(0.5f, 1f);
             raiz.anchoredPosition = new Vector2(0f, -margen.y);
-
-            // Cuatro cajas: los tres recursos y la población.
-            //
-            // La población va en la misma fila y no suelta en una esquina a propósito. Es
-            // un límite que se gasta igual que el oro —se consume al entrenar y se amplía
-            // construyendo— así que pertenece al mismo sitio donde el jugador ya mira antes
-            // de pulsar «entrenar». En una esquina aparte se consulta cuando ya es tarde.
-            const int Cajas = 4;
-
             raiz.sizeDelta = new Vector2(
-                tamanoCaja.x * Cajas + separacion * (Cajas - 1), tamanoCaja.y);
+                tamanoCaja.x * 3f + separacion * 2f, tamanoCaja.y);
 
             var recursos = new[] { TipoRecurso.Oro, TipoRecurso.Madera, TipoRecurso.Carne };
 
@@ -207,10 +198,31 @@ namespace TinyTactics.Interfaz
                                                    new Vector2(x, -tamanoCaja.y * 0.5f));
             }
 
-            float xPoblacion = x0 + tamanoCaja.x * (Cajas - 0.5f) + separacion * (Cajas - 1);
+            ConstruirPoblacion();
+        }
 
+        /// <summary>
+        /// El contador de población, arriba a la izquierda y en su propia caja.
+        /// </summary>
+        /// <remarks>
+        /// Aparte de los recursos, y no como una cuarta caja de la misma fila, porque no es
+        /// un recurso: no se recolecta, no se gasta en construir y no sube al depositar. Es
+        /// un límite. Mezclarlo con el oro y la madera invita a leerlo como «cuánto tengo»
+        /// cuando lo que dice es «cuánto me cabe».
+        /// </remarks>
+        void ConstruirPoblacion()
+        {
+            var raiz = Nodo("HudPoblacion", (RectTransform)transform);
+            raiz.anchorMin = new Vector2(0f, 1f);
+            raiz.anchorMax = new Vector2(0f, 1f);
+            raiz.pivot = new Vector2(0f, 1f);
+            raiz.anchoredPosition = new Vector2(margen.x, -margen.y);
+            raiz.sizeDelta = tamanoCaja;
+
+            // La caja se ancla al centro superior de su raíz, así que media caja hacia abajo
+            // la deja centrada dentro. Es la misma cuenta que usan los tres contadores.
             var censo = ConstruirContador(raiz, TipoRecurso.Ninguno,
-                                          new Vector2(xPoblacion, -tamanoCaja.y * 0.5f),
+                                          new Vector2(0f, -tamanoCaja.y * 0.5f),
                                           "Poblacion");
 
             _poblacion = censo.Numero;

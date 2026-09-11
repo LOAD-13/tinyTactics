@@ -102,32 +102,36 @@ namespace TinyTactics.Edificios
         /// y las celdas que acaban bloqueadas son literalmente el mismo dato, y ningún
         /// redondeo puede separarlas.
         /// </summary>
-        public void Colocar(DatosEdificio ficha, int bando, RectInt donde)
+        public void Colocar(DatosEdificio ficha, int bando, RectInt donde, int fachada = 0)
         {
             datos = ficha;
             faccion = bando;
             celdas = donde;
+            variante = ficha != null ? ficha.Ajustar(fachada) : 0;
 
             if (ficha != null)
             {
                 tipo = ficha.tipo;
                 nombreVisible = ficha.nombreVisible;
                 centroDeEntrega = ficha.centroDeEntrega;
-                huella = ficha.huella;
-                huellaCentro = ficha.huellaCentro;
+                huella = ficha.HuellaDe(variante);
+                huellaCentro = ficha.HuellaCentroDe(variante);
             }
 
-            transform.position = PosicionPara(ficha, donde);
+            transform.position = PosicionPara(ficha, donde, variante);
         }
 
+        [Tooltip("Cuál de las fachadas del catálogo lleva puesta. Solo las casas tienen más de una.")]
+        public int variante;
+
         /// <summary>Dónde va el objeto para que su planta caiga justo sobre esas celdas.</summary>
-        public static Vector3 PosicionPara(DatosEdificio ficha, RectInt donde)
+        public static Vector3 PosicionPara(DatosEdificio ficha, RectInt donde, int fachada = 0)
         {
             Vector2 centro = new Vector2(
                 donde.x + donde.width * 0.5f,
                 donde.y + donde.height * 0.5f);
 
-            if (ficha != null) centro -= ficha.DesplazamientoBase;
+            if (ficha != null) centro -= ficha.DesplazamientoBase(fachada);
 
             return new Vector3(centro.x, centro.y, 0f);
         }
@@ -148,7 +152,24 @@ namespace TinyTactics.Edificios
         /// corren antes que cualquier Start, y eso basta: nadie pide una ruta antes del
         /// primer Update.
         /// </remarks>
-        void Start() => Ocupar(true);
+        void Start() => ReclamarTerreno();
+
+        /// <summary>
+        /// Bloquea ya las celdas que pisa, sin esperar al <c>Start</c>.
+        /// </summary>
+        /// <remarks>
+        /// La llama el colocador nada más plantar una obra, y hace falta por una cuestión de
+        /// orden: al encender un objeto en caliente, Unity ejecuta su <c>Awake</c> en el acto
+        /// pero <b>aplaza el <c>Start</c> hasta justo antes del siguiente Update</b>. En ese
+        /// hueco, el edificio ya existe y el terreno todavía está libre.
+        ///
+        /// Es exactamente lo que dejaba a un pawn metido dentro de una casa recién puesta:
+        /// se le buscaba sitio fuera preguntándole a una grilla que aún no sabía que la casa
+        /// estaba ahí, así que la respuesta era «donde estás ya vale».
+        ///
+        /// Es idempotente: el testigo impide marcar dos veces.
+        /// </remarks>
+        public void ReclamarTerreno() => Ocupar(true);
 
         /// <summary>Al derribarse devuelve el terreno. Al cerrar la partida no hay a quién.</summary>
         void OnDestroy() => Ocupar(false);

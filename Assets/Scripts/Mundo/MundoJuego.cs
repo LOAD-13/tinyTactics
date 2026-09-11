@@ -27,6 +27,10 @@ namespace TinyTactics.Mundo
 
         public float radioOro = 0.6f;
 
+        [Tooltip("Piedras y arbustos. Tapan su propia celda y se quitan despejándolos: es lo " +
+                 "que hace que un pawn se arrime por fuera en vez de picar desde encima.")]
+        public float radioEstorbo = 0.45f;
+
         [Tooltip("Ya no bloquea nada: cada edificio marca su propio rectángulo de celdas. " +
                  "Se conserva como margen al recalcular una zona, para que la ventana " +
                  "abarque de sobra al edificio más grande que pueda haber al lado.")]
@@ -125,6 +129,14 @@ namespace TinyTactics.Mundo
             // sido lo único que el mapa no supiera reponer al recalcular una zona.
             foreach (var c in Mapa.Arboles) Grilla.MarcarObstaculo(c, radioArbol);
             foreach (var c in Mapa.Oro) Grilla.MarcarObstaculo(c, radioOro);
+
+            // Los estorbos van aquí y no solo en el generador de escena: si la grilla no
+            // supiera de ellos, un pawn que despejara una piedra llamaría a LiberarRecurso,
+            // que repone lo que sigue vivo... incluidos los estorbos que la grilla nunca
+            // había marcado. El mapa se iría llenando de obstáculos que no estaban al
+            // empezar, y solo en las zonas donde alguien hubiera trabajado.
+            foreach (var c in Mapa.Rocas) Grilla.MarcarObstaculo(c, radioEstorbo);
+            foreach (var c in Mapa.Arbustos) Grilla.MarcarObstaculo(c, radioEstorbo);
 
             Rutas = new BuscadorDeRutas(Grilla);
 

@@ -24,6 +24,10 @@ namespace TinyTactics.Edificios
         {
             public DatosEdificio datos;
             public int faccion;
+
+            [Tooltip("Cuál de las fachadas del edificio. Las casas tienen tres; el resto, una.")]
+            public int variante;
+
             public Sprite sprite;
 
             [Tooltip("Copia apagada lista para clonar, con su marcador de selección y su " +
@@ -46,8 +50,9 @@ namespace TinyTactics.Edificios
             if (Actual == this) Actual = null;
         }
 
-        /// <summary>La llama el generador de la escena, una vez por edificio y bando.</summary>
-        public void Registrar(DatosEdificio datos, int faccion, Sprite sprite, GameObject plantilla)
+        /// <summary>La llama el generador de la escena, una vez por edificio, bando y fachada.</summary>
+        public void Registrar(DatosEdificio datos, int faccion, int variante,
+                              Sprite sprite, GameObject plantilla)
         {
             if (datos == null) return;
 
@@ -55,6 +60,7 @@ namespace TinyTactics.Edificios
             {
                 datos = datos,
                 faccion = faccion,
+                variante = variante,
                 sprite = sprite,
                 plantilla = plantilla,
             });
@@ -62,40 +68,33 @@ namespace TinyTactics.Edificios
             if (!_fichas.Contains(datos)) _fichas.Add(datos);
         }
 
-        /// <summary>Copia apagada de un edificio en el color de un bando, lista para clonar.</summary>
-        public GameObject PlantillaDe(DatosEdificio datos, int faccion)
+        Entrada Buscar(DatosEdificio datos, int faccion, int variante)
         {
+            if (datos != null) variante = datos.Ajustar(variante);
+
             for (int i = 0; i < _entradas.Count; i++)
             {
                 var e = _entradas[i];
-                if (e != null && e.datos == datos && e.faccion == faccion) return e.plantilla;
+                if (e != null && e.datos == datos && e.faccion == faccion &&
+                    e.variante == variante)
+                    return e;
             }
 
             return null;
+        }
+
+        /// <summary>Copia apagada de un edificio en el color de un bando, lista para clonar.</summary>
+        public GameObject PlantillaDe(DatosEdificio datos, int faccion, int variante = 0)
+        {
+            var e = Buscar(datos, faccion, variante);
+            return e != null ? e.plantilla : null;
         }
 
         /// <summary>Dibujo de un edificio en el color de un bando.</summary>
-        public Sprite SpriteDe(DatosEdificio datos, int faccion)
+        public Sprite SpriteDe(DatosEdificio datos, int faccion, int variante = 0)
         {
-            for (int i = 0; i < _entradas.Count; i++)
-            {
-                var e = _entradas[i];
-                if (e != null && e.datos == datos && e.faccion == faccion) return e.sprite;
-            }
-
-            return null;
-        }
-
-        public Sprite SpriteDe(TipoEdificio tipo, int faccion)
-        {
-            for (int i = 0; i < _entradas.Count; i++)
-            {
-                var e = _entradas[i];
-                if (e != null && e.datos != null && e.datos.tipo == tipo && e.faccion == faccion)
-                    return e.sprite;
-            }
-
-            return null;
+            var e = Buscar(datos, faccion, variante);
+            return e != null ? e.sprite : null;
         }
 
         public DatosEdificio Obtener(TipoEdificio tipo)

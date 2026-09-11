@@ -14,11 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosEdificio
   tipo: 2
   nombreVisible: Cuartel
-  ruta: Assets/Tiny Swords/Buildings/{color} Buildings/Barracks.png
+  carpeta: Assets/Tiny Swords/Buildings/{color} Buildings
+  variantes:
+  - archivo: Barracks
+    huella: {x: 2.875, y: 2.921875}
+    huellaCentro: {x: 0, y: -0.3671875}
   oro: 40
   madera: 100
-  huella: {x: 2.875, y: 2.921875}
-  huellaCentro: {x: 0, y: -0.3671875}
   planta: {x: 3, y: 3}
   golpesDeObra: 50
   centroDeEntrega: 0

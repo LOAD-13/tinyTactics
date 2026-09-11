@@ -14,11 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosEdificio
   tipo: 1
   nombreVisible: Casa
-  ruta: Assets/Tiny Swords/Buildings/{color} Buildings/House1.png
+  carpeta: Assets/Tiny Swords/Buildings/{color} Buildings
+  variantes:
+  - archivo: House1
+    huella: {x: 1.75, y: 2.453125}
+    huellaCentro: {x: 0, y: 0.0234375}
+  - archivo: House2
+    huella: {x: 2, y: 2.421875}
+    huellaCentro: {x: 0, y: -0.0703125}
+  - archivo: House3
+    huella: {x: 1.90625, y: 2.109375}
+    huellaCentro: {x: 0, y: -0.1328125}
   oro: 0
   madera: 60
-  huella: {x: 1.75, y: 2.453125}
-  huellaCentro: {x: 0, y: 0.0234375}
   planta: {x: 2, y: 2}
   golpesDeObra: 32
   centroDeEntrega: 0

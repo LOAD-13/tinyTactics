@@ -14,11 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Datos.DatosEdificio
   tipo: 0
   nombreVisible: Castillo
-  ruta: Assets/Tiny Swords/Buildings/{color} Buildings/Castle.png
+  carpeta: Assets/Tiny Swords/Buildings/{color} Buildings
+  variantes:
+  - archivo: Castle
+    huella: {x: 4.875, y: 3.25}
+    huellaCentro: {x: 0, y: -0.265625}
   oro: 0
   madera: 0
-  huella: {x: 4.875, y: 3.25}
-  huellaCentro: {x: 0, y: -0.265625}
   planta: {x: 5, y: 3}
   golpesDeObra: 90
   centroDeEntrega: 1
