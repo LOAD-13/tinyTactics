@@ -37,6 +37,12 @@ namespace TinyTactics.Mundo
         [Tooltip("Desempate fino. Las unidades van ligeramente por delante de la decoración.")]
         public int extra;
 
+        [Tooltip("Se resta a la altura antes de ordenar. Un edificio se ordena por donde SE " +
+                 "APOYA y no por el centro de su dibujo: con el centro, todo lo que pasara " +
+                 "por delante de la puerta de un castillo de tres tiles se dibujaba detrás " +
+                 "del muro (ADR-12).")]
+        public float desplazamientoY;
+
         SpriteRenderer _sprite;
         int _ultimo = int.MinValue;
 
@@ -46,7 +52,7 @@ namespace TinyTactics.Mundo
         {
             if (_sprite == null) return;
 
-            int orden = Calcular(alto, transform.position.y) + extra;
+            int orden = Calcular(alto, transform.position.y - desplazamientoY) + extra;
             if (orden == _ultimo) return;
 
             _ultimo = orden;

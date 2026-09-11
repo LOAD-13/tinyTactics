@@ -26,6 +26,10 @@ namespace TinyTactics.Mundo
         public float radioArbol = 0.7f;
 
         public float radioOro = 0.6f;
+
+        [Tooltip("Ya no bloquea nada: cada edificio marca su propio rectángulo de celdas. " +
+                 "Se conserva como margen al recalcular una zona, para que la ventana " +
+                 "abarque de sobra al edificio más grande que pueda haber al lado.")]
         public float radioCastillo = 2.6f;
 
         [Header("Depuración")]
@@ -113,9 +117,14 @@ namespace TinyTactics.Mundo
 
             // Lo que estorba el paso. Las ovejas no cuentan: se mueven solas y
             // bloquear celdas con algo que cambia de sitio ensuciaría el pathfinding.
+            //
+            // Los castillos NO se marcan aquí, aunque antes sí. Ahora cada edificio bloquea
+            // su propio rectángulo de celdas en su Start, y eso incluye al castillo: una
+            // sola regla para el que viene con el mapa y para el que levanta el jugador a
+            // media partida. Con dos reglas, la casa construida en el minuto diez habría
+            // sido lo único que el mapa no supiera reponer al recalcular una zona.
             foreach (var c in Mapa.Arboles) Grilla.MarcarObstaculo(c, radioArbol);
             foreach (var c in Mapa.Oro) Grilla.MarcarObstaculo(c, radioOro);
-            foreach (var c in Mapa.Bases) Grilla.MarcarObstaculo(c, radioCastillo);
 
             Rutas = new BuscadorDeRutas(Grilla);
 
@@ -190,7 +199,13 @@ namespace TinyTactics.Mundo
                 Grilla.MarcarObstaculo(nodo.celda, nodo.radioBloqueo);
             }
 
-            foreach (var c in Mapa.Bases) Grilla.MarcarObstaculo(c, radioCastillo);
+            // Y los edificios en pie, por el mismo motivo: talar el árbol pegado a una casa
+            // limpiaba la ventana entera y abría un pasillo por debajo de la casa. Se
+            // pregunta a los edificios vivos, que son la fuente de verdad, en vez de a la
+            // lista de bases del generador, que no sabe nada de lo construido en partida.
+            var edificios = Edificios.Edificio.Todos;
+            for (int i = 0; i < edificios.Count; i++)
+                if (edificios[i] != null) edificios[i].RemarcarTerreno();
         }
 
         /// <summary>Celda transitable más cercana a un punto del mundo.</summary>

@@ -191,6 +191,61 @@ namespace TinyTactics.Mundo
         }
 
         /// <summary>
+        /// Marca o libera un rectángulo de celdas. Lo usan los edificios.
+        /// </summary>
+        /// <remarks>
+        /// Rectángulo y no disco, al revés que los árboles y las vetas, porque un edificio
+        /// <b>es</b> rectangular: con un disco, las esquinas de un cuartel de tres por tres
+        /// quedaban pisables y las unidades se colaban por dentro del muro.
+        /// </remarks>
+        public void MarcarCaja(RectInt celdas, bool obstaculo)
+        {
+            for (int x = celdas.xMin; x < celdas.xMax; x++)
+            {
+                for (int y = celdas.yMin; y < celdas.yMax; y++)
+                {
+                    if (!EnRango(x, y)) continue;
+
+                    var celda = this[x, y];
+                    celda.Obstaculo = obstaculo;
+                    this[x, y] = celda;
+                }
+            }
+        }
+
+        /// <summary>¿Está todo el rectángulo libre y en suelo firme?</summary>
+        public bool CajaLibre(RectInt celdas)
+        {
+            for (int x = celdas.xMin; x < celdas.xMax; x++)
+                for (int y = celdas.yMin; y < celdas.yMax; y++)
+                    if (!Transitable(x, y)) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// ¿Está el rectángulo entero al mismo nivel de terreno?
+        /// </summary>
+        /// <remarks>
+        /// Un edificio a caballo entre el llano y una meseta se dibujaría flotando sobre el
+        /// acantilado, y peor: partiría la única rampa de la zona en dos mitades sin
+        /// conexión. Es más barato prohibirlo que arreglar el mapa después.
+        /// </remarks>
+        public bool CajaAlMismoNivel(RectInt celdas)
+        {
+            byte nivel = NivelDe(celdas.xMin, celdas.yMin);
+
+            for (int x = celdas.xMin; x < celdas.xMax; x++)
+                for (int y = celdas.yMin; y < celdas.yMax; y++)
+                {
+                    if (NivelDe(x, y) != nivel) return false;
+                    if (this[x, y].Escalera) return false;
+                }
+
+            return true;
+        }
+
+        /// <summary>
         /// Celda pisable junto a un objetivo, eligiendo la que le pilla más cerca a quien
         /// viene.
         /// </summary>
