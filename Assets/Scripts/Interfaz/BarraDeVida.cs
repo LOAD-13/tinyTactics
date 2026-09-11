@@ -85,16 +85,37 @@ namespace TinyTactics.Interfaz
             _escala.localScale = new Vector3(_anchoBase, 1f, 1f);
         }
 
+        /// <summary>
+        /// De dónde sale la fracción a pintar, si no es la vida de una unidad.
+        /// </summary>
+        /// <remarks>
+        /// Lo usa la obra en construcción, que necesita exactamente la misma barra con
+        /// exactamente el mismo marco pero llenándose con martillazos en vez de vaciándose
+        /// con heridas. Un segundo componente calcado para cambiar de dónde sale un
+        /// <c>float</c> habría duplicado el cálculo de la cavidad, que es lo único difícil
+        /// que hay aquí.
+        /// </remarks>
+        public System.Func<float> fuente;
+
         void LateUpdate()
         {
+            if (fuente != null)
+            {
+                Pintar(Mathf.Clamp01(fuente()), true);
+                return;
+            }
+
             if (_unidad == null || _unidad.datos == null) return;
 
-            float fraccion = Mathf.Clamp01((float)_unidad.Vida / Mathf.Max(1, _unidad.datos.vidaMaxima));
+            float vida = Mathf.Clamp01((float)_unidad.Vida / Mathf.Max(1, _unidad.datos.vidaMaxima));
 
-            bool visible = visibilidad == Visibilidad.Siempre ||
-                           _unidad.Seleccionada ||
-                           fraccion < umbralHerida;
+            Pintar(vida, visibilidad == Visibilidad.Siempre ||
+                         _unidad.Seleccionada ||
+                         vida < umbralHerida);
+        }
 
+        void Pintar(float fraccion, bool visible)
+        {
             if (_marco != null && _marco.enabled != visible) _marco.enabled = visible;
             if (_relleno != null && _relleno.enabled != visible) _relleno.enabled = visible;
 
