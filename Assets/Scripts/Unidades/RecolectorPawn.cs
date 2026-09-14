@@ -150,6 +150,43 @@ namespace TinyTactics.Unidades
             _maquina.Cargar(_carga);
         }
 
+        [Tooltip("Segundos mínimos entre dos huidas. Sin esto, cada flecha recibida vuelve a " +
+                 "pedir ruta y el pawn tiembla en el sitio en vez de irse.")]
+        [Range(0.5f, 5f)] public float esperaRefugio = 2f;
+
+        float _proximoRefugio;
+
+        /// <summary>
+        /// Alguien le está pegando: suelta el trabajo y se va al centro de entrega.
+        ///
+        /// Un pawn no se defiende. Hace poco daño, muere rápido y cuesta lo mismo que la
+        /// mitad de una casa: cambiarlo por un guerrero enemigo es un mal negocio siempre.
+        /// La conducta correcta es la de Warcraft — sale corriendo hacia casa y deja que el
+        /// jugador decida si manda tropas.
+        /// </summary>
+        /// <remarks>
+        /// No entrega al llegar ni reanuda el ciclo a propósito. Entregar dispara el relevo,
+        /// que lo mandaría de vuelta al mismo nodo donde lo estaban matando: huir y volver
+        /// solo al sitio del que huyes no es huir. Se queda en el castillo, con su carga
+        /// intacta, esperando una orden.
+        /// </remarks>
+        public void Refugiarse()
+        {
+            if (_maquina == null || _maquina.Muerta) return;
+            if (Time.time < _proximoRefugio) return;
+
+            var refugio = Edificio.EntregaMasCercana(transform.position, _unidad.faccion);
+            if (refugio == null) return;
+
+            _proximoRefugio = Time.time + esperaRefugio;
+
+            // Cancelar corta el ciclo sin quitarle el saco: si volvía cargado, la madera
+            // sigue encima y se entregará en cuanto se le vuelva a mandar.
+            Cancelar();
+
+            Caminar(refugio.PuntoDeEntregaDesde(transform.position));
+        }
+
         // -----------------------------------------------------------------
         // Ciclo
         // -----------------------------------------------------------------
@@ -299,6 +336,13 @@ namespace TinyTactics.Unidades
         {
             var eco = Economia.Actual;
             if (eco != null) eco.Depositar(_unidad.faccion, _carga, _cantidad);
+
+            // Se apunta aqui y no dentro de Economia.Depositar porque ese metodo tambien lo
+            // usa el panel de pruebas para regalar recursos, y el oro regalado no es oro
+            // recolectado: contarlo ahi convertiria las estadisticas en una mentira en
+            // cuanto alguien pulsara "+100 oro".
+            var libro = EstadisticasPartida.Actual;
+            if (libro != null) libro.Recolectado(_unidad.faccion, _carga, _cantidad);
 
             _carga = TipoRecurso.Ninguno;
             _cantidad = 0;

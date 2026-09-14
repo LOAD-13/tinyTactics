@@ -11,9 +11,78 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 07 — El conflicto (E06, parte A)
+**Entrega:** domingo 20/09/2026 · **Expo:** lunes 21/09/2026
+**Tag:** _(pendiente)_ `v0.7.0-s07` · **Rama:** `feat/E06-combat`
+
+### Lo prometido
+Once HUs: HU-046 responder al ser atacado · HU-047 correa y posturas · HU-048 vida y
+destrucción de edificios · HU-049 la torre con arquero guarnecido · HU-050 torres rivales ·
+HU-051 panel de pruebas v1 · HU-052 iconos del panel · HU-053 retirar el poste ·
+HU-054 estadísticas · HU-055 condición de derrota · HU-056 pantalla de victoria y derrota.
+
+### Lo que costó de verdad
+
+**Media épica ya estaba escrita sin que nadie lo supiera.** Al abrir la semana resultó que
+`Unidad` ya tenía vida, daño y muerte como estado; que la máquina ya sabía acercarse y
+golpear; que ya buscaba objetivo sola, y que `RegistroDeUnidades` ya resolvía el vecindario
+con una grilla espacial por cubos. Lo que faltaba no era el combate: era que el golpeado
+**respondiera**, que la persecución **terminara**, que los edificios **cayeran** y que la
+partida **se pudiera perder**. Leer el código antes de planificar cambió el tamaño de la
+semana y dejó sitio para adelantar la pantalla de final, que estaba puesta en la 08.
+
+**El `null` falso de Unity se pierde al usar interfaces**
+([ADR-15](ARQUITECTURA.md#adr-15)). Para que una unidad pudiera atacar a un edificio los dos
+pasaron a implementar `IObjetivo`. Unity finge que un objeto destruido es `null`, pero ese
+truco vive en `UnityEngine.Object` y **desaparece en cuanto la referencia se guarda como
+interfaz**. Es literalmente el fallo que la semana pasada dejó al pawn plantado tras matar una
+oveja, vuelto a aparecer con otra cara. Se cerró antes de que costara nada, con un `Existe()`
+que vuelve a pasar por `MonoBehaviour`.
+
+**Un monje agredido habría curado a su agresor.** El monje tiene daño negativo, así que
+engancharlo automáticamente a quien le pega lo mandaba a curar al enemigo que lo estaba
+matando. La respuesta al ataque necesita una guarda explícita de daño positivo, y la necesita
+por una razón de diseño, no de seguridad: hay una unidad en el juego cuyo «devolver el golpe»
+significa lo contrario que para todas las demás.
+
+**El cursor marcaba como prohibido lo único que se puede atacar.** El puntero decidía con la
+regla «celda intransitable = prohibido», y un edificio enemigo bloquea sus propias celdas: el
+aspa caía justo encima del objetivo de la partida. Es el mismo tropiezo que ya se corrigió con
+los árboles en la semana 05, repetido con los edificios. La comprobación de enemigo va ahora
+antes que la de la grilla, igual que entonces se puso la de recurso antes.
+
+**Dos fallos de orden de arranque, cazados por lectura y no por síntoma.** El cartel de final
+se suscribía al árbitro en su `OnEnable`, y Unity no garantiza el orden de los `Awake` entre
+objetos: si el cartel despertaba primero, no se suscribía nadie y la pantalla no salía nunca.
+El síntoma habría sido «a veces sale y a veces no». Y el árbitro daba por eliminado a
+cualquier bando sin castillo, incluido uno que nunca lo tuvo: con el contador de bandos por
+encima de las bases del mapa, la partida terminaba en el primer fotograma.
+
+**Ya no hace falta esperar a que Unity recupere el foco para saber si algo rompe.** Unity solo
+recompila cuando el editor gana el foco, así que cada tanda de cambios se quedaba sin
+verificar. Los `.csproj` que Unity genera traen la lista completa de referencias, y el propio
+Unity trae Roslyn: con eso se compila el proyecto entero desde fuera, con el mismo compilador
+y las mismas referencias. Un error ahí es un error en Unity.
+
+### Decisiones
+- [ADR-15](ARQUITECTURA.md#adr-15): lo que se puede atacar se esconde detrás de `IObjetivo`.
+- [ADR-16](ARQUITECTURA.md#adr-16): el panel de pruebas es herramienta transversal, no épica.
+
+### Lo que se decidió NO hacer
+- **Generar los iconos del panel dibujándolos.** Se planteó extraer la paleta de los PNG del
+  pack y pintar iconos de 32×32. Al ir a hacerlo resultó que no hacía falta: el tema ya trae
+  los tres sacos de recurso y los veinticinco retratos de unidad, que son exactamente los
+  iconos que el panel necesita. Arte nuevo para enseñar algo que ya está dibujado es arte que
+  además puede desentonar.
+- **La pantalla de final como imagen o GIF.** No escala de resolución, no puede mostrar cifras
+  que cambian, y ningún generador de imagen mantiene la rejilla de píxeles: lo que producen
+  parece pixel art con el contorno y la paleta mal. Se monta con piezas del propio pack.
+
+---
+
 ## Semana 06 — Construcción y producción
 **Entrega:** domingo 13/09/2026 · **Expo:** lunes 14/09/2026
-**Tag:** _(pendiente)_ `v0.6.0-s06` · **Rama:** `feat/E05-construccion`
+**Tag:** [`v0.6.0-s06`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.6.0-s06) · **Rama:** `feat/E05-construccion`
 
 ### Lo prometido
 Las diez HUs de la épica E05, sin bloque opcional: HU-036 resaltado del nodo (arrastrada de la

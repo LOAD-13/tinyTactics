@@ -20,6 +20,12 @@ MonoBehaviour:
   puntoNormal: {x: 23, y: 18}
   puntoMano: {x: 27, y: 18}
   puntoProhibido: {x: 32, y: 31}
+  cursorAtaque: {fileID: 2800000, guid: dc31f2393eee6f842bf14b66909a19c0, type: 3}
+  puntoAtaque: {x: 32, y: 32}
+  pergamino: {fileID: 2800000, guid: 84e6d1a2b750a5d4da283e5462237677, type: 3}
+  cinta: {fileID: 2800000, guid: a88ff02c70735d04c9be06806facd023, type: 3}
+  espadas: {fileID: 2800000, guid: ca2705c4955281f4083dfda4933d98f8, type: 3}
+  titular: {fileID: 12800000, guid: 888ea4fdf038eaa43a929e57f2006c11, type: 3}
   marcadorSeleccion: {fileID: 21300000, guid: 148e1ab80b2b14ce5858df57aeae24e0, type: 3}
   barraChicaMarco: {fileID: 21300000, guid: d410c511e208615468e244b53073bb5e, type: 3}
   barraChicaRelleno: {fileID: 21300000, guid: 0a9687702ae69a34aaa69cb72bfe4907, type: 3}

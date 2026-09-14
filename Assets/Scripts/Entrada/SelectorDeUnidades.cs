@@ -436,7 +436,13 @@ namespace TinyTactics.Entrada
         static bool SobreLaInterfaz(Vector2 pantalla)
         {
             var panel = Interfaz.PanelDeUnidad.Actual;
-            return panel != null && panel.CapturaPuntero(pantalla);
+            if (panel != null && panel.CapturaPuntero(pantalla)) return true;
+
+            // El panel de pruebas también se come el clic. Sin esto, pulsar «+100 oro»
+            // deselecciona el ejército que había detrás, que es la clase de detalle que
+            // convierte una herramienta útil en una que estorba.
+            var pruebas = Pruebas.PanelDePruebas.Actual;
+            return pruebas != null && pruebas.CapturaPuntero(pantalla);
         }
 
         void LeerBotonIzquierdo(Mouse raton)
@@ -505,6 +511,7 @@ namespace TinyTactics.Entrada
                     Autoridad.Emitir(
                         new OrdenAyudarObra { Faccion = faccionJugador, Obra = obra },
                         _seleccionadas);
+                    Interfaz.MarcaDeOrden.Soltar(punto, Interfaz.MarcaDeOrden.Trabajo);
                     return;
                 }
             }
@@ -512,6 +519,7 @@ namespace TinyTactics.Entrada
             if (propio != null && propio.centroDeEntrega && propio.Operativo && HayCargado())
             {
                 Autoridad.Emitir(new OrdenEntregar { Faccion = faccionJugador }, _seleccionadas);
+                Interfaz.MarcaDeOrden.Soltar(punto, Interfaz.MarcaDeOrden.Trabajo);
                 return;
             }
 
@@ -524,6 +532,7 @@ namespace TinyTactics.Entrada
                 Autoridad.Emitir(
                     new OrdenRecolectar { Faccion = faccionJugador, Nodo = nodo },
                     _seleccionadas);
+                Interfaz.MarcaDeOrden.Soltar(punto, Interfaz.MarcaDeOrden.Trabajo);
                 return;
             }
 
@@ -536,6 +545,21 @@ namespace TinyTactics.Entrada
                 Autoridad.Emitir(
                     new OrdenAtacar { Faccion = faccionJugador, Objetivo = victima },
                     _seleccionadas);
+                Interfaz.MarcaDeOrden.Soltar(victima.transform.position, Interfaz.MarcaDeOrden.Ataque);
+                return;
+            }
+
+            // Sobre un edificio enemigo, a derribarlo. Va DESPUÉS de las unidades a
+            // propósito: si hay un defensor plantado delante de la puerta, el clic tiene que
+            // significar «mátalo a él». Atacar el edificio con un guerrero al lado es perder
+            // la pelea mientras se pega a una pared.
+            var fortaleza = Edificios.Edificio.Bajo(punto);
+            if (fortaleza != null && fortaleza.faccion != faccionJugador)
+            {
+                Autoridad.Emitir(
+                    new OrdenAtacar { Faccion = faccionJugador, Estructura = fortaleza },
+                    _seleccionadas);
+                Interfaz.MarcaDeOrden.Soltar(fortaleza.PuntoDeEntregaDesde(punto), Interfaz.MarcaDeOrden.Ataque);
                 return;
             }
 
@@ -548,6 +572,7 @@ namespace TinyTactics.Entrada
                 Autoridad.Emitir(
                     new OrdenCurar { Faccion = faccionJugador, Objetivo = aliado },
                     _seleccionadas);
+                Interfaz.MarcaDeOrden.Soltar(aliado.transform.position, Interfaz.MarcaDeOrden.Trabajo);
                 return;
             }
 
@@ -563,7 +588,14 @@ namespace TinyTactics.Entrada
             if (mundo == null || mundo.Grilla == null) return;
 
             Vector2Int centro = mundo.Grilla.MundoACelda(punto);
+
+            // La marca se suelta DESPUES de comprobar que hay destino. Marcar antes seria
+            // mentir: el jugador veria el destello y la unidad no se movaria, que es peor
+            // que no ver nada.
             if (!mundo.Grilla.CeldaTransitableCercana(centro, 12, out centro)) return;
+
+            Interfaz.MarcaDeOrden.Soltar(mundo.Grilla.CeldaAMundo(centro),
+                       vigilando ? Interfaz.MarcaDeOrden.Ataque : Interfaz.MarcaDeOrden.Movimiento);
 
             // Cada unidad recibe su propia celda alrededor del punto pedido: si todas
             // fueran a la misma, se amontonarían peleando por ella.
@@ -775,6 +807,13 @@ namespace TinyTactics.Entrada
             _seleccionadas.Add(u);
             u.Seleccionar(true);
             VersionSeleccion++;
+        }
+
+        /// <summary>Suelta todo lo seleccionado. La usa el panel de pruebas al cambiar de bando.</summary>
+        public void SoltarTodo()
+        {
+            LimpiarSeleccion();
+            SeleccionarEdificio(null);
         }
 
         void LimpiarSeleccion()

@@ -119,6 +119,40 @@ namespace TinyTactics.EditorHerramientas
             // mismo PNG, asi que no se pisan.
             tema.cursorAccion = PrepararTextura($"{DirPack}/Cursors/Cursor_04.png", 64, true);
 
+            // El quinto puntero no existe en el pack: se fabrica tiñendo la mira de rojo.
+            // Hacía falta uno para «atacar» y los cuatro del pack ya estaban ocupados. Teñir
+            // el que ya significa «apuntar» mantiene la forma que el jugador reconoce y solo
+            // cambia lo que hay que cambiar: de qué lado está lo que hay debajo.
+            tema.cursorAtaque = Tenir(tema.cursorAccion, new Color(1f, 0.32f, 0.28f, 1f),
+                                      "Cursor_Ataque");
+
+            // Piezas del cartel de fin de partida. Todas del pack: montar la pantalla con
+            // su propio arte es lo unico que garantiza que el estilo encaje, cosa que
+            // ninguna imagen generada consigue con pixel art.
+            // RECORTADAS al dibujo, no el PNG entero. El pack centra cada pieza dentro de un
+            // lienzo mayor y transparente —el pergamino ocupa 168x153 de un archivo de
+            // 192x192— y al estirar el lienzo completo se estira tambien el margen invisible:
+            // el borde negro del papel adelgaza hasta desaparecer. Es el mismo motivo por el
+            // que ya se recortan el panel y las barras.
+            tema.pergamino = RecortarTextura($"{DirPack}/Papers/RegularPaper.png",
+                                             new RectInt(12, 19, 168, 153), "Pergamino");
+
+            tema.cinta = RecortarTextura($"{DirPack}/Ribbons/BigRibbons 1.png",
+                                         new RectInt(30, 5, 259, 103), "Cinta");
+
+            tema.espadas = RecortarTextura($"{DirPack}/Swords/Swords 1.png",
+                                           new RectInt(23, 0, 261, 128), "Espadas");
+
+            // El MVP reutiliza RetratoDe(): el tema ya trae las 25 caras del pack, una por
+            // tipo y color. Cargar ademas los veinte avatares genericos habria sido un
+            // segundo juego de retratos para enseñar lo mismo, y encima sin el color del
+            // bando.
+            //
+            // MedievalSharp, SIL OFL 1.1. Es la tipografia del propio pack, asi que el
+            // titular se lee como parte del juego y no como texto pegado encima.
+            tema.titular = AssetDatabase.LoadAssetAtPath<Font>(
+                "Assets/Fuentes/MedievalSharp-Bold.ttf");
+
             // Los corchetes vienen en 128 px. A 96 px por unidad ocupan 1,33 tiles: rodean
             // al pawn sin taparlo y sin invadir la casilla vecina.
             tema.marcadorSeleccion = PrepararSprite($"{DirPack}/Cursors/Cursor_04.png", 96);
@@ -336,6 +370,122 @@ namespace TinyTactics.EditorHerramientas
             return AssetDatabase.LoadAssetAtPath<Sprite>(destino);
         }
 
+        /// <summary>
+        /// Copia una textura del pack tiñéndola, y la guarda como asset propio.
+        /// </summary>
+        /// <remarks>
+        /// El original no se toca nunca: se escribe un PNG nuevo en <c>Assets/Datos/UI</c>,
+        /// igual que el resto de los recortes. Teñir en vez de dibujar de cero es lo que
+        /// garantiza que la pieza nueva tenga la misma paleta, el mismo grosor de contorno y
+        /// el mismo tamaño que las del pack — sale coherente por construcción y no por buen
+        /// ojo, que es la misma disciplina con la que se midieron las huellas.
+        /// </remarks>
+        /// <summary>
+        /// Tiñe un píxel claro y deja intacto el contorno oscuro.
+        /// </summary>
+        /// <remarks>
+        /// Ni <c>Retenir</c> ni <c>ForzarMatiz</c> valían aquí, y se comprobó midiendo en vez
+        /// de suponiendo: la mira del pack es <b>blanca y gris</b> (saturación 0,00 a 0,08)
+        /// con un contorno azul muy oscuro (0,52 de saturación, 0,18 de valor). Las dos
+        /// funciones existentes trabajan sobre el matiz, así que sobre la mira no habrían
+        /// tocado nada y en cambio habrían recoloreado justo el contorno — el reverso exacto
+        /// de lo que hace falta.
+        ///
+        /// Multiplicar los píxeles claros y respetar los oscuros es lo que conserva la
+        /// gramática del pack: todo su arte es color plano con borde azul noche.
+        /// </remarks>
+        static Color TenirPixel(Color c, Color tinte)
+        {
+            if (c.a < 0.004f) return c;
+
+            Color.RGBToHSV(c, out _, out _, out float v);
+
+            // El contorno se queda como está. Sin este corte, la mira roja pierde el borde y
+            // se convierte en una mancha que ya no se lee sobre terreno claro.
+            if (v < 0.40f) return c;
+
+            return new Color(c.r * tinte.r, c.g * tinte.g, c.b * tinte.b, c.a);
+        }
+
+        /// <summary>
+        /// Recorta un PNG del pack a su dibujo util y lo guarda como textura propia.
+        /// </summary>
+        /// <remarks>
+        /// Devuelve <c>Texture2D</c> y no <c>Sprite</c> porque estas piezas se dibujan con
+        /// <c>GUI</c> en <c>OnGUI</c>, que trabaja con texturas. El original no se toca: se
+        /// escribe un PNG nuevo en <c>Assets/Datos/UI</c>, igual que el resto de recortes.
+        /// </remarks>
+        static Texture2D RecortarTextura(string origen, RectInt caja, string nombre)
+        {
+            string destino = $"{CarpetaUI}/{nombre}.png";
+
+            // Legible temporalmente: hay que leerle los pixeles al original para copiarlos.
+            Configurar(origen, 96, Vector4.zero, true);
+
+            var fuente = AssetDatabase.LoadAssetAtPath<Texture2D>(origen);
+            if (fuente == null) return null;
+
+            if (caja.xMax > fuente.width || caja.yMax > fuente.height)
+            {
+                Debug.LogWarning($"[Tiny Tactics] El recorte {caja} no cabe en {origen}. " +
+                                 "Cambio el pack?");
+                return null;
+            }
+
+            var copia = new Texture2D(caja.width, caja.height, TextureFormat.RGBA32, false);
+            copia.SetPixels(fuente.GetPixels(caja.x, caja.y, caja.width, caja.height));
+            copia.Apply();
+
+            File.WriteAllBytes(destino, copia.EncodeToPNG());
+            Object.DestroyImmediate(copia);
+
+            AssetDatabase.ImportAsset(destino, ImportAssetOptions.ForceUpdate);
+            Configurar(destino, 96, Vector4.zero, false);
+
+            // Y se le devuelve al original su ajuste normal: dejarlo legible cuesta memoria
+            // en la build por una comodidad que solo hacia falta aqui.
+            Configurar(origen, 96, Vector4.zero, false);
+
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(destino);
+        }
+
+        static Texture2D Tenir(Texture2D origen, Color tinte, string nombre)
+        {
+            if (origen == null) return null;
+
+            string destino = $"{CarpetaUI}/{nombre}.png";
+
+            Color[] pixeles;
+            try
+            {
+                pixeles = origen.GetPixels();
+            }
+            catch (UnityException)
+            {
+                // Solo pasa si el importador no dejó la textura legible. Avisar es mejor que
+                // devolver null en silencio: el síntoma sería un cursor que no cambia nunca.
+                Debug.LogWarning($"[Tiny Tactics] {origen.name} no es legible; no se puede teñir.");
+                return null;
+            }
+
+            for (int i = 0; i < pixeles.Length; i++)
+                pixeles[i] = TenirPixel(pixeles[i], tinte);
+
+            var copia = new Texture2D(origen.width, origen.height, TextureFormat.RGBA32, false);
+            copia.SetPixels(pixeles);
+            copia.Apply();
+
+            File.WriteAllBytes(destino, copia.EncodeToPNG());
+            Object.DestroyImmediate(copia);
+
+            AssetDatabase.ImportAsset(destino, ImportAssetOptions.ForceUpdate);
+
+            // Legible: Cursor.SetCursor necesita subir los píxeles al puntero del sistema.
+            Configurar(destino, 64, Vector4.zero, true);
+
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(destino);
+        }
+
         static Sprite PrepararSprite(string ruta, int ppu)
         {
             Configurar(ruta, ppu, Vector4.zero, false);
@@ -391,7 +541,7 @@ namespace TinyTactics.EditorHerramientas
         // -----------------------------------------------------------------
 
         /// <summary>Lienzo con el panel inferior y el puntero contextual.</summary>
-        public static GameObject CrearLienzo(TemaInterfaz tema)
+        public static GameObject CrearLienzo(TemaInterfaz tema, int bandos = 3)
         {
             var go = new GameObject("Interfaz",
                                     typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -415,6 +565,25 @@ namespace TinyTactics.EditorHerramientas
             // El resaltado tiñe el sprite que ya está en el mapa; del tema solo saca la caja
             // de madera del cartel de existencias.
             go.AddComponent<ResaltadoDeNodo>().tema = tema;
+
+            // Las marcas de orden van en un objeto APARTE, no bajo el lienzo. El lienzo es
+            // ScreenSpaceOverlay y mide en píxeles de pantalla; un sprite del mundo colgado
+            // de ahí aparecería a escala de interfaz en una esquina. Estas marcas viven en
+            // el mundo, encima del mapa, así que su sitio es la raíz de la escena.
+            // El panel de pruebas va en su propio objeto y no bajo el lienzo: se dibuja con
+            // OnGUI, que no tiene nada que ver con el sistema de interfaz de Unity, y
+            // mezclarlos solo confunde a quien lo busque en la jerarquía.
+            var pruebas = new GameObject("PanelDePruebas").AddComponent<Pruebas.PanelDePruebas>();
+            pruebas.bandos = Mathf.Clamp(bandos, 1, 5);
+            pruebas.tema = tema;
+
+            // El cartel de final tambien va con OnGUI, asi que comparte criterio: fuera del
+            // lienzo y en su propio objeto.
+            new GameObject("CartelDeFinal").AddComponent<CartelDeFinal>().tema = tema;
+
+            var marcas = new GameObject("MarcasDeOrden");
+            var marcador = marcas.AddComponent<MarcaDeOrden>();
+            marcador.marca = tema != null ? tema.marcadorSeleccion : null;
 
             // Sin EventSystem los botones de uGUI no reciben un solo clic. No hacía falta
             // hasta ahora porque toda la entrada se leía del ratón directamente.

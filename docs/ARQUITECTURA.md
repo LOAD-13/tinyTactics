@@ -179,6 +179,60 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-16 · El panel de pruebas es una herramienta transversal, no una épica
+
+**Decisión.** El panel de trampas (`PanelDePruebas`) no pertenece a ninguna épica. Nace en la
+E06 con lo mínimo y **cada épica le añade sus propios interruptores**: la E07 quitar la niebla,
+la E08 pausar la IA y ver su plan. Se destruye solo fuera del editor y de las builds de
+desarrollo, y mientras está abierto pinta un sello **MODO PRUEBAS** en pantalla.
+
+**Por qué no es una épica.** Una épica entrega juego; esto entrega herramienta. Una semana
+cuya exposición fuera «miren nuestro panel de depuración» sería la peor del semestre. Y una
+épica de sandbox colocada en el calendario tendría que adivinar hoy qué interruptores va a
+necesitar la IA dentro de tres semanas; siempre adivinaría mal.
+
+**Por qué en la semana 07 y no más tarde.** No hay IA rival hasta la semana 10, así que **sin
+poder cambiar de bando no hay forma de enseñar un combate de dos lados**. El panel no es un
+extra de la E06: es lo que hace demostrable el resto de la E06, y es lo que permite retirar el
+poste de entrenamiento sin quedarse sin banco de pruebas.
+
+**El sello es obligatorio.** Sin él, cualquier captura de una entrega podría haberse hecho con
+oro regalado y unidades inmortales, y no habría forma de distinguirlo. El sello hace que una
+captura tramposa se delate sola.
+
+**Se apaga en `Awake`, no con `#if` alrededor de la clase.** Fue lo primero que se intentó:
+con la clase compilada a medias, cada sitio que le pregunta algo —el cursor, el selector—
+necesita su propio `#if`, y basta olvidar uno para que la build de entrega deje de compilar.
+La garantía se pone en un sitio, no en cinco.
+
+---
+
+### ADR-15 · Lo que se puede atacar se esconde detrás de una interfaz
+
+**Decisión.** Unidades y edificios implementan `IObjetivo`: facción, si sigue vivo, dónde está,
+a qué distancia queda **de su borde** y cómo recibir daño. La máquina de estados guarda su
+objetivo como `IObjetivo` y no distingue a qué le está pegando.
+
+**Las alternativas eran peores.** Duplicar la persecución, el alcance, la cadencia y el efecto
+para edificios son dos caminos que resuelven lo mismo y que se desincronizan a la primera
+corrección. Hacer que el edificio heredara de `Unidad` es peor todavía: arrastraría velocidad,
+hambre, rutas y empuje, todo a cero y todo estorbando.
+
+**La distancia se mide distinto en cada uno, y es deliberado.** El edificio mide a su borde:
+un castillo de cinco casillas medido al centro sería inalcanzable, porque bloquea sus propias
+celdas y la unidad se quedaría empujando el muro. La unidad mide entre centros, sin restar el
+radio, porque los alcances de las cinco unidades están ajustados contra esa vara desde la
+semana 04 y cambiarla alargaría el cuerpo a cuerpo medio tile sin que nadie lo pidiera.
+
+> ⚠️ **El `null` falso de Unity se pierde al guardar la referencia como interfaz.** Unity finge
+> que un objeto destruido es `null`, pero ese truco vive en `UnityEngine.Object`: con una
+> referencia de tipo interfaz la comparación pasa a ser la de C# y un objeto ya destruido sigue
+> dando «no nulo». Es **exactamente** el fallo que en la semana 06 dejó a un pawn plantado tras
+> matar una oveja, disfrazado de otra cosa. Por eso toda comprobación pasa por `Existe()`, que
+> vuelve a convertir a `MonoBehaviour` para que la comparación sea otra vez la de Unity.
+
+---
+
 ### ADR-14 · Un edificio tiene dos medidas: el dibujo y la planta
 
 **Decisión.** Cada edificio guarda dos tamaños distintos. La **huella** es el recuadro de

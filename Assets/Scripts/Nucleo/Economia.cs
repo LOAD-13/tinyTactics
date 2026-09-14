@@ -146,6 +146,9 @@ namespace TinyTactics.Nucleo
             a.oro -= oro;
             a.madera -= madera;
 
+            var libro = EstadisticasPartida.Actual;
+            if (libro != null) libro.Gastado(faccion, oro, madera);
+
             AlCambiar?.Invoke(faccion);
             return true;
         }

@@ -35,6 +35,26 @@ namespace TinyTactics.Datos
     public enum DireccionAtaque { Ninguna, Arriba, ArribaDerecha, Derecha, AbajoDerecha, Abajo }
 
     /// <summary>
+    /// Qué hace una unidad cuando aparece un enemigo cerca y nadie le ha dicho nada.
+    ///
+    /// Es el equivalente de las posturas de cualquier RTS, y hace falta porque la respuesta
+    /// correcta depende de la unidad: un guerrero ocioso que no persigue es un guerrero
+    /// inútil, y un pawn que sí persigue es un pawn muerto. Sin esto habría que elegir una
+    /// sola conducta para todos y siempre sería la mala para la mitad del ejército.
+    /// </summary>
+    public enum Postura
+    {
+        /// <summary>Busca enemigos en su radio de vigilancia y los persigue hasta la correa.</summary>
+        Agresiva,
+
+        /// <summary>Devuelve el golpe y ataca lo que entre en su alcance, pero no se mueve del sitio.</summary>
+        Defensiva,
+
+        /// <summary>Aguanta sin responder. La de los pawns: su trabajo es recolectar, no pelear.</summary>
+        Quieta
+    }
+
+    /// <summary>
     /// Una animación de la unidad: qué tira usa, a qué ritmo y si se repite.
     ///
     /// La ruta lleva <c>{color}</c>, que se sustituye por el nombre del bando en el pack
@@ -91,6 +111,13 @@ namespace TinyTactics.Datos
 
         [Tooltip("No recibe daño. Solo lo usa el muñeco de pruebas.")]
         public bool invulnerable;
+
+        [Tooltip("Con qué postura nace la unidad. Militares en agresiva; pawns, quietos.")]
+        public Postura postura = Postura.Agresiva;
+
+        [Tooltip("Casillas que puede alejarse de donde empezó a perseguir antes de rendirse " +
+                 "y volver. Solo limita la persecución automática, nunca una orden del jugador.")]
+        [Min(0f)] public float correa = 7f;
 
         [Header("Movimiento")]
         [Tooltip("Unidades de mundo por segundo. Un tile mide 1.")]

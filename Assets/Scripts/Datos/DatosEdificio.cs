@@ -64,6 +64,33 @@ namespace TinyTactics.Datos
                  "colocar donde cabe de sobra.")]
         public Vector2Int planta = new Vector2Int(2, 2);
 
+        [Header("Combate")]
+        [Tooltip("Vida del edificio en pie. Proporcional a lo que cuesta: derribar algo caro " +
+                 "tiene que costar más que derribar una casa.")]
+        [Min(1)] public int vidaMaxima = 400;
+
+        [Header("Defensa")]
+        [Tooltip("Lleva un arquero en la almena que dispara solo. Solo la torre.")]
+        public bool guarnicion;
+
+        [Tooltip("Dónde se planta el arquero y de dónde sale la flecha, relativo al objeto. " +
+                 "Que salga de la almena y no del suelo es la mitad de que la torre se lea " +
+                 "como una torre.")]
+        public Vector2 puntoDisparo = new Vector2(0f, 0.95f);
+
+        [Tooltip("Alcance de la guarnición, en tiles. Más largo que el del arquero a pie: es " +
+                 "la ventaja de estar subido.")]
+        public float alcanceAtaque = 6.5f;
+
+        [Tooltip("Daño por flecha. Más que el arquero, pero con cadencia lenta: la torre es " +
+                 "un disuasorio, no una prohibición. Una torre que gana el intercambio contra " +
+                 "unidades hace imposible atacar una base, y en la semana 10 la IA tiene que " +
+                 "poder atacarnos o no hay partida.")]
+        [Min(0)] public int danoAtaque = 20;
+
+        [Tooltip("Segundos entre disparos.")]
+        [Min(0.1f)] public float cadencia = 1.6f;
+
         [Header("Obra")]
         [Tooltip("Martillazos que cuesta levantarlo. Se cuentan golpes y no segundos (ADR-13): " +
                  "así dos pawns tardan la mitad sin ninguna cuenta especial, y parar a medias " +

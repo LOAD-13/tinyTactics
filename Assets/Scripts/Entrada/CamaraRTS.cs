@@ -103,6 +103,14 @@ namespace TinyTactics.Entrada
 
         void ActualizarZoom()
         {
+            // La rueda sobre el panel lateral es para desplazar su contenido, no para hacer
+            // zoom al mapa. Sin esto, intentar bajar por la lista de unidades alejaba la
+            // camara y el panel no se movia: dos acciones compitiendo por el mismo gesto.
+            var pruebas = Pruebas.PanelDePruebas.Actual;
+            if (pruebas != null && Mouse.current != null &&
+                pruebas.CapturaPuntero(Mouse.current.position.ReadValue()))
+                return;
+
             var mouse = Mouse.current;
             if (mouse == null) return;
 

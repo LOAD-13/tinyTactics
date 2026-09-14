@@ -36,6 +36,12 @@ namespace TinyTactics.Nucleo
 
             var movimiento = unidad.GetComponent<MovimientoUnidad>();
             if (movimiento != null) movimiento.IrA(Destino);
+
+            // La marcha se declara DESPUES de soltar, no antes: Soltar llama a Cancelar, y
+            // Cancelar borra la bandera. Es el mismo orden que ya hizo falta con el ataque al
+            // avanzar en la semana 06, y por la misma razon.
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.Marchar();
         }
 
         /// <summary>
@@ -148,17 +154,27 @@ namespace TinyTactics.Nucleo
     }
 
     /// <summary>
-    /// Atacar a un objetivo.
+    /// Atacar a un objetivo, sea una unidad o un edificio.
     ///
-    /// Esta semana solo reproduce la animación del golpe: el daño, el alcance y la
-    /// respuesta del que lo recibe son la épica E06. Se modela ya como orden y no como
-    /// una llamada suelta porque el punto del ADR-01 es que toda acción entre por el
-    /// mismo sitio — cuando llegue el combate real, lo único que cambia es lo que hace
-    /// <see cref="Aplicar"/>, no quién la emite.
+    /// Cuando se escribió, en la semana 04, solo reproducía la animación del golpe: no había
+    /// daño, ni alcance, ni respuesta. Al llegar el combate de verdad no hubo que tocar a
+    /// quien la emite ni cómo se emite — solo lo que hace <see cref="Aplicar"/>. Eso es
+    /// exactamente lo que el ADR-01 compraba por adelantado.
     /// </summary>
     public class OrdenAtacar : Orden
     {
         public Unidad Objetivo;
+
+        /// <summary>
+        /// Edificio al que atacar. Se rellena este o <see cref="Objetivo"/>, nunca los dos.
+        /// </summary>
+        /// <remarks>
+        /// Dos campos y no una sola referencia a <c>IObjetivo</c> porque la orden tiene que
+        /// poder viajar por la red algún día (ADR-01), y lo que se manda por el cable es un
+        /// identificador con su tipo, no un puntero. Separarlos aquí es lo que evita tener
+        /// que adivinar después a qué tabla pertenece el número que llegó.
+        /// </remarks>
+        public Edificios.Edificio Estructura;
 
         public override void Aplicar(Unidad unidad)
         {
@@ -173,7 +189,14 @@ namespace TinyTactics.Nucleo
             if (constructor != null) constructor.Cancelar();
 
             var maquina = unidad.GetComponent<MaquinaDeEstados>();
-            if (maquina != null) maquina.OrdenarAtaque(Objetivo);
+            if (maquina == null) return;
+
+            // El edificio manda si viene puesto. Para la máquina de estados los dos son lo
+            // mismo —algo a lo que acercarse y golpear— y esa es toda la ventaja de haber
+            // metido IObjetivo: aquí se elige el blanco y ya nadie más vuelve a preguntar
+            // de qué tipo era.
+            IObjetivo blanco = Estructura != null ? (IObjetivo)Estructura : Objetivo;
+            if (blanco != null) maquina.OrdenarAtaque(blanco);
         }
     }
 
@@ -255,6 +278,15 @@ namespace TinyTactics.Nucleo
 
                 orden.Aplicar(unidad);
                 OrdenesAplicadas++;
+            }
+
+            // Una pulsacion del jugador es UNA orden, aunque alcance a veinte unidades: lo
+            // que mide esta cifra son decisiones por minuto, no unidades tocadas por minuto.
+            // Contarla dentro del bucle premiaria a quien selecciona en grande.
+            if (destinatarias.Count > 0)
+            {
+                var libro = EstadisticasPartida.Actual;
+                if (libro != null) libro.Orden(orden.Faccion);
             }
         }
 

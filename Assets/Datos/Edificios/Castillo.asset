@@ -22,6 +22,12 @@ MonoBehaviour:
   oro: 0
   madera: 0
   planta: {x: 5, y: 3}
+  vidaMaxima: 1500
+  guarnicion: 0
+  puntoDisparo: {x: 0, y: 0.95}
+  alcanceAtaque: 6.5
+  danoAtaque: 20
+  cadencia: 1.6
   golpesDeObra: 90
   centroDeEntrega: 1
   poblacionQueAporta: 10

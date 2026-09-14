@@ -19,7 +19,7 @@ namespace TinyTactics.Interfaz
     [AddComponentMenu("Tiny Tactics/Cursor del juego")]
     public class CursorJuego : MonoBehaviour
     {
-        enum Forma { Normal, Mano, Prohibido, Accion }
+        enum Forma { Normal, Mano, Prohibido, Accion, Ataque }
 
         [Header("Tema")]
         public TemaInterfaz tema;
@@ -63,6 +63,9 @@ namespace TinyTactics.Interfaz
             if (PanelDeUnidad.Actual != null && PanelDeUnidad.Actual.CapturaPuntero(pantalla))
                 return Forma.Normal;
 
+            var pruebas = Pruebas.PanelDePruebas.Actual;
+            if (pruebas != null && pruebas.CapturaPuntero(pantalla)) return Forma.Normal;
+
             // Con una silueta en la mano, quien dice si se puede es la mancha verde o roja
             // del suelo. Un aspa de prohibido encima significaría lo mismo dos veces y, lo
             // que es peor, saldría sobre terreno perfectamente válido: casi todo lo que hay
@@ -94,6 +97,17 @@ namespace TinyTactics.Interfaz
             // Sin nada seleccionado no hay orden que dar, así que tampoco hay nada que prohibir.
             if (selector == null || selector.Seleccionadas.Count == 0) return Forma.Normal;
 
+            // Enemigos: mira roja. Va ANTES de mirar la grilla y ese orden es el arreglo de
+            // un fallo real — un edificio enemigo bloquea sus propias celdas, así que la
+            // regla de «celda intransitable = prohibido» ponía el aspa justo encima de lo
+            // único que se puede atacar. El jugador leía «aquí no puedes hacer nada» sobre
+            // el objetivo de la partida. Es el mismo tropiezo que ya se corrigió con los
+            // árboles, repetido con los edificios.
+            if (HayEnemigo(punto, faccion)) return Forma.Ataque;
+
+            var enemigo = Edificios.Edificio.Bajo(punto);
+            if (enemigo != null && enemigo.faccion != faccion) return Forma.Ataque;
+
             var mundo = MundoJuego.Actual;
             if (mundo == null || mundo.Grilla == null) return Forma.Normal;
 
@@ -116,6 +130,23 @@ namespace TinyTactics.Interfaz
         }
 
         static readonly List<Unidad> _cerca = new List<Unidad>(32);
+
+        /// <summary>Enemigo vivo bajo el puntero, de cualquier bando que no sea el nuestro.</summary>
+        bool HayEnemigo(Vector3 punto, int faccion)
+        {
+            RegistroDeUnidades.Vecinas(punto, _cerca);
+
+            float radio2 = radioUnidad * radioUnidad;
+
+            for (int i = 0; i < _cerca.Count; i++)
+            {
+                var u = _cerca[i];
+                if (u == null || !u.Viva || u.faccion == faccion) continue;
+                if (((Vector2)(u.transform.position - punto)).sqrMagnitude <= radio2) return true;
+            }
+
+            return false;
+        }
 
         bool HayUnidadPropia(Vector3 punto, int faccion)
         {
@@ -148,6 +179,11 @@ namespace TinyTactics.Interfaz
                 case Forma.Accion:
                     Cursor.SetCursor(tema != null ? tema.cursorAccion : null,
                                      tema != null ? tema.puntoAccion : Vector2.zero, modo);
+                    break;
+
+                case Forma.Ataque:
+                    Cursor.SetCursor(tema != null ? tema.cursorAtaque : null,
+                                     tema != null ? tema.puntoAtaque : Vector2.zero, modo);
                     break;
 
                 case Forma.Prohibido:

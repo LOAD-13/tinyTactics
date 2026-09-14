@@ -15,8 +15,8 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E02` | Núcleo de simulación — grilla, A*, movimiento, selección, órdenes | 03 | 🟢 Cerrada |
 | `E03` | Unidades y animación | 04 | 🟢 Cerrada |
 | `E04` | Economía | 05 | 🟢 Cerrada |
-| `E05` | Construcción y producción | 06 | 🔵 En curso |
-| `E06` | Combate | 07-08 | ⚪ Pendiente |
+| `E05` | Construcción y producción | 06 | 🟢 Cerrada |
+| `E06` | Combate | 07-08 | 🔵 En curso |
 | `E07` | Percepción — niebla y minimapa | 09 | ⚪ Pendiente |
 | `E08` | IA rival | 10-11 | ⚪ Pendiente |
 | `E09` | Flujo de partida y FFA | 12-13 | ⚪ Pendiente |
@@ -893,13 +893,268 @@ jugador tiene que construir para tener tropas.
 > que enseñar— y se retira aquí, cuando el cuartel y el campo de tiro puedan producir lo que
 > hoy viene regalado.
 
-### Semana 07 — Combate cuerpo a cuerpo (E06)
-Componente de salud y muerte · barras de vida · targeting con grilla espacial · ataque del guerrero ·
-ataque del lancero · orden de atacar · respuesta automática al ser atacado.
+### Semana 07 — El conflicto (E06, parte A)
 
-### Semana 08 — Combate a distancia (E06)
-Proyectiles del arquero con trayectoria · curación del monje · triángulo de contadores ·
-cuartel, campo de tiro e monasterio entrenan su unidad · torres defensivas.
+> 📌 **Lo que ya estaba hecho sin anunciarse.** Buena parte del combate se construyó de
+> refilón en épicas anteriores y conviene tenerlo presente para no rehacerlo: `Unidad` ya
+> tiene vida, `RecibirDano`, `Curar` y muerte como estado (E03); `MaquinaDeEstados` ya sabe
+> acercarse y golpear, y ya busca objetivo sola con `Buscar`; `RegistroDeUnidades` ya
+> resuelve el vecindario con una **grilla espacial por cubos**, no con un bucle sobre todas
+> las unidades. `OrdenAtacar` y `OrdenCurar` existen desde la semana 04.
+>
+> Lo que falta no es el combate: es que el golpeado **responda**, que la persecución
+> **termine**, que los edificios **caigan** y que la partida **se pueda perder**.
+
+### HU-046 · Responder al ser atacado
+**Épica:** E06 · **Semana:** 07
+
+**Como** jugador **quiero** que mis unidades devuelvan el golpe **para** no perderlas por
+haber estado mirando otra esquina del mapa.
+
+**Criterios de aceptación**
+- [ ] Una unidad ociosa a la que hieren pasa a atacar a quien la hirió.
+- [ ] Una unidad que ya tiene orden del jugador **no la abandona** por recibir un golpe.
+- [ ] Un pawn recolectando responde huyendo, no peleando: vuelve al centro de entrega.
+- [ ] Si el agresor está fuera de alcance y la postura lo permite, se le persigue.
+
+**Nota técnica.** El disparador va en `Unidad.RecibirDano`, que hoy solo resta vida, y tiene
+que avisar a la máquina de estados **sin pisar una orden del jugador**. Esa es la única regla
+delicada: un RTS donde el clic derecho se cancela solo porque pasó una flecha es injugable.
+
+---
+
+### HU-047 · Correa y posturas
+**Épica:** E06 · **Semana:** 07
+
+**Como** jugador **quiero** decidir si una unidad persigue, aguanta o ignora **para** que mis
+recolectores no se vayan solos a morir a la base enemiga.
+
+**Criterios de aceptación**
+- [ ] Tres posturas: **agresiva** (persigue), **defensiva** (responde sin moverse del sitio),
+      **quieta** (aguanta sin responder).
+- [ ] La postura se cambia desde el panel de la unidad seleccionada.
+- [ ] Los pawns nacen en **quieta**; las unidades militares, en **agresiva**.
+- [ ] Una unidad agresiva que persigue más de N casillas desde donde empezó **abandona y
+      vuelve** a su posición.
+
+**Nota técnica.** La correa no es un lujo: sin ella, un solo arquero enemigo arrastra media
+base al otro lado del mapa porque cada unidad que entra en su radio encadena la siguiente. Es
+el fallo clásico del combate sin límite de persecución, y se ve en cuanto hay dos bandos.
+
+---
+
+### HU-048 · Vida, barra y destrucción de edificios
+**Épica:** E06 · **Semana:** 07
+
+**Como** jugador **quiero** poder derribar los edificios enemigos **para** que atacar una base
+sirva de algo.
+
+**Criterios de aceptación**
+- [ ] Cada edificio tiene vida propia en su ficha, proporcional a lo que cuesta.
+- [ ] La barra de vida aparece al pasar el cursor o al estar dañado, no siempre.
+- [ ] Al caer: deja escombros un instante, **libera sus celdas** en la grilla y desaparece.
+- [ ] Una obra en construcción también se puede derribar, y no devuelve recursos.
+- [ ] Al caer una casa, el límite de población **baja solo**, sin código nuevo.
+- [ ] Un edificio destruido deja de ser centro de entrega y de fabricar.
+
+**Nota técnica.** El último criterio es gratis por una decisión de la semana 06: la población
+**se recuenta, no se guarda** (HU-040). Una casa derribada baja el tope sin que nadie la
+descuente. Es la primera vez que esa decisión cobra, y conviene enseñarlo en la expo.
+
+Liberar las celdas reutiliza `Ocupar(false)`, que ya existe de `ReclamarTerreno`.
+
+---
+
+### HU-049 · La torre con arquero guarnecido
+**Épica:** E06 · **Semana:** 07
+
+**Como** jugador **quiero** levantar torres **para** defender la base sin tener tropas paradas.
+
+**Criterios de aceptación**
+- [ ] La torre se construye como cualquier otro edificio, con su coste y su planta.
+- [ ] Al inaugurarse aparece un arquero en la almena que **dispara solo** a lo que entre en
+      alcance.
+- [ ] El arquero **se orienta** hacia su objetivo usando las cinco direcciones de ataque que
+      ya existen.
+- [ ] La flecha sale de la almena, no de la base del edificio.
+- [ ] Si la torre cae, el arquero cae con ella.
+- [ ] La torre no se puede mover ni consume carne.
+
+**Balance.** Más alcance (×1,3) y más daño por flecha (×1,4) que un arquero, pero **cadencia
+más lenta**. La torre es un disuasorio, no una prohibición: una torre que gana el intercambio
+contra unidades hace imposible atacar una base, y en la semana 10 la IA tiene que poder
+atacarnos o la partida contra el bot no existe.
+
+**Nota técnica.** Es un edificio **con guarnición**, no una unidad rara. Reutiliza el arte, el
+animador y la máquina de estados del arquero, que ya están hechos; lo único nuevo es el punto
+de disparo en la ficha, igual que el `puntoSalida` que ya usan castillo y cuartel.
+
+---
+
+### HU-050 · Torres rivales en el mapa generado
+**Épica:** E06 · **Semana:** 07
+
+**Criterios de aceptación**
+- [ ] El generador puede sembrar torres en las bases que no son la del jugador.
+- [ ] Es una **opción del generador**, no una constante escrita en el código.
+- [ ] Se puede apagar desde el panel de pruebas.
+
+**Nota de alcance.** Sirve para tener contra qué pelear antes de que exista la IA (E08). Que
+sea opción y no constante importa: en la semana 10 la IA decidirá ella misma si construye
+torres, y entonces esto se apaga sin tocar código.
+
+---
+
+### HU-051 · Panel de pruebas — versión 1
+**Épica:** E06 · **Semana:** 07
+
+**Como** equipo **queremos** un panel de trampas **para** poder demostrar en clase situaciones
+que de otro modo tardarían diez minutos en darse.
+
+**Criterios de aceptación**
+- [ ] Panel vertical plegable a la izquierda, con riel de iconos y secciones desplegables.
+- [ ] **Bando:** cambiar de bando en caliente. La cámara salta a su castillo y la selección y
+      el HUD se reinician.
+- [ ] **Recursos:** +100 oro · +100 madera · +50 carne · vaciar.
+- [ ] **Unidades:** bando inmortal · matar seleccionadas · curar seleccionadas.
+- [ ] **Tiempo:** x1 · x2 · x4 · pausa.
+- [ ] **Aparecer:** soltar una unidad del tipo elegido en el cursor, para el bando actual.
+- [ ] Solo existe en el editor y en builds de desarrollo
+      (`#if UNITY_EDITOR || DEVELOPMENT_BUILD`).
+- [ ] Mientras está abierto se ve un sello **MODO PRUEBAS** en pantalla.
+
+**Por qué ahora y no más adelante.** No hay IA hasta la semana 10. **Sin cambiar de bando no
+hay forma de enseñar un combate de dos lados**, así que el panel no es un extra de esta
+semana: es lo que hace demostrable el resto de la semana. Y es lo que permite retirar el poste
+de entrenamiento (HU-053) sin quedarnos sin banco de pruebas.
+
+**Por qué no es una épica.** Una épica entrega juego; esto entrega herramienta, y cada épica
+necesita interruptores distintos que hoy no se pueden adivinar. Crece pegado a las épicas: la
+E07 le añadirá quitar la niebla y la E08 pausar la IA y ver su plan. Ver el sello en pantalla
+es obligatorio para que ninguna captura de una entrega parezca hecha con trampas.
+
+---
+
+### HU-052 · Iconos del panel con la paleta del pack
+**Épica:** E06 · **Semana:** 07
+
+**Criterios de aceptación**
+- [ ] Los iconos que el pack no cubre se **generan**, con la paleta extraída de los propios
+      PNG de Tiny Swords.
+- [ ] Mismo tamaño y mismo grosor de contorno que los iconos del pack.
+- [ ] El oro y la madera reutilizan el sprite que ya existe en `Pawn and Resources`.
+
+**Nota técnica.** Misma disciplina que las huellas de la semana 06: **medido, no adivinado**.
+La paleta sale de contar los colores reales de los archivos del pack, así que los iconos
+encajan por construcción y no por buen ojo. Descartada la IA generativa: los generadores de
+imagen no mantienen la rejilla de píxeles y el resultado desentona junto a pixel art de verdad.
+
+---
+
+### HU-053 · Retirar el poste de entrenamiento
+**Épica:** E06 · **Semana:** 07
+
+**Criterios de aceptación**
+- [ ] El poste desaparece del mapa y del generador.
+- [ ] Nada en el código lo da por supuesto.
+
+**Nota de alcance.** Era el andamio que permitía probar daño y muerte sin enemigos. Con dos
+bandos que se pegan de verdad y un panel que permite cambiarse de bando, ya sobra. Se retira
+**después** de que el panel funcione, no antes.
+
+---
+
+### HU-054 · Registro de estadísticas de partida
+**Épica:** E06 · **Semana:** 07
+
+**Criterios de aceptación**
+- [ ] Se acumulan **durante** la partida, no se calculan al final.
+- [ ] Son **por bando**, no globales.
+- [ ] Se registran: oro, madera y carne recolectados · recursos gastados · unidades
+      entrenadas, perdidas y eliminadas · edificios construidos, perdidos y destruidos ·
+      pico de población · duración · tiempo hasta el primer combate · órdenes por minuto ·
+      la unidad con más bajas.
+
+**Nota técnica.** Al final de la partida ya no quedan cadáveres que contar: si no se acumula
+en vivo, no hay de dónde sacarlo. Por bando desde el principio porque el FFA de cinco llega en
+la semana 13, y convertir un contador global en cinco después es rehacerlo entero.
+
+Las **órdenes por minuto** salen de una línea porque desde la semana 02 toda acción pasa por
+una `Orden` ([ADR-01](ARQUITECTURA.md#adr-01)). Conviene decirlo en la expo: la métrica es
+gratis por una decisión de arquitectura de hace cinco semanas.
+
+---
+
+### HU-055 · Condición de derrota y eliminación de bando
+**Épica:** E06 · **Semana:** 07
+
+**Criterios de aceptación**
+- [ ] Un bando que pierde su castillo queda **eliminado**.
+- [ ] Al eliminarse, todo lo suyo cae: unidades y edificios restantes.
+- [ ] Cuando queda un solo bando en pie, la partida termina.
+- [ ] La regla es la misma para el jugador y para cualquier bando: no hay caso especial.
+
+**Nota de alcance.** La regla vive aquí; el **menú principal, la selección de mapa y el número
+de bandos** siguen en la semana 12 (E09). Esto adelanta de E09 solo la condición y la pantalla
+de resultado, que es lo que cierra el bucle de esta épica.
+
+---
+
+### HU-056 · Pantalla de victoria y derrota
+**Épica:** E06 · **Semana:** 07
+
+**Como** jugador **quiero** ver cómo terminó la partida **para** saber si gané y qué tal lo
+hice.
+
+**Criterios de aceptación**
+- [ ] Cartel de **VICTORIA** o **DERROTA** montado con piezas del pack: banner, cintas,
+      pergamino y espadas cruzadas.
+- [ ] El titular usa **MedievalSharp** (SIL OFL 1.1, incluida en el repo con su licencia).
+- [ ] Entra con rebote (escala 0 → 1,1 → 1) sobre un fondo oscurecido; en derrota, además,
+      dessaturado.
+- [ ] Las estadísticas aparecen **en cascada**, una a una, no todas de golpe.
+- [ ] En victoria caen partículas usando `Particle FX` del pack.
+- [ ] Muestra el **MVP** de la partida con su retrato de `Human Avatars`.
+- [ ] Cambiando de bando con el panel se puede ver el resultado desde el lado que pierde.
+
+**Nota técnica.** No es un GIF ni una imagen: es **interfaz animada por código**. Un GIF no
+escala de resolución y no puede mostrar cifras que cambian. Además, montarla con piezas del
+propio pack garantiza que el estilo encaje, cosa que ninguna imagen generada consigue con
+pixel art.
+
+---
+
+**Meta de la semana:** que dos bandos que hasta ahora compartían mapa y se ignoraban entren en
+conflicto, y que ese conflicto **tenga desenlace**. Al terminar la semana la partida se puede
+ganar y se puede perder.
+
+> **Una sola rama para la épica:** `feat/E06-combat`.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-046 | Responder al ser atacado | medio |
+| HU-047 | Correa y posturas | medio |
+| HU-048 | Vida, barra y destrucción de edificios | medio |
+| HU-049 | La torre con arquero guarnecido | alto |
+| HU-050 | Torres rivales en el mapa generado | bajo |
+| HU-051 | Panel de pruebas — versión 1 | alto |
+| HU-052 | Iconos del panel con la paleta del pack | medio |
+| HU-053 | Retirar el poste de entrenamiento | bajo |
+| HU-054 | Registro de estadísticas de partida | bajo |
+| HU-055 | Condición de derrota y eliminación de bando | medio |
+| HU-056 | Pantalla de victoria y derrota | medio |
+
+> ⛔ **Fuera de alcance, declarado antes de empezar.** El **proyectil con impacto real** sigue
+> siendo cosmético esta semana: el daño se resuelve al terminar la animación y la flecha solo
+> lo explica en pantalla. El **monje que cura solo** y el **triángulo de contadores** son de la
+> semana 08. Dejarlos fuera ahora es lo que permite que la derrota y la pantalla de resultado
+> entren completas.
+
+### Semana 08 — El desenlace (E06, parte B)
+El proyectil impacta de verdad: arco, vuelo y fallo si el objetivo se mueve · el monje cura
+aliados solo y huye en vez de pelear · triángulo de contadores entre tipos de unidad ·
+**panel de pruebas v2**: día/tarde/noche, forzar victoria o derrota, reiniciar partida,
+terminar la obra seleccionada, ver grilla, rutas y alcances en ejecución.
 
 ### Semana 09 — Niebla de guerra y minimapa (E07)
 Grilla de visibilidad por facción · radios de visión · tres estados de niebla · render de la niebla ·
