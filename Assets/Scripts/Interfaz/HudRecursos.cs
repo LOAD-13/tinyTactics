@@ -128,6 +128,21 @@ namespace TinyTactics.Interfaz
         /// construir la siguiente, que es justo la decisión que este contador existe para
         /// provocar.
         /// </remarks>
+        /// <summary>
+        /// Cambia el bando que muestra el HUD. Solo la usa el panel de pruebas.
+        /// </summary>
+        /// <remarks>
+        /// El HUD se refresca por eventos de economia filtrados por bando, asi que cambiar
+        /// el campo a secas dejaria las cifras del bando anterior en pantalla hasta que el
+        /// nuevo gastara o recolectara algo. Hay que forzar el repintado.
+        /// </remarks>
+        public void CambiarFaccion(int nueva)
+        {
+            faccion = nueva;
+            Refrescar();
+            RefrescarPoblacion();
+        }
+
         void RefrescarPoblacion()
         {
             if (_poblacion == null || _censo == null) return;
