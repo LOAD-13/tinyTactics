@@ -65,7 +65,7 @@ namespace TinyTactics.Pruebas
         TipoUnidad _tipoAAparecer = TipoUnidad.Guerrero;
         bool _colocando;
 
-        GUIStyle _titulo, _seccion, _boton, _botonVivo, _sello;
+        GUIStyle _seccion, _boton, _botonVivo, _sello;
         bool _estilosListos;
 
         Texture2D _plano;
@@ -300,7 +300,11 @@ namespace TinyTactics.Pruebas
         // Dibujo
         // -----------------------------------------------------------------
 
-        float AnchoVisible() => Abierto ? ancho : 34f;
+        /// <summary>
+        /// Lo que ocupa el panel ahora mismo, en píxeles de pantalla. Lo consulta el HUD para
+        /// apartar el contador de población.
+        /// </summary>
+        public float AnchoVisible() => Abierto ? ancho : 34f;
 
         /// <summary>¿El puntero está sobre el panel? Lo pregunta el selector para no ordenar detrás.</summary>
         public bool CapturaPuntero(Vector2 pantalla) => pantalla.x <= AnchoVisible();
@@ -311,10 +315,19 @@ namespace TinyTactics.Pruebas
 
             float alto = Screen.height;
 
+            // El fondo es la mesa de madera del pack, dibujada en nueve cortes para que sus
+            // escuadras metalicas conserven el grosor. Antes era el GUI.Box gris de Unity, y
+            // desentonaba con todo lo demas: esto no es una ventana de depuracion que se tira
+            // a la basura, es el futuro modo practica y tiene que parecer parte del juego.
+            var marco = new Rect(0f, 0f, AnchoVisible(), alto);
+
+            if (tema != null && tema.panelFondo != null)
+                DibujoGUI.NueveCortes(marco, tema.panelFondo, 48f);
+            else
+                GUI.Box(marco, GUIContent.none);
+
             // La pestaña siempre visible. Un panel que solo se abre con una tecla que nadie
             // recuerda es un panel que no existe.
-            GUI.Box(new Rect(0f, 0f, AnchoVisible(), alto), GUIContent.none);
-
             if (GUI.Button(new Rect(4f, 6f, 26f, 26f), Abierto ? "<" : ">"))
                 Abierto = !Abierto;
 
@@ -322,10 +335,8 @@ namespace TinyTactics.Pruebas
 
             if (!Abierto) return;
 
-            GUILayout.BeginArea(new Rect(6f, 38f, ancho - 12f, alto - 46f));
+            GUILayout.BeginArea(new Rect(14f, 46f, ancho - 28f, alto - 62f));
             _scroll = GUILayout.BeginScrollView(_scroll);
-
-            GUILayout.Label("MODO PRUEBAS", _titulo);
 
             SeccionBando();
             SeccionRecursos();
@@ -339,19 +350,35 @@ namespace TinyTactics.Pruebas
         }
 
         /// <summary>
-        /// Sello de aviso mientras el panel está activo.
+        /// El rótulo del modo, sobre el listón del pack.
         /// </summary>
         /// <remarks>
-        /// Es obligatorio y no decorativo: sin él, cualquier captura de una entrega podría
-        /// haberse hecho con oro regalado y unidades inmortales, y no habría forma de
-        /// distinguirlo. El sello hace que una captura tramposa se delate sola.
+        /// Dice <b>MODO LIBRE</b> y no «modo pruebas» porque esto no es un andamio que se tire
+        /// a la basura: las mismas funciones van a ser el modo libre que el jugador podrá
+        /// elegir para montar sus partidas. Un rótulo que diga «pruebas» dentro de un modo
+        /// publicado se lee como algo sin terminar.
+        ///
+        /// Sigue cumpliendo lo que tenía que cumplir —que ninguna captura tramposa pase por
+        /// buena— porque lo que importa es que se vea que el modo está activo, no la palabra.
+        ///
+        /// Va abajo a la derecha y no arriba: arriba a la izquierda vive el contador de
+        /// población y arriba a la derecha el reloj que llegará con el flujo de partida.
         /// </remarks>
         void DibujarSello()
         {
-            var color = GUI.color;
-            GUI.color = new Color(1f, 0.45f, 0.35f, 0.85f);
-            GUI.Label(new Rect(Screen.width - 210f, 6f, 200f, 22f), "● MODO PRUEBAS", _sello);
-            GUI.color = color;
+            const float ancho = 190f;
+            const float alto = 46f;
+
+            var sitio = new Rect(Screen.width - ancho - 14f,
+                                 Screen.height - alto - 14f, ancho, alto);
+
+            if (tema != null)
+            {
+                var liston = tema.ListonNombreDe(0);
+                if (liston != null) DibujoGUI.Sprite(sitio, liston);
+            }
+
+            GUI.Label(sitio, "MODO LIBRE", _sello);
         }
 
         void SeccionBando()
@@ -576,14 +603,8 @@ namespace TinyTactics.Pruebas
             if (_estilosListos) return;
             _estilosListos = true;
 
-            _titulo = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 13,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-            };
-
-            _seccion = new GUIStyle(GUI.skin.label) { fontSize = 10 };
+            _seccion = new GUIStyle(GUI.skin.label) { fontSize = 11 };
+            _seccion.normal.textColor = new Color(1f, 0.90f, 0.72f);
             _boton = new GUIStyle(GUI.skin.button) { fontSize = 11 };
 
             _botonVivo = new GUIStyle(_boton) { fontStyle = FontStyle.Bold };
@@ -591,10 +612,11 @@ namespace TinyTactics.Pruebas
 
             _sello = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 12,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleRight,
+                font = tema != null ? tema.titular : null,
+                fontSize = 22,
+                alignment = TextAnchor.MiddleCenter,
             };
+            _sello.normal.textColor = new Color(1f, 0.93f, 0.78f);
         }
     }
 }

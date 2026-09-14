@@ -129,9 +129,19 @@ namespace TinyTactics.EditorHerramientas
             // Piezas del cartel de fin de partida. Todas del pack: montar la pantalla con
             // su propio arte es lo unico que garantiza que el estilo encaje, cosa que
             // ninguna imagen generada consigue con pixel art.
-            tema.pergamino = PrepararTextura($"{DirPack}/Papers/RegularPaper.png", 96, false);
-            tema.cinta = PrepararTextura($"{DirPack}/Ribbons/BigRibbons 1.png", 96, false);
-            tema.espadas = PrepararTextura($"{DirPack}/Swords/Swords 1.png", 96, false);
+            // RECORTADAS al dibujo, no el PNG entero. El pack centra cada pieza dentro de un
+            // lienzo mayor y transparente —el pergamino ocupa 168x153 de un archivo de
+            // 192x192— y al estirar el lienzo completo se estira tambien el margen invisible:
+            // el borde negro del papel adelgaza hasta desaparecer. Es el mismo motivo por el
+            // que ya se recortan el panel y las barras.
+            tema.pergamino = RecortarTextura($"{DirPack}/Papers/RegularPaper.png",
+                                             new RectInt(12, 19, 168, 153), "Pergamino");
+
+            tema.cinta = RecortarTextura($"{DirPack}/Ribbons/BigRibbons 1.png",
+                                         new RectInt(30, 5, 259, 103), "Cinta");
+
+            tema.espadas = RecortarTextura($"{DirPack}/Swords/Swords 1.png",
+                                           new RectInt(23, 0, 261, 128), "Espadas");
 
             // El MVP reutiliza RetratoDe(): el tema ya trae las 25 caras del pack, una por
             // tipo y color. Cargar ademas los veinte avatares genericos habria sido un
@@ -395,6 +405,48 @@ namespace TinyTactics.EditorHerramientas
             if (v < 0.40f) return c;
 
             return new Color(c.r * tinte.r, c.g * tinte.g, c.b * tinte.b, c.a);
+        }
+
+        /// <summary>
+        /// Recorta un PNG del pack a su dibujo util y lo guarda como textura propia.
+        /// </summary>
+        /// <remarks>
+        /// Devuelve <c>Texture2D</c> y no <c>Sprite</c> porque estas piezas se dibujan con
+        /// <c>GUI</c> en <c>OnGUI</c>, que trabaja con texturas. El original no se toca: se
+        /// escribe un PNG nuevo en <c>Assets/Datos/UI</c>, igual que el resto de recortes.
+        /// </remarks>
+        static Texture2D RecortarTextura(string origen, RectInt caja, string nombre)
+        {
+            string destino = $"{CarpetaUI}/{nombre}.png";
+
+            // Legible temporalmente: hay que leerle los pixeles al original para copiarlos.
+            Configurar(origen, 96, Vector4.zero, true);
+
+            var fuente = AssetDatabase.LoadAssetAtPath<Texture2D>(origen);
+            if (fuente == null) return null;
+
+            if (caja.xMax > fuente.width || caja.yMax > fuente.height)
+            {
+                Debug.LogWarning($"[Tiny Tactics] El recorte {caja} no cabe en {origen}. " +
+                                 "Cambio el pack?");
+                return null;
+            }
+
+            var copia = new Texture2D(caja.width, caja.height, TextureFormat.RGBA32, false);
+            copia.SetPixels(fuente.GetPixels(caja.x, caja.y, caja.width, caja.height));
+            copia.Apply();
+
+            File.WriteAllBytes(destino, copia.EncodeToPNG());
+            Object.DestroyImmediate(copia);
+
+            AssetDatabase.ImportAsset(destino, ImportAssetOptions.ForceUpdate);
+            Configurar(destino, 96, Vector4.zero, false);
+
+            // Y se le devuelve al original su ajuste normal: dejarlo legible cuesta memoria
+            // en la build por una comodidad que solo hacia falta aqui.
+            Configurar(origen, 96, Vector4.zero, false);
+
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(destino);
         }
 
         static Texture2D Tenir(Texture2D origen, Color tinte, string nombre)

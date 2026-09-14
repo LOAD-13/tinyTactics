@@ -44,7 +44,7 @@ namespace TinyTactics.Interfaz
         Sprite _retratoMvp;
         string _tituloMvp = "";
 
-        GUIStyle _titulo, _etiqueta, _valor, _pie;
+        GUIStyle _titulo, _etiqueta, _valor, _pie, _boton;
         bool _estilosListos;
 
         Texture2D _velo;
@@ -187,12 +187,14 @@ namespace TinyTactics.Interfaz
             var caja = new Rect((Screen.width - ancho) * 0.5f,
                                 (Screen.height - alto) * 0.5f - 10f, ancho, alto);
 
-            DibujarEspadas(caja, t);
             DibujarPergamino(caja);
-            DibujarTitulo(caja, t);
             DibujarLineas(caja);
             DibujarMvp(caja);
             DibujarPie(caja);
+
+            // El titular va AL FINAL para que quede por encima del papel: cuelga del borde
+            // superior y lo pisa a propósito, que es como se monta un cartel de verdad.
+            DibujarTitulo(caja, t);
         }
 
         /// <summary>
@@ -222,25 +224,37 @@ namespace TinyTactics.Interfaz
             GUI.color = color;
         }
 
-        void DibujarEspadas(Rect caja, float t)
+        /// <summary>
+        /// Las espadas cruzadas, detrás de la cinta y asomando por los dos lados.
+        /// </summary>
+        /// <remarks>
+        /// Van <b>detrás</b> y son claramente más anchas que la cinta. Puestas delante tapan
+        /// justo la palabra que el cartel existe para enseñar, y puestas cortas no se leen
+        /// como espadas cruzadas sino como un adorno indefinido. Detrás y largas es como se
+        /// monta un escudo de armas, y es lo que hace que la cinta parezca colgada de algo en
+        /// vez de flotar.
+        /// </remarks>
+        void DibujarEspadas(Rect cinta, float t)
         {
             if (tema == null || tema.espadas == null) return;
 
-            // Las espadas giran un poco al entrar y se quedan quietas. Van DETRÁS del
-            // pergamino, asomando por arriba, que es como las coloca el propio pack en sus
-            // ejemplos de interfaz.
-            float lado = caja.width * 0.52f;
-            var sitio = new Rect(caja.center.x - lado * 0.5f,
-                                 caja.y - lado * 0.22f, lado, lado * 0.4f);
+            // Mucho más ancho que la cinta: las hojas tienen que sobresalir por ambos lados
+            // o el cruce queda escondido detrás y no se entiende qué es.
+            float ancho = cinta.width * 1.55f;
+            float alto = ancho * (tema.espadas.height / (float)tema.espadas.width);
+
+            var sitio = new Rect(cinta.center.x - ancho * 0.5f,
+                                 cinta.center.y - alto * 0.5f, ancho, alto);
 
             var color = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, t);
 
-            var pivote = sitio.center;
+            // Entra girando un poco y se asienta. El giro es lo que da la sensación de que el
+            // cartel cae en su sitio en vez de aparecer.
             var matriz = GUI.matrix;
-            GUIUtility.RotateAroundPivot(Mathf.Lerp(-8f, 0f, t), pivote);
+            GUIUtility.RotateAroundPivot(Mathf.Lerp(-10f, 0f, t), sitio.center);
 
-            GUI.DrawTexture(sitio, tema.espadas, ScaleMode.ScaleToFit);
+            GUI.DrawTexture(sitio, tema.espadas, ScaleMode.StretchToFill);
 
             GUI.matrix = matriz;
             GUI.color = color;
@@ -254,26 +268,43 @@ namespace TinyTactics.Interfaz
                 return;
             }
 
-            GUI.DrawTexture(caja, tema.pergamino, ScaleMode.StretchToFill);
+            // 26 px de borde: es lo que mide el marco oscuro del pergamino del pack.
+            DibujoGUI.NueveCortes(caja, tema.pergamino, 26f);
         }
+
 
         void DibujarTitulo(Rect caja, float t)
         {
             string palabra = _desenlace == Desenlace.Victoria ? "VICTORIA" : "DERROTA";
 
-            var cinta = new Rect(caja.x + caja.width * 0.08f,
-                                 caja.y + caja.height * 0.04f,
-                                 caja.width * 0.84f, caja.height * 0.17f);
+            // La cinta se dimensiona AL TEXTO, no a una fracción del cartel. Con una fracción
+            // fija, «DERROTA» —una letra menos— nadaba dentro de la misma cinta que
+            // «VICTORIA», y la palabra se salía por arriba porque la caja era bastante más
+            // alta que la línea de texto.
+            Vector2 medida = _titulo.CalcSize(new GUIContent(palabra));
+
+            float ancho = Mathf.Max(medida.x * 1.9f, caja.width * 0.52f);
+            float alto = ancho * 0.34f;
+
+            // A caballo del borde superior del papel: mitad fuera, mitad dentro.
+            var cinta = new Rect(caja.center.x - ancho * 0.5f, caja.y - alto * 0.52f,
+                                 ancho, alto);
+
+            DibujarEspadas(cinta, t);
 
             if (tema != null && tema.cinta != null)
-                GUI.DrawTexture(cinta, tema.cinta, ScaleMode.ScaleToFit);
+                GUI.DrawTexture(cinta, tema.cinta, ScaleMode.StretchToFill);
 
             var color = GUI.color;
             GUI.color = _desenlace == Desenlace.Victoria
                 ? new Color(1f, 0.93f, 0.62f)
-                : new Color(0.94f, 0.62f, 0.58f);
+                : new Color(0.96f, 0.72f, 0.68f);
 
-            GUI.Label(cinta, palabra, _titulo);
+            // Un pelo por encima del centro: la cinta del pack tiene los pliegues abajo, y el
+            // texto centrado geométricamente se ve caído.
+            var texto = new Rect(cinta.x, cinta.y - alto * 0.06f, cinta.width, cinta.height);
+            GUI.Label(texto, palabra, _titulo);
+
             GUI.color = color;
         }
 
@@ -319,30 +350,58 @@ namespace TinyTactics.Interfaz
             float momento = entrada + _lineas.Count * cascada;
             if (_reloj < momento) return;
 
-            float lado = caja.width * 0.14f;
+            float lado = caja.width * 0.13f;
             var marco = new Rect(caja.x + caja.width * 0.12f,
-                                 caja.yMax - caja.height * 0.20f, lado, lado);
+                                 caja.yMax - caja.height * 0.27f, lado, lado);
 
-            var r = _retratoMvp.textureRect;
-            var uv = new Rect(r.x / _retratoMvp.texture.width,
-                              r.y / _retratoMvp.texture.height,
-                              r.width / _retratoMvp.texture.width,
-                              r.height / _retratoMvp.texture.height);
-
-            GUI.DrawTextureWithTexCoords(marco, _retratoMvp.texture, uv, true);
+            DibujoGUI.Sprite(marco, _retratoMvp);
 
             GUI.Label(new Rect(marco.xMax + 10f, marco.y + lado * 0.28f,
                                caja.width * 0.6f, 24f),
                       $"MVP · {_tituloMvp}", _etiqueta);
         }
 
+        /// <summary>
+        /// Los botones del pie: volver a jugar y cerrar.
+        /// </summary>
+        /// <remarks>
+        /// <b>Volver a jugar recarga la escena</b>, que es lo único correcto hoy: el estado de
+        /// una partida está repartido entre la grilla, la economía, el censo, el registro de
+        /// unidades y los edificios, y reiniciarlo a mano sería ir componente por componente
+        /// acordándose de todos. Recargar no puede olvidarse de ninguno.
+        ///
+        /// Cuando en la semana 12 exista el menú principal, este botón pasará por él y
+        /// aparecerá al lado un «salir al menú». La forma de la pantalla ya está preparada
+        /// para dos botones justamente por eso.
+        /// </remarks>
         void DibujarPie(Rect caja)
         {
-            var pie = new Rect(caja.x, caja.yMax - caja.height * 0.07f, caja.width, 22f);
-            GUI.Label(pie, "Pulsa ESPACIO para cerrar", _pie);
+            float ancho = caja.width * 0.34f;
+            float alto = 34f;
+
+            var izquierda = new Rect(caja.center.x - ancho - 6f,
+                                     caja.yMax - alto - caja.height * 0.045f, ancho, alto);
+
+            var derecha = new Rect(caja.center.x + 6f, izquierda.y, ancho, alto);
+
+            if (GUI.Button(izquierda, "Volver a jugar", _boton)) VolverAJugar();
+            if (GUI.Button(derecha, "Cerrar", _boton)) Ocultar();
 
             var teclado = UnityEngine.InputSystem.Keyboard.current;
             if (teclado != null && teclado.spaceKey.wasPressedThisFrame) Ocultar();
+        }
+
+        void VolverAJugar()
+        {
+            Ocultar();
+
+            // El tiempo vuelve a la normalidad antes de recargar: si la partida terminó con
+            // el panel de pruebas en x4 o en pausa, la siguiente arrancaría igual y no habría
+            // forma de saber por qué.
+            Time.timeScale = 1f;
+
+            var escena = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(escena.buildIndex);
         }
 
         void PrepararEstilos()
@@ -381,6 +440,15 @@ namespace TinyTactics.Interfaz
                 alignment = TextAnchor.MiddleCenter,
             };
             _pie.normal.textColor = new Color(0.35f, 0.30f, 0.24f);
+
+            // Los botones sí llevan MedievalSharp: son texto grande sobre el pergamino, que
+            // es donde la tipografía luce. Las cifras de arriba siguen con la del sistema.
+            _boton = new GUIStyle(GUI.skin.button)
+            {
+                font = fuente,
+                fontSize = 20,
+                alignment = TextAnchor.MiddleCenter,
+            };
         }
     }
 }

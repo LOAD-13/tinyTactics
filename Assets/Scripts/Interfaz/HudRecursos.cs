@@ -225,9 +225,44 @@ namespace TinyTactics.Interfaz
         /// un límite. Mezclarlo con el oro y la madera invita a leerlo como «cuánto tengo»
         /// cuando lo que dice es «cuánto me cabe».
         /// </remarks>
+        RectTransform _cajaPoblacion;
+
+        /// <summary>
+        /// Aparta el contador de población si el panel lateral está abierto.
+        /// </summary>
+        /// <remarks>
+        /// Las dos cosas viven arriba a la izquierda, así que el panel tapaba justo el único
+        /// dato del HUD que no se puede deducir mirando el mapa.
+        ///
+        /// La conversión de unidades no es un detalle: el panel se dibuja con <c>OnGUI</c>, en
+        /// píxeles reales de pantalla, y el HUD vive en un lienzo escalado a una resolución de
+        /// referencia de 1920. Sumar el ancho del panel tal cual dejaría el contador bien en
+        /// un monitor y mal en todos los demás.
+        /// </remarks>
+        void LateUpdate()
+        {
+            if (_cajaPoblacion == null) return;
+
+            float desplazamiento = 0f;
+
+            var panel = Pruebas.PanelDePruebas.Actual;
+            if (panel != null && panel.Abierto && Screen.width > 0)
+            {
+                var lienzo = GetComponentInParent<Canvas>();
+                float escala = lienzo != null ? lienzo.scaleFactor : 1f;
+
+                if (escala > 0.0001f) desplazamiento = panel.AnchoVisible() / escala;
+            }
+
+            var sitio = new Vector2(margen.x + desplazamiento, -margen.y);
+            if (_cajaPoblacion.anchoredPosition != sitio)
+                _cajaPoblacion.anchoredPosition = sitio;
+        }
+
         void ConstruirPoblacion()
         {
             var raiz = Nodo("HudPoblacion", (RectTransform)transform);
+            _cajaPoblacion = raiz;
             raiz.anchorMin = new Vector2(0f, 1f);
             raiz.anchorMax = new Vector2(0f, 1f);
             raiz.pivot = new Vector2(0f, 1f);
