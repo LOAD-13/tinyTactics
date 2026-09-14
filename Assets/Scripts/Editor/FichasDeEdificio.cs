@@ -176,9 +176,18 @@ namespace TinyTactics.EditorHerramientas
                     // siempre ahi, que ya es mucho, asi que el intercambio por disparo tiene
                     // que ser malo para ella o rodear una base dejaria de ser una opcion.
                     d.guarnicion = true;
-                    d.alcanceAtaque = 6.5f;
+
+                    // MEDIDO, no estimado: Archer_Shoot.png son 1536x192, o sea ocho
+                    // fotogramas, y el arquero los reproduce a 13 fps. Eso da un disparo cada
+                    // 0,62 s. La torre tenia 1,6 y por eso se sentia floja pese a pegar mas
+                    // fuerte: disparaba dos veces y media mas lento que un arquero a pie.
+                    d.cadencia = 0.62f;
+
+                    // Y por encima del arquero, que tiene 5,0. Una torre con menos alcance que
+                    // la unidad que la ataca no defiende nada: la matan desde fuera sin que
+                    // pueda responder, que es exactamente lo contrario de para lo que existe.
+                    d.alcanceAtaque = 7.5f;
                     d.danoAtaque = 20;
-                    d.cadencia = 1.6f;
 
                     // El arquero se planta en la almena. La torre dibuja 2,88 tiles de alto
                     // MEDIDOS sobre el PNG, y la almena cae a poco mas de un tile del centro.
