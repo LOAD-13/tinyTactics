@@ -25,9 +25,9 @@ MonoBehaviour:
   vidaMaxima: 450
   guarnicion: 1
   puntoDisparo: {x: 0, y: 1.05}
-  alcanceAtaque: 6.5
+  alcanceAtaque: 7.5
   danoAtaque: 20
-  cadencia: 1.6
+  cadencia: 0.62
   golpesDeObra: 34
   centroDeEntrega: 0
   poblacionQueAporta: 0

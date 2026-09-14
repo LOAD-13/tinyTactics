@@ -19,7 +19,7 @@ MonoBehaviour:
   alcance: 5
   invulnerable: 0
   postura: 0
-  correa: 4
+  correa: 8
   velocidad: 2.9
   radio: 0.4
   carnePorSegundo: 0.15
