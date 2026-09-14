@@ -47,7 +47,7 @@ namespace TinyTactics.Pruebas
         }
 
         [Tooltip("Ancho del panel desplegado, en píxeles de pantalla.")]
-        public float ancho = 214f;
+        public float ancho = 250f;
 
         [Tooltip("Bandos que existen en la partida. Lo fija el generador de la escena.")]
         [Range(1, 5)] public int bandos = 3;
@@ -65,21 +65,9 @@ namespace TinyTactics.Pruebas
         TipoUnidad _tipoAAparecer = TipoUnidad.Guerrero;
         bool _colocando;
 
-        GUIStyle _seccion, _boton, _botonVivo, _sello;
+        GUIStyle _seccion, _hueco, _texto, _textoVivo, _sello;
         bool _estilosListos;
 
-        Texture2D _plano;
-
-        /// <summary>Un pixel blanco para pintar cuadros de color. Se crea una sola vez.</summary>
-        Texture2D Textura()
-        {
-            if (_plano != null) return _plano;
-
-            _plano = new Texture2D(1, 1);
-            _plano.SetPixel(0, 0, Color.white);
-            _plano.Apply();
-            return _plano;
-        }
 
         void OnEnable() => Actual = this;
 
@@ -91,8 +79,6 @@ namespace TinyTactics.Pruebas
             // timeScale es global y sobrevive al componente. Salir de Play con x4 puesto
             // deja la siguiente sesión corriendo al cuádruple sin ninguna pista de por qué.
             Time.timeScale = 1f;
-
-            if (_plano != null) Destroy(_plano);
         }
 
         void Update()
@@ -328,15 +314,19 @@ namespace TinyTactics.Pruebas
 
             // La pestaña siempre visible. Un panel que solo se abre con una tecla que nadie
             // recuerda es un panel que no existe.
-            if (GUI.Button(new Rect(4f, 6f, 26f, 26f), Abierto ? "<" : ">"))
-                Abierto = !Abierto;
+            var pestana = new Rect(6f, 8f, 28f, 28f);
+            if (Boton(pestana, Abierto ? "<" : ">", null, false)) Abierto = !Abierto;
 
             DibujarSello();
 
             if (!Abierto) return;
 
-            GUILayout.BeginArea(new Rect(14f, 46f, ancho - 28f, alto - 62f));
-            _scroll = GUILayout.BeginScrollView(_scroll);
+            // El area interior se mete por dentro del marco del pack, que mide 48 px de
+            // escuadra. Antes empezaba en 14 y la barra de desplazamiento quedaba montada
+            // sobre la moldura, como si el panel se derramara por el borde.
+            GUILayout.BeginArea(new Rect(26f, 52f, ancho - 52f, alto - 76f));
+            _scroll = GUILayout.BeginScrollView(_scroll, false, false,
+                                                GUIStyle.none, GUIStyle.none, GUIStyle.none);
 
             SeccionBando();
             SeccionRecursos();
@@ -353,10 +343,10 @@ namespace TinyTactics.Pruebas
         /// El rótulo del modo, sobre el listón del pack.
         /// </summary>
         /// <remarks>
-        /// Dice <b>MODO LIBRE</b> y no «modo pruebas» porque esto no es un andamio que se tire
-        /// a la basura: las mismas funciones van a ser el modo libre que el jugador podrá
-        /// elegir para montar sus partidas. Un rótulo que diga «pruebas» dentro de un modo
-        /// publicado se lee como algo sin terminar.
+        /// Dice <b>PARTIDA LIBRE</b>, que es como se llaman en español las partidas que el
+        /// jugador monta a su gusto —sin campaña, sin condiciones impuestas— y que es en lo
+        /// que se va a convertir este panel. Se descartó «modo pruebas» porque un rótulo que
+        /// dice «pruebas» dentro de un modo publicado se lee como algo sin terminar.
         ///
         /// Sigue cumpliendo lo que tenía que cumplir —que ninguna captura tramposa pase por
         /// buena— porque lo que importa es que se vea que el modo está activo, no la palabra.
@@ -378,7 +368,7 @@ namespace TinyTactics.Pruebas
                 if (liston != null) DibujoGUI.Sprite(sitio, liston);
             }
 
-            GUI.Label(sitio, "MODO LIBRE", _sello);
+            GUI.Label(sitio, "PARTIDA LIBRE", _sello);
         }
 
         void SeccionBando()
@@ -391,22 +381,17 @@ namespace TinyTactics.Pruebas
             GUILayout.BeginHorizontal();
             for (int i = 0; i < bandos; i++)
             {
-                bool pulsado = GUILayout.Button(i == actual ? "●" : " ",
-                                                i == actual ? _botonVivo : _boton,
-                                                GUILayout.Height(26f));
+                bool pulsado = GUILayout.Button(GUIContent.none, _hueco, GUILayout.Height(30f));
+                var caja = GUILayoutUtility.GetLastRect();
 
-                // El botón se tiñe del color real del bando. Un «1», «2», «3» no dice nada:
+                // La caja de cada bando es la del PACK en su color: el pack ya trae las cinco
+                // pintadas, así que no hay que teñir nada. Un «1», «2», «3» no diría nada —
                 // el jugador piensa en «los amarillos», no en «la facción 2».
-                if (tema != null)
-                {
-                    var caja = GUILayoutUtility.GetLastRect();
-                    var color = GUI.color;
-                    GUI.color = new Color(tema.ColorDe(i).r, tema.ColorDe(i).g,
-                                          tema.ColorDe(i).b, 0.55f);
-                    GUI.DrawTexture(new Rect(caja.x + 3f, caja.y + 3f,
-                                             caja.width - 6f, caja.height - 6f), Textura());
-                    GUI.color = color;
-                }
+                var fondo = tema != null ? tema.CajaChicaDe(i) : null;
+                if (fondo != null) DibujoGUI.NueveCortes(caja, fondo, 20f);
+
+                if (i == actual)
+                    GUI.Label(caja, "●", _textoVivo);
 
                 if (pulsado) CambiarBando(i);
             }
@@ -424,7 +409,7 @@ namespace TinyTactics.Pruebas
 
             GUILayout.BeginHorizontal();
             if (BotonConIcono("+50", Icono(TipoRecurso.Carne))) Regalar(TipoRecurso.Carne, 50);
-            if (GUILayout.Button("Vaciar", _boton)) Vaciar();
+            if (BotonConIcono("Vaciar", null)) Vaciar();
             GUILayout.EndHorizontal();
         }
 
@@ -435,13 +420,13 @@ namespace TinyTactics.Pruebas
 
             GUILayout.Label("UNIDADES", _seccion);
 
-            if (GUILayout.Button(EsInmortal(actual) ? "Mortal de nuevo" : "Bando inmortal",
-                                 EsInmortal(actual) ? _botonVivo : _boton))
+            if (BotonConIcono(EsInmortal(actual) ? "Mortal de nuevo" : "Bando inmortal",
+                              null, EsInmortal(actual)))
                 AlternarInmortalidad(actual);
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Matar sel.", _boton)) MatarSeleccionadas();
-            if (GUILayout.Button("Curar sel.", _boton)) CurarSeleccionadas();
+            if (BotonConIcono("Matar", null)) MatarSeleccionadas();
+            if (BotonConIcono("Curar", null)) CurarSeleccionadas();
             GUILayout.EndHorizontal();
         }
 
@@ -460,7 +445,7 @@ namespace TinyTactics.Pruebas
         void Velocidad(string texto, float escala)
         {
             bool vivo = Mathf.Approximately(Time.timeScale, escala);
-            if (GUILayout.Button(texto, vivo ? _botonVivo : _boton)) Time.timeScale = escala;
+            if (BotonConIcono(texto, null, vivo)) Time.timeScale = escala;
         }
 
         /// <summary>
@@ -474,9 +459,9 @@ namespace TinyTactics.Pruebas
         {
             GUILayout.Label("PARTIDA", _seccion);
 
-            if (GUILayout.Button("Ver cartel de final", _boton)) VerCartel();
+            if (BotonConIcono("Ver cartel final", null)) VerCartel();
 
-            if (GUILayout.Button("Arrasar bandos rivales", _boton)) ArrasarRivales();
+            if (BotonConIcono("Arrasar rivales", null)) ArrasarRivales();
         }
 
         void VerCartel()
@@ -541,7 +526,7 @@ namespace TinyTactics.Pruebas
             }
 
             if (_colocando)
-                GUILayout.Label("Clic en el mapa · derecho cancela", _seccion);
+                GUILayout.Label("Clic en el mapa · dcho. cancela", _seccion);
         }
 
         Sprite Icono(TipoRecurso recurso)
@@ -564,38 +549,60 @@ namespace TinyTactics.Pruebas
         /// Los iconos NO se dibujan de cero. Se planteó generarlos extrayendo la paleta de
         /// los PNG del pack, y al ir a hacerlo resultó que no hacía falta: el tema ya trae
         /// los tres sacos de recurso y los veinticinco retratos de unidad, que son
-        /// exactamente los iconos que este panel necesita. Arte nuevo para enseñar algo que
-        /// ya está dibujado es arte que además puede desentonar.
-        ///
-        /// Hay que pintar el icono encima del botón en vez de pasárselo como contenido
-        /// porque un <c>Sprite</c> del pack es un recorte de un atlas: <c>GUIContent</c> solo
-        /// acepta texturas enteras y dibujaría la hoja completa.
+        /// exactamente los iconos que este panel necesita.
         /// </remarks>
         bool BotonConIcono(string texto, Sprite icono, bool vivo = false)
         {
-            bool pulsado = GUILayout.Button("     " + texto, vivo ? _botonVivo : _boton,
-                                            GUILayout.Height(26f));
-
-            if (icono == null) return pulsado;
-
+            // Se reserva el hueco con un botón SIN fondo y luego se pinta encima. Es la única
+            // forma de usar el arte del pack en OnGUI: un GUIStyle solo acepta una textura
+            // entera como fondo, y los botones del pack son recortes de un atlas.
+            bool pulsado = GUILayout.Button(GUIContent.none, _hueco, GUILayout.Height(30f));
             var caja = GUILayoutUtility.GetLastRect();
-            var sitio = new Rect(caja.x + 3f, caja.y + 3f, 20f, 20f);
 
-            DibujarSprite(sitio, icono);
+            Pintar(caja, texto, icono, vivo);
             return pulsado;
         }
 
-        static void DibujarSprite(Rect donde, Sprite sprite)
+        /// <summary>Un botón suelto, fuera de la disposición automática.</summary>
+        bool Boton(Rect caja, string texto, Sprite icono, bool vivo)
         {
-            if (sprite == null || sprite.texture == null) return;
+            bool pulsado = GUI.Button(caja, GUIContent.none, _hueco);
+            Pintar(caja, texto, icono, vivo);
+            return pulsado;
+        }
 
-            var r = sprite.textureRect;
-            var uv = new Rect(r.x / sprite.texture.width,
-                              r.y / sprite.texture.height,
-                              r.width / sprite.texture.width,
-                              r.height / sprite.texture.height);
+        /// <summary>El fondo del pack, el icono y el texto, en ese orden.</summary>
+        void Pintar(Rect caja, string texto, Sprite icono, bool vivo)
+        {
+            var fondo = tema != null ? tema.CajaChicaDe(vivo ? 2 : 0) : null;
 
-            GUI.DrawTextureWithTexCoords(donde, sprite.texture, uv, true);
+            if (fondo != null) DibujoGUI.NueveCortes(caja, fondo, 20f);
+            else GUI.Box(caja, GUIContent.none);
+
+            if (icono != null)
+            {
+                float lado = caja.height - 8f;
+                DibujoGUI.Sprite(new Rect(caja.x + 5f, caja.y + 4f, lado, lado), icono);
+            }
+
+            if (string.IsNullOrEmpty(texto)) return;
+
+            // El texto se centra en el BOTON ENTERO, no en lo que sobra a la derecha del
+            // icono. Descontar el icono de un lado y la misma cifra del otro —que es lo que
+            // hacia antes— desplaza la caja pero no la recentra: todas las etiquetas salian
+            // corridas hacia la derecha, y las que llevaban icono el doble.
+            var hueco = new Rect(caja.x, caja.y - 1f, caja.width, caja.height);
+            var estilo = vivo ? _textoVivo : _texto;
+
+            // Sombra dura debajo. Las cajas del pack son azul medio con vetas, y cualquier
+            // texto plano encima se deshace: es lo que hacia que costara leerlo.
+            var tinta = GUI.color;
+            GUI.color = new Color(0.05f, 0.09f, 0.16f, 0.9f);
+            GUI.Label(new Rect(hueco.x + 1f, hueco.y + 2f, hueco.width, hueco.height),
+                      texto, estilo);
+
+            GUI.color = tinta;
+            GUI.Label(hueco, texto, estilo);
         }
 
         void PrepararEstilos()
@@ -603,12 +610,37 @@ namespace TinyTactics.Pruebas
             if (_estilosListos) return;
             _estilosListos = true;
 
-            _seccion = new GUIStyle(GUI.skin.label) { fontSize = 11 };
-            _seccion.normal.textColor = new Color(1f, 0.90f, 0.72f);
-            _boton = new GUIStyle(GUI.skin.button) { fontSize = 11 };
+            _seccion = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                padding = new RectOffset(2, 0, 6, 2),
+            };
+            _seccion.normal.textColor = new Color(1f, 0.86f, 0.55f);
 
-            _botonVivo = new GUIStyle(_boton) { fontStyle = FontStyle.Bold };
-            _botonVivo.normal.textColor = new Color(0.45f, 0.92f, 0.42f);
+            // Botón sin nada: solo reserva el hueco y detecta el clic. Todo lo que se ve se
+            // pinta encima con el arte del pack.
+            _hueco = new GUIStyle(GUI.skin.button);
+            _hueco.normal.background = null;
+            _hueco.hover.background = null;
+            _hueco.active.background = null;
+            _hueco.focused.background = null;
+            _hueco.border = new RectOffset(0, 0, 0, 0);
+            _hueco.margin = new RectOffset(2, 2, 2, 2);
+
+            // Blanco cálido sobre la madera. El gris de Unity sobre el listón del pack tenía
+            // muy poco contraste y costaba leerlo, que es lo peor que le puede pasar a un
+            // panel cuya única razón de ser es que se use deprisa.
+            _texto = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 14,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+            };
+            _texto.normal.textColor = Color.white;
+
+            _textoVivo = new GUIStyle(_texto) { fontStyle = FontStyle.Bold };
+            _textoVivo.normal.textColor = new Color(0.74f, 1f, 0.62f);
 
             _sello = new GUIStyle(GUI.skin.label)
             {

@@ -24,6 +24,17 @@ namespace TinyTactics.Nucleo
         /// <summary>Bajas por tipo de unidad. De aquí sale el MVP.</summary>
         public readonly Dictionary<TipoUnidad, int> BajasPorTipo = new Dictionary<TipoUnidad, int>();
 
+        /// <summary>
+        /// Población del bando muestreada a lo largo de la partida.
+        /// </summary>
+        /// <remarks>
+        /// Es lo que convierte la hoja de resultados en una historia: un pico dice cuándo se
+        /// montó el ejército y una caída en vertical dice cuándo lo perdiste. «Pico de
+        /// población: 30» da el número más alto pero no dice si se alcanzó al minuto tres o
+        /// al minuto quince, ni cuántas veces te rehiciste.
+        /// </remarks>
+        public readonly List<int> Historia = new List<int>(256);
+
         public int RecolectadoTotal => OroRecolectado + MaderaRecolectada + CarneRecolectada;
 
         /// <summary>
@@ -190,6 +201,17 @@ namespace TinyTactics.Nucleo
             return minutos < 0.02f ? 0f : Hoja(faccion).Ordenes / minutos;
         }
 
+        [Tooltip("Cada cuántos segundos se apunta un punto de la historia.")]
+        [Range(0.5f, 10f)] public float pasoDeHistoria = 2f;
+
+        float _proximaMuestra;
+
+        /// <summary>
+        /// Cuántos segundos representa cada punto de la historia. Lo usa la gráfica para
+        /// poner las marcas de tiempo.
+        /// </summary>
+        public float PasoDeHistoria => pasoDeHistoria;
+
         void Update()
         {
             // El pico de población se muestrea, no se engancha a un evento, porque la
@@ -198,11 +220,21 @@ namespace TinyTactics.Nucleo
             var censo = Poblacion.Actual;
             if (censo == null) return;
 
+            bool apuntar = Time.time >= _proximaMuestra;
+            if (apuntar) _proximaMuestra = Time.time + pasoDeHistoria;
+
             foreach (var par in _hojas)
             {
                 int usada = censo.Usada(par.Key);
                 if (usada > par.Value.PicoDePoblacion) par.Value.PicoDePoblacion = usada;
+
+                if (apuntar) par.Value.Historia.Add(usada);
             }
+
+            // Un bando que todavía no ha hecho nada no tiene hoja, y sin hoja no tiene
+            // historia: su gráfica saldría vacía aunque lleve diez minutos con dos pawns.
+            // Se le abre en la primera muestra, que es cuando empieza a importar.
+            if (apuntar && _hojas.Count == 0) Hoja(0);
         }
     }
 }

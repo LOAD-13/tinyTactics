@@ -245,13 +245,16 @@ namespace TinyTactics.Interfaz
 
             float desplazamiento = 0f;
 
+            // Se aparta SIEMPRE, este abierto o cerrado. Solo al abrirlo era la mitad del
+            // arreglo: plegado el panel sigue ocupando su pestana, y la caja de poblacion se
+            // quedaba montada encima de ella.
             var panel = Pruebas.PanelDePruebas.Actual;
-            if (panel != null && panel.Abierto && Screen.width > 0)
+            if (panel != null && Screen.width > 0)
             {
                 var lienzo = GetComponentInParent<Canvas>();
                 float escala = lienzo != null ? lienzo.scaleFactor : 1f;
 
-                if (escala > 0.0001f) desplazamiento = panel.AnchoVisible() / escala;
+                if (escala > 0.0001f) desplazamiento = (panel.AnchoVisible() + 10f) / escala;
             }
 
             var sitio = new Vector2(margen.x + desplazamiento, -margen.y);
