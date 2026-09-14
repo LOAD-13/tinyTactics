@@ -1128,7 +1128,7 @@ pixel art.
 conflicto, y que ese conflicto **tenga desenlace**. Al terminar la semana la partida se puede
 ganar y se puede perder.
 
-> **Una sola rama para la épica:** `feat/E06-combate`.
+> **Una sola rama para la épica:** `feat/E06-combat`.
 
 | HU | Título | Riesgo |
 |---|---|---|
