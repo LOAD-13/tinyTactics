@@ -409,6 +409,15 @@ namespace TinyTactics.Unidades
             _objetivo = objetivo;
             _porOrden = true;
             _persiguiendo = false;
+
+            // Un ataque ordenado contra un edificio tambien encadena: el jugador que manda
+            // tirar un cuartel quiere que sigan con la base, no que se queden parados.
+            _demoliendo = !objetivo.EsUnidad;
+
+            // El ancla se pone tambien aqui. Si el objetivo muere y la unidad encadena con
+            // el siguiente edificio, ese enganche ya sera automatico y necesita desde donde
+            // medir la correa.
+            _ancla = transform.position;
             Resolver();
         }
 
@@ -425,6 +434,7 @@ namespace TinyTactics.Unidades
             _porOrden = false;
             _persiguiendo = false;
             _ancla = transform.position;
+            _demoliendo = !objetivo.EsUnidad;
             Resolver();
         }
 
@@ -436,6 +446,8 @@ namespace TinyTactics.Unidades
             _persiguiendo = false;
             _golpePendiente = false;
             _vigilando = false;
+            _marchando = false;
+            _demoliendo = false;
 
             if (!_trabajando) return;
 
@@ -452,9 +464,9 @@ namespace TinyTactics.Unidades
         // -----------------------------------------------------------------
 
         [Header("Ataque automático")]
-        [Tooltip("Radio en el que busca enemigos por su cuenta. Corto a propósito: " +
-                 "no debe cruzar el mapa a por alguien que ha visto de lejos.")]
-        public float radioVigilancia = 5.5f;
+        [Tooltip("Radio en el que busca enemigos por su cuenta. Quien limita de verdad la " +
+                 "persecución es la correa, no este radio.")]
+        public float radioVigilancia = 7.5f;
 
         [Tooltip("Cada cuánto mira alrededor. No hace falta cada frame y sale caro.")]
         public float intervaloVigilancia = 0.3f;
@@ -477,6 +489,26 @@ namespace TinyTactics.Unidades
         {
             _vigilando = activo;
             _proximaBusqueda = 0f;
+        }
+
+        bool _marchando;
+
+        /// <summary>
+        /// El jugador ha mandado ir a un sitio: la unidad deja de buscar pelea hasta llegar.
+        /// </summary>
+        /// <remarks>
+        /// Sin esto, <b>una orden de movimiento no servía para retirar tropas</b>: la unidad
+        /// soltaba su objetivo, daba dos pasos, volvía a encontrarse al enemigo dentro del
+        /// radio de vigilancia y se enganchaba otra vez. El jugador clicaba lejos y no pasaba
+        /// nada, que es de las cosas que peor sientan en un RTS.
+        ///
+        /// Es además la distinción clásica entre <i>mover</i> y <i>atacar avanzando</i>: la
+        /// primera ignora lo que se cruce, la segunda no. Antes solo existía la segunda.
+        /// </remarks>
+        public void Marchar()
+        {
+            _marchando = true;
+            _vigilando = false;
         }
 
         public bool Vigilando => _vigilando;
@@ -513,6 +545,15 @@ namespace TinyTactics.Unidades
             if (_objetivo != null || Time.time < _proximaBusqueda) return;
             if (_unidad.datos == null || _unidad.datos.dano <= 0) return;
 
+            // En marcha por orden del jugador no se busca nada. La bandera se apaga sola al
+            // llegar: se comprueba aquí y no en el movimiento para no obligar a ese
+            // componente a saber que existe el combate.
+            if (_marchando)
+            {
+                if (_movimiento != null && _movimiento.EnMovimiento) return;
+                _marchando = false;
+            }
+
             Postura postura = PosturaActual;
             bool saleABuscar = _vigilando || postura == Postura.Agresiva;
 
@@ -546,7 +587,45 @@ namespace TinyTactics.Unidades
                 mejor = u;
             }
 
+            if (mejor != null) { Enganchar(mejor); return; }
+
+            // Sin unidades a tiro, se sigue con los edificios — pero SOLO si lo último que
+            // se estaba derribando era un edificio. Esa condición es la que separa «terminar
+            // el trabajo» de «irse solo a demoler la base enemiga»: una unidad ociosa no debe
+            // ponerse a pegarle a un muro por su cuenta, pero una que acaba de tirar un
+            // cuartel y tiene el siguiente al lado sí debe seguir, o el jugador tiene que
+            // reclicar edificio por edificio durante todo el asalto.
+            if (_demoliendo) SeguirDemoliendo();
+        }
+
+        /// <summary>True si el último objetivo propio era un edificio.</summary>
+        bool _demoliendo;
+
+        [Tooltip("Hasta dónde busca el siguiente edificio al terminar de derribar uno.")]
+        public float radioDemolicion = 9f;
+
+        void SeguirDemoliendo()
+        {
+            var casas = Edificios.Edificio.Todos;
+
+            Edificios.Edificio mejor = null;
+            float mejorDistancia = radioDemolicion;
+
+            for (int i = 0; i < casas.Count; i++)
+            {
+                var e = casas[i];
+                if (e == null || e.faccion == _unidad.faccion) continue;
+                if (!((IObjetivo)e).Vivo) continue;
+
+                float d = e.DistanciaA(transform.position);
+                if (d > mejorDistancia) continue;
+
+                mejorDistancia = d;
+                mejor = e;
+            }
+
             if (mejor != null) Enganchar(mejor);
+            else _demoliendo = false;
         }
 
         /// <summary>

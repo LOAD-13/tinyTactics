@@ -11,9 +11,9 @@ namespace TinyTactics.Nucleo
     /// <summary>
     /// Decide quién sigue en pie y cuándo se acabó la partida.
     ///
-    /// La regla es una sola y vale igual para todos: <b>el bando que pierde su castillo queda
-    /// eliminado</b>, y con él caen sus unidades y el resto de sus edificios. Cuando solo
-    /// queda un bando, se acabó.
+    /// La regla es una sola y vale igual para todos: <b>el bando que se queda sin una sola
+    /// estructura en pie queda eliminado</b>, y con él caen las unidades que le quedaran.
+    /// Cuando solo queda un bando, se acabó.
     /// </summary>
     /// <remarks>
     /// No hay caso especial para el jugador, y es deliberado. Un árbitro con una rama «si es
@@ -84,7 +84,7 @@ namespace TinyTactics.Nucleo
         void Start()
         {
             for (int bando = 0; bando < bandos; bando++)
-                if (TieneCastillo(bando)) _enJuego.Add(bando);
+                if (SigueEnPie(bando)) _enJuego.Add(bando);
         }
 
         void Update()
@@ -104,7 +104,7 @@ namespace TinyTactics.Nucleo
             {
                 if (_eliminados.Contains(bando)) continue;
 
-                if (!TieneCastillo(bando))
+                if (!SigueEnPie(bando))
                 {
                     // No se elimina aquí dentro: eliminar toca _eliminados, y modificar un
                     // conjunto mientras se recorre otro que comparte estado es pedir una
@@ -131,7 +131,20 @@ namespace TinyTactics.Nucleo
             AlTerminar?.Invoke(Ganador);
         }
 
-        static bool TieneCastillo(int bando)
+        /// <summary>
+        /// ¿Le queda al bando alguna estructura en pie?
+        /// </summary>
+        /// <remarks>
+        /// Antes bastaba con perder el castillo. Se cambió porque la partida terminaba de
+        /// golpe y en falso: entrabas por un flanco, tirabas el castillo y el resto de la
+        /// base —cuarteles, casas, torres intactas— se venía abajo sola. Ganar tiene que
+        /// costar <b>arrasar</b>, no colarse.
+        ///
+        /// Cuenta cualquier edificio, incluidas las obras a medio levantar: un bando con un
+        /// andamio en pie todavía tiene algo que defender, y dejarlo fuera premiaría al
+        /// atacante por no molestarse en rematar.
+        /// </remarks>
+        static bool SigueEnPie(int bando)
         {
             var casas = Edificio.Todos;
 
@@ -140,11 +153,7 @@ namespace TinyTactics.Nucleo
                 var e = casas[i];
                 if (e == null || e.faccion != bando) continue;
 
-                // El castillo se reconoce por ser centro de entrega, no por su tipo. Así, el
-                // día que haya expansiones con su propio centro, perder el castillo original
-                // dejará de ser el fin de la partida sin tocar esta línea — que es justo lo
-                // que hace Warcraft y lo que la semana 13 va a necesitar.
-                if (e.centroDeEntrega && e.Operativo) return true;
+                if (((IObjetivo)e).Vivo) return true;
             }
 
             return false;
@@ -176,6 +185,9 @@ namespace TinyTactics.Nucleo
             for (int i = 0; i < _condenadas.Count; i++)
                 _condenadas[i].RecibirDano(_condenadas[i].Vida);
 
+            // Ya no quedan edificios que tirar —esa es justamente la condición que llevó
+            // hasta aquí— así que solo hay que rematar lo que siguiera en pie por un empate
+            // de fotograma.
             _ruinas.Clear();
             var casas = Edificio.Todos;
 

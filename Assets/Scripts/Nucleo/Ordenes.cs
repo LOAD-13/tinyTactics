@@ -36,6 +36,12 @@ namespace TinyTactics.Nucleo
 
             var movimiento = unidad.GetComponent<MovimientoUnidad>();
             if (movimiento != null) movimiento.IrA(Destino);
+
+            // La marcha se declara DESPUES de soltar, no antes: Soltar llama a Cancelar, y
+            // Cancelar borra la bandera. Es el mismo orden que ya hizo falta con el ataque al
+            // avanzar en la semana 06, y por la misma razon.
+            var maquina = unidad.GetComponent<MaquinaDeEstados>();
+            if (maquina != null) maquina.Marchar();
         }
 
         /// <summary>
