@@ -13,7 +13,7 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ## Semana 06 — Construcción y producción
 **Entrega:** domingo 13/09/2026 · **Expo:** lunes 14/09/2026
-**Tag:** _(pendiente)_ `v0.6.0-s06` · **Rama:** `feat/E05-construccion`
+**Tag:** [`v0.6.0-s06`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.6.0-s06) · **Rama:** `feat/E05-construccion`
 
 ### Lo prometido
 Las diez HUs de la épica E05, sin bloque opcional: HU-036 resaltado del nodo (arrastrada de la
