@@ -90,6 +90,7 @@ namespace TinyTactics.EditorHerramientas
                     d.vidaMaxima = 140; d.dano = 18; d.alcance = 0.8f;
                     d.velocidad = 2.6f; d.radio = 0.44f; d.carnePorSegundo = 0.20f;
                     d.oro = 90; d.madera = 10; d.poblacion = 2;
+                    d.postura = Postura.Agresiva; d.correa = 12f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Warrior/Warrior_Idle.png", 7f),
@@ -103,6 +104,7 @@ namespace TinyTactics.EditorHerramientas
                     d.vidaMaxima = 100; d.dano = 22; d.alcance = 1.6f;
                     d.velocidad = 2.8f; d.radio = 0.46f; d.carnePorSegundo = 0.20f;
                     d.oro = 80; d.madera = 0; d.poblacion = 2;
+                    d.postura = Postura.Agresiva; d.correa = 12f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Lancer/Lancer_Idle.png", 8f),
@@ -124,6 +126,10 @@ namespace TinyTactics.EditorHerramientas
                     d.vidaMaxima = 70; d.dano = 14; d.alcance = 5.0f;
                     d.velocidad = 2.9f; d.radio = 0.40f; d.carnePorSegundo = 0.15f;
                     d.oro = 85; d.madera = 20; d.poblacion = 2;
+                    // Mas corta que la del cuerpo a cuerpo: con 5 de alcance, el arquero
+                    // engancha desde muy lejos y con la correa larga se pasaria la partida
+                    // andando. Aun asi 8, no 4: con 4 abandonaba casi al primer paso.
+                    d.postura = Postura.Agresiva; d.correa = 8f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Archer/Archer_Idle.png", 7f),
@@ -137,6 +143,8 @@ namespace TinyTactics.EditorHerramientas
                     d.vidaMaxima = 65; d.dano = -20; d.alcance = 3.5f;
                     d.velocidad = 2.7f; d.radio = 0.40f; d.carnePorSegundo = 0.15f;
                     d.oro = 120; d.madera = 0; d.poblacion = 3;
+                    // El monje cura: no tiene con que responder y perseguir es suicidarse.
+                    d.postura = Postura.Quieta; d.correa = 0f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Monk/Idle.png", 7f),
@@ -150,6 +158,9 @@ namespace TinyTactics.EditorHerramientas
                     d.vidaMaxima = 60; d.dano = 5; d.alcance = 0.5f;
                     d.velocidad = 3.0f; d.radio = 0.42f; d.carnePorSegundo = 0.10f;
                     d.oro = 50; d.madera = 0; d.poblacion = 1;
+                    // El pawn nace quieto: su trabajo es recolectar. Al recibir un golpe
+                    // huye al castillo en vez de pelear.
+                    d.postura = Postura.Quieta; d.correa = 0f;
                     // Doce tiras: la tabla del pawn se indexa por estado y por recurso.
                     // El pack ya trae las tres herramientas y los tres sacos, así que la
                     // economía entera se dibuja sin una sola pieza de arte nueva.

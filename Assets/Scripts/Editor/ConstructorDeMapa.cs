@@ -90,7 +90,7 @@ namespace TinyTactics.EditorHerramientas
                 EditorUtility.DisplayProgressBar("Tiny Tactics", "Poblando el mapa…", 0.85f);
                 PoblarMapa(definicion, mapa);
 
-                ConstructorDeInterfaz.CrearLienzo(_tema);
+                ConstructorDeInterfaz.CrearLienzo(_tema, definicion.bandos);
 
                 EditorSceneManager.MarkSceneDirty(escena);
                 EditorSceneManager.SaveScene(escena, RutaEscena);
@@ -322,6 +322,15 @@ namespace TinyTactics.EditorHerramientas
             // La población no guarda contadores: recuenta las unidades vivas y los edificios
             // en pie. Por eso cuelga del mismo objeto y no necesita que nadie la avise.
             go.AddComponent<Poblacion>();
+
+            // Las estadisticas se acumulan EN VIVO. Al final de la partida ya no quedan
+            // cadaveres que contar, asi que si no se apunta cuando ocurre no hay de donde
+            // sacarlo despues.
+            go.AddComponent<EstadisticasPartida>();
+
+            // El arbitro: quien sigue en pie y cuando se acabo.
+            var arbitro = go.AddComponent<ArbitroDePartida>();
+            arbitro.bandos = Mathf.Max(1, definicion.bandos);
 
             // Una sola plantilla por tipo y bando, que todos los edificios comparten.
             go.AddComponent<CatalogoDePlantillas>();
@@ -994,6 +1003,16 @@ namespace TinyTactics.EditorHerramientas
         static Sprite[] _polvo;
         static Sprite[] _efectoCura;
         static Sprite _flecha;
+        static Sprite[] _explosion;
+
+        static Sprite[] ObtenerExplosion()
+        {
+            if (_explosion == null)
+                _explosion = CargarSpritesOrdenados(
+                    "Assets/Tiny Swords/Particle FX/Explosion_01.png").ToArray();
+
+            return _explosion;
+        }
 
         static Sprite[] ObtenerPolvo()
         {
@@ -1137,6 +1156,8 @@ namespace TinyTactics.EditorHerramientas
         }
 
         /// <summary>Nombres de color de facción. La lista vive en el catálogo de unidades.</summary>
+        const string DirUnidadesPack = "Assets/Tiny Swords/Units";
+
         static string[] ColoresFaccion => CatalogoDeUnidades.Colores;
 
         /// <summary>
@@ -1146,6 +1167,56 @@ namespace TinyTactics.EditorHerramientas
         /// "un mapa generado" en una de "una partida a punto de empezar", que es lo que
         /// hay que enseñar el lunes.
         /// </summary>
+        /// <summary>
+        /// Cuantas torres se le ponen a cada bando rival. Cero las quita.
+        /// </summary>
+        public static int TorresRivales = 3;
+
+        /// <summary>
+        /// Si se planta el poste de entrenamiento en cada base. Apagado desde la HU-053.
+        /// </summary>
+        /// <remarks>
+        /// Era el andamio que permitia probar daño y muerte cuando no habia enemigos. Con dos
+        /// bandos que se pegan de verdad, torres rivales y un panel que deja cambiarse de
+        /// bando, ya sobra.
+        ///
+        /// Se deja como interruptor y no se borra el metodo por lo mismo que las torres: un
+        /// codigo comentado es basura que nadie se atreve a quitar, y una opcion apagada es
+        /// una decision que se puede revisar. Ademas seguira sirviendo en la semana 16, para
+        /// medir daño por segundo sin que el blanco se defienda.
+        /// </remarks>
+        public static bool PosteDePruebas;
+
+        /// <summary>
+        /// Donde va cada torre respecto a la celda del castillo.
+        /// </summary>
+        /// <remarks>
+        /// Los desplazamientos estan fuera de la planta del castillo a proposito: mide 5x3
+        /// centrado, asi que ocupa de -2 a +2 en X y de -1 a +1 en Y. Dos torres flanqueando
+        /// la entrada y una cubriendo la espalda es la forma en que cualquiera fortifica una
+        /// base, y ademas deja el frente batido desde dos angulos.
+        /// </remarks>
+        static readonly Vector2Int[] SitiosDeTorre =
+        {
+            new Vector2Int(-5, -3),
+            new Vector2Int(5, -3),
+            new Vector2Int(0, 4),
+        };
+
+        static void ColocarTorres(Transform grupo, int faccion, Vector2Int celda, int alto)
+        {
+            var ficha = FichasDeEdificio.Obtener(TipoEdificio.Torre);
+            if (ficha == null) return;
+
+            int cuantas = Mathf.Min(TorresRivales, SitiosDeTorre.Length);
+
+            for (int t = 0; t < cuantas; t++)
+            {
+                var donde = celda + SitiosDeTorre[t];
+                CrearEdificio(grupo, ficha, faccion, donde, alto, $"Torre_{t + 1}");
+            }
+        }
+
         static void ColocarBases(Transform raiz, MapaGenerado mapa, int alto, System.Random rnd)
         {
             var padre = new GameObject("Bases").transform;
@@ -1185,8 +1256,18 @@ namespace TinyTactics.EditorHerramientas
                                 alto - celda.y + 2, $"{tipo}_{p + 1}");
                 }
 
+                // Torres solo en las bases que NO son la del jugador. Es un banco de pruebas
+                // para el combate: sin IA hasta la semana 10, no habria forma de ver una
+                // defensa reaccionando sola.
+                //
+                // Es una OPCION del generador y no una constante escrita a fuego, porque en
+                // la semana 10 la IA decidira ella misma si construye torres y entonces esto
+                // se apaga sin tocar una linea de codigo.
+                if (i != 0 && TorresRivales > 0) ColocarTorres(grupo, i, celda, alto);
+
                 PrepararProduccion(grupo, i, alto - celda.y + 2);
-                CrearMuneco(grupo, celda, alto);
+
+                if (PosteDePruebas) CrearMuneco(grupo, celda, alto);
             }
 
             // Marcadores de expansión: sin sprite, solo referencia para la IA y el diseño.
@@ -1245,6 +1326,21 @@ namespace TinyTactics.EditorHerramientas
             // amontonan los pawns que vienen a depositar.
             edificio.puntoSalida = new Vector2(0f, -(datos.planta.y * 0.5f + 1.4f));
 
+            // Los sprites SI se serializan, asi que la explosion se puede dejar puesta
+            // desde el generador. Los delegados de la barra de vida no, y por eso aquellos
+            // se enchufan en ejecucion y estos no.
+            edificio.ConfigurarEfectos(ObtenerExplosion());
+
+            // Guarnicion. El arquero se dibuja con el color del bando, igual que las tropas:
+            // una torre amarilla con un arquero azul encima se leeria como capturada.
+            if (datos.guarnicion)
+            {
+                go.AddComponent<TorreDefensiva>().Configurar(
+                    CargarSpritesOrdenados($"{DirUnidadesPack}/{color} Units/Archer/Archer_Idle.png").ToArray(),
+                    CargarSpritesOrdenados($"{DirUnidadesPack}/{color} Units/Archer/Archer_Shoot.png").ToArray(),
+                    ObtenerFlecha());
+            }
+
             var celdas = datos.CeldasDesde(celda);
             edificio.Colocar(datos, faccion, celdas, variante);
 
@@ -1281,8 +1377,14 @@ namespace TinyTactics.EditorHerramientas
                 if (marcador != null) marcador.escalaBase = dibujo.x / 1.33f;
             }
 
-            // Barra de obra, apagada. Solo la enciende la obra en construcción: un edificio
-            // terminado no lleva barra encima.
+            // Barra al pie del edificio. Sirve para las dos cosas: el progreso mientras se
+            // levanta y la vida cuando ya está en pie.
+            //
+            // El objeto se queda ENCENDIDO, al revés que antes. Apagarlo era lo correcto
+            // mientras un edificio terminado no tuviera vida, pero ahora sí la tiene, y un
+            // objeto apagado no ejecuta su LateUpdate: la barra nunca llegaría a aparecer al
+            // recibir el primer golpe. Quien decide si se ve es el propio componente, que
+            // enciende y apaga los dos SpriteRenderer según haga falta.
             ConstructorDeInterfaz.AnadirBarraDeVida(go, _tema, orden);
 
             var barra = go.transform.Find("Vida");
@@ -1290,7 +1392,7 @@ namespace TinyTactics.EditorHerramientas
             {
                 barra.localPosition = new Vector3(0f, -aLaBase - 0.45f, 0f);
                 barra.localScale = new Vector3(0.9f, 0.9f, 1f);
-                barra.gameObject.SetActive(false);
+                barra.gameObject.SetActive(true);
             }
 
             return go;

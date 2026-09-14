@@ -31,6 +31,26 @@ namespace TinyTactics.Interfaz
         public Vector2 puntoMano = new Vector2(27f, 18f);
         public Vector2 puntoProhibido = new Vector2(32f, 31f);
 
+        [Tooltip("Mira roja sobre enemigos. Es el cuarto puntero del pack teñido: el pack " +
+                 "solo trae cuatro y los cuatro ya estaban ocupados.")]
+        public Texture2D cursorAtaque;
+
+        public Vector2 puntoAtaque = new Vector2(32f, 32f);
+
+        [Header("Cartel de fin de partida")]
+        [Tooltip("Pergamino de fondo del cartel.")]
+        public Texture2D pergamino;
+
+        [Tooltip("Cinta donde va la palabra VICTORIA o DERROTA.")]
+        public Texture2D cinta;
+
+        [Tooltip("Espadas cruzadas detrás del cartel.")]
+        public Texture2D espadas;
+
+        [Tooltip("MedievalSharp. Solo para titulares grandes: es vectorial, no pixel, y a " +
+                 "tamaño pequeño se suaviza y desentona junto al arte del pack.")]
+        public Font titular;
+
         [Header("Mundo")]
         [Tooltip("Corchetes de selección que rodean a la unidad elegida.")]
         public Sprite marcadorSeleccion;

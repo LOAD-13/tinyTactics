@@ -128,6 +128,21 @@ namespace TinyTactics.Interfaz
         /// construir la siguiente, que es justo la decisión que este contador existe para
         /// provocar.
         /// </remarks>
+        /// <summary>
+        /// Cambia el bando que muestra el HUD. Solo la usa el panel de pruebas.
+        /// </summary>
+        /// <remarks>
+        /// El HUD se refresca por eventos de economia filtrados por bando, asi que cambiar
+        /// el campo a secas dejaria las cifras del bando anterior en pantalla hasta que el
+        /// nuevo gastara o recolectara algo. Hay que forzar el repintado.
+        /// </remarks>
+        public void CambiarFaccion(int nueva)
+        {
+            faccion = nueva;
+            Refrescar();
+            RefrescarPoblacion();
+        }
+
         void RefrescarPoblacion()
         {
             if (_poblacion == null || _censo == null) return;
@@ -210,9 +225,47 @@ namespace TinyTactics.Interfaz
         /// un límite. Mezclarlo con el oro y la madera invita a leerlo como «cuánto tengo»
         /// cuando lo que dice es «cuánto me cabe».
         /// </remarks>
+        RectTransform _cajaPoblacion;
+
+        /// <summary>
+        /// Aparta el contador de población si el panel lateral está abierto.
+        /// </summary>
+        /// <remarks>
+        /// Las dos cosas viven arriba a la izquierda, así que el panel tapaba justo el único
+        /// dato del HUD que no se puede deducir mirando el mapa.
+        ///
+        /// La conversión de unidades no es un detalle: el panel se dibuja con <c>OnGUI</c>, en
+        /// píxeles reales de pantalla, y el HUD vive en un lienzo escalado a una resolución de
+        /// referencia de 1920. Sumar el ancho del panel tal cual dejaría el contador bien en
+        /// un monitor y mal en todos los demás.
+        /// </remarks>
+        void LateUpdate()
+        {
+            if (_cajaPoblacion == null) return;
+
+            float desplazamiento = 0f;
+
+            // Se aparta SIEMPRE, este abierto o cerrado. Solo al abrirlo era la mitad del
+            // arreglo: plegado el panel sigue ocupando su pestana, y la caja de poblacion se
+            // quedaba montada encima de ella.
+            var panel = Pruebas.PanelDePruebas.Actual;
+            if (panel != null && Screen.width > 0)
+            {
+                var lienzo = GetComponentInParent<Canvas>();
+                float escala = lienzo != null ? lienzo.scaleFactor : 1f;
+
+                if (escala > 0.0001f) desplazamiento = (panel.AnchoVisible() + 10f) / escala;
+            }
+
+            var sitio = new Vector2(margen.x + desplazamiento, -margen.y);
+            if (_cajaPoblacion.anchoredPosition != sitio)
+                _cajaPoblacion.anchoredPosition = sitio;
+        }
+
         void ConstruirPoblacion()
         {
             var raiz = Nodo("HudPoblacion", (RectTransform)transform);
+            _cajaPoblacion = raiz;
             raiz.anchorMin = new Vector2(0f, 1f);
             raiz.anchorMax = new Vector2(0f, 1f);
             raiz.pivot = new Vector2(0f, 1f);

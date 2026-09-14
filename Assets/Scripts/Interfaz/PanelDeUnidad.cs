@@ -963,10 +963,17 @@ namespace TinyTactics.Interfaz
         }
 
         /// <summary>
-        /// Cuatro huecos. Es lo que cabe en la fila de arriba dejando la de abajo para
-        /// cancelar, y da de sobra: el edificio que más produce entrena dos unidades.
+        /// Seis huecos: dos filas de tres.
         /// </summary>
-        const int RanurasDinamicas = 4;
+        /// <remarks>
+        /// Eran cuatro, y con eso la <b>torre no se podía construir</b>. La rejilla se recorta
+        /// con <c>Mathf.Min(lista.Count, RanurasDinamicas)</c>, así que el quinto construible
+        /// desaparecía sin un aviso, sin un error y sin nada en la consola: simplemente no
+        /// estaba. Un límite que descarta en silencio es peor que uno que se queja.
+        ///
+        /// Seis da margen para los dos edificios que faltan por llegar sin volver a tropezar.
+        /// </remarks>
+        const int RanurasDinamicas = 6;
 
         readonly List<Ranura> _ranuras = new List<Ranura>();
 

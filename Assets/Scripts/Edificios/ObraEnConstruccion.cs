@@ -115,11 +115,18 @@ namespace TinyTactics.Edificios
                 _sprite.color = c;
             }
 
+            // La barra NO se destruye: se devuelve. Era el progreso de la obra y pasa a ser
+            // la vida del edificio, que es el mismo trozo de interfaz en el mismo sitio
+            // contando otra cosa. Destruirla dejaba al edificio terminado sin forma de
+            // enseñar cuánta vida le queda cuando empiecen a pegarle.
             if (_barra != null)
             {
                 _barra.fuente = null;
-                Destroy(_barra.gameObject);
+                _barra.visible = null;
             }
+
+            var libro = Nucleo.EstadisticasPartida.Actual;
+            if (libro != null) libro.EdificioConstruido(_edificio.faccion);
 
             _edificio.Inaugurar();
             Destroy(this);

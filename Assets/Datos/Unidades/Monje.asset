@@ -18,6 +18,8 @@ MonoBehaviour:
   dano: -20
   alcance: 3.5
   invulnerable: 0
+  postura: 2
+  correa: 0
   velocidad: 2.7
   radio: 0.4
   carnePorSegundo: 0.15
