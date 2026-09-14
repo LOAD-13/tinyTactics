@@ -34,6 +34,7 @@ namespace TinyTactics.EditorHerramientas
             TipoEdificio.Cuartel,
             TipoEdificio.CampoDeTiro,
             TipoEdificio.Monasterio,
+            TipoEdificio.Torre,
         };
 
         [MenuItem("Tiny Tactics/Reconstruir catálogo de edificios", false, 32)]
@@ -110,6 +111,7 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 0; d.madera = 60;
                     d.planta = new Vector2Int(2, 2);
                     d.golpesDeObra = 32;
+                    d.vidaMaxima = 350;
                     d.poblacionQueAporta = 5;
                     d.centroDeEntrega = false;
                     d.construible = true;
@@ -121,6 +123,7 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 40; d.madera = 100;
                     d.planta = new Vector2Int(3, 3);
                     d.golpesDeObra = 50;
+                    d.vidaMaxima = 600;
                     d.poblacionQueAporta = 0;
                     d.centroDeEntrega = false;
                     d.construible = true;
@@ -140,6 +143,7 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 40; d.madera = 90;
                     d.planta = new Vector2Int(3, 3);
                     d.golpesDeObra = 46;
+                    d.vidaMaxima = 550;
                     d.poblacionQueAporta = 0;
                     d.centroDeEntrega = false;
                     d.construible = true;
@@ -151,10 +155,34 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 80; d.madera = 80;
                     d.planta = new Vector2Int(3, 3);
                     d.golpesDeObra = 56;
+                    d.vidaMaxima = 500;
                     d.poblacionQueAporta = 0;
                     d.centroDeEntrega = false;
                     d.construible = true;
                     d.fabrica = new[] { CatalogoDeUnidades.Obtener(TipoUnidad.Monje) };
+                    break;
+
+                case TipoEdificio.Torre:
+                    d.nombreVisible = "Torre";
+                    d.oro = 30; d.madera = 70;
+                    d.planta = new Vector2Int(2, 2);
+                    d.golpesDeObra = 34;
+                    d.vidaMaxima = 450;
+                    d.poblacionQueAporta = 0;
+                    d.centroDeEntrega = false;
+                    d.construible = true;
+
+                    // Defensa estatica: no fabrica nada y no come carne. Su valor es estar
+                    // siempre ahi, que ya es mucho, asi que el intercambio por disparo tiene
+                    // que ser malo para ella o rodear una base dejaria de ser una opcion.
+                    d.guarnicion = true;
+                    d.alcanceAtaque = 6.5f;
+                    d.danoAtaque = 20;
+                    d.cadencia = 1.6f;
+
+                    // El arquero se planta en la almena. La torre dibuja 2,88 tiles de alto
+                    // MEDIDOS sobre el PNG, y la almena cae a poco mas de un tile del centro.
+                    d.puntoDisparo = new Vector2(0f, 1.05f);
                     break;
 
                 default: // Castillo
@@ -162,6 +190,9 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 0; d.madera = 0;
                     d.planta = new Vector2Int(5, 3);
                     d.golpesDeObra = 90;
+                    // El castillo es la condicion de derrota: tiene que costar un asedio,
+                    // no una incursion de dos guerreros mientras miras a otro lado.
+                    d.vidaMaxima = 1500;
 
                     // Los diez de población de salida. Es el número que decide cuántas
                     // unidades caben antes de tener que construir la primera casa, así que

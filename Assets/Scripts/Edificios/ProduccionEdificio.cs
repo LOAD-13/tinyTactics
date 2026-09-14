@@ -238,6 +238,9 @@ namespace TinyTactics.Edificios
             copia.name = $"{datos.tipo}_p{_producidas}";
             copia.SetActive(true);
 
+            var libro = Nucleo.EstadisticasPartida.Actual;
+            if (libro != null) libro.UnidadEntrenada(_edificio != null ? _edificio.faccion : 0);
+
             var unidad = copia.GetComponent<Unidad>();
             if (unidad != null) unidad.Configurar(datos, _edificio.faccion);
 

@@ -97,11 +97,21 @@ namespace TinyTactics.Interfaz
         /// </remarks>
         public System.Func<float> fuente;
 
+        /// <summary>
+        /// Cuándo enseñarla, si la fracción no viene de una unidad. Nula = siempre visible.
+        /// </summary>
+        /// <remarks>
+        /// La obra en construcción la quiere siempre encendida —es su barra de progreso— y
+        /// el edificio en pie solo cuando está herido o seleccionado. Dejarlo nulo por
+        /// defecto mantiene el comportamiento que ya tenía la obra sin tocarla.
+        /// </remarks>
+        public System.Func<bool> visible;
+
         void LateUpdate()
         {
             if (fuente != null)
             {
-                Pintar(Mathf.Clamp01(fuente()), true);
+                Pintar(Mathf.Clamp01(fuente()), visible == null || visible());
                 return;
             }
 
