@@ -179,6 +179,57 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-17 · El editor de mapas se queda en la semana 13
+
+**Decisión.** La épica **E13 · Editor de mapas** se mantiene donde estaba: semanas 12-13. Se
+evaluó adelantarla a la 09 y **se descartó**. El calendario no se toca.
+
+**Contexto.** En la semana 08 se construyó el primer trozo del editor —pinceles de recursos
+dentro del panel de partida libre— y quedó claro que el editor completo (panel propio, pinceles
+de terreno, relieve multinivel, escaleras, generadores configurables) es una semana entera de
+trabajo, no un añadido.
+
+**Se consideró adelantarlo a la 09, y el argumento a favor era bueno.** El motivo original para
+ponerlo en la 12 era explícito en el backlog: *«un editor edita un formato de datos, y ese
+formato todavía se está moviendo»*. Ese riesgo ya no existe — `DefinicionMapa` lleva estable
+desde la semana 04, la grilla guarda la altura desde la 03 y los edificios con celdas desde la
+06. La objeción que justificaba esperar se había caído sola.
+
+**Por qué se descarta igualmente.** Adelantarlo obligaba a correr la niebla a la 10 y la IA
+rival a la 11, y eso deja a la IA con **una sola semana antes de PC2** en vez de dos. PC2 es la
+semana 10, vale el 20 % de la nota y pide textualmente *«una partida completa jugable contra un
+bot»*. El editor no puntúa en PC2; el bot sí.
+
+Dicho de otro modo: el argumento técnico para adelantar era válido, pero **el riesgo no era
+técnico, era de calendario**. Y un riesgo de calendario no se resuelve con un buen argumento
+técnico.
+
+**Qué se hace mientras tanto.** Los pinceles de recursos de la semana 08 se quedan, y en la
+semana 08 se adelanta también el **rediseño de los paneles** —botón saliente y animación de
+despliegue—, que es barato, se nota mucho en pantalla y sirve igual para el HUD final de la
+semana 15. Lo caro espera.
+
+Los requisitos completos del editor, tal como los describió Joaquín, quedan recogidos en
+[`SANDBOX.md`](SANDBOX.md) para no reconstruirlos de memoria dentro de cuatro semanas.
+
+**El bloqueo técnico que habrá que resolver en la 13.** El pintado del tilemap y su paleta viven
+en `ConstructorDeMapa`, dentro del ensamblado de **Editor**, que no existe en una build: usa
+`AssetDatabase` para cargar el tileset y resolver el autotiling. Pintar tierra en caliente
+exige, en este orden:
+
+1. **Mover paleta y autotiling a ejecución** — un componente que guarde los sprites del tileset
+   ya recortados y sepa qué pieza corresponde según los ocho vecinos. Es el grueso.
+2. **Repintar por parches** — hoy se pinta el mapa entero de una vez; un pincel tiene que
+   repintar la celda tocada **y sus ocho vecinas**, porque al poner tierra cambian los bordes de
+   las de al lado.
+3. **Relieve de varios niveles** — la grilla ya guarda la altura como número y el pathfinding ya
+   permite un escalón, así que es generalizar el dibujado de la pared: se pinta donde el vecino
+   de arriba sea *más alto*, no solo donde el de abajo sea cero.
+
+El punto 1 beneficia además al generador, que hoy no puede regenerar nada en partida.
+
+---
+
 ### ADR-16 · El panel de pruebas es una herramienta transversal, no una épica
 
 **Decisión.** El panel de trampas (`PanelDePruebas`) no pertenece a ninguna épica. Nace en la

@@ -829,7 +829,7 @@ namespace TinyTactics.Interfaz
         // -----------------------------------------------------------------
 
         /// <summary>Qué hace un botón de la rejilla de comandos.</summary>
-        public enum Accion { Atacar, AtacarAuto, Mover, Detener, Curar, Construir, EntrenarPawn, Cancelar }
+        public enum Accion { Atacar, AtacarAuto, Mover, Detener, Curar, Postura, Construir, EntrenarPawn, Cancelar }
 
         class Boton
         {
@@ -881,6 +881,11 @@ namespace TinyTactics.Interfaz
             {
                 (Accion.Atacar, 0), (Accion.AtacarAuto, 1), (Accion.Detener, 2),
                 (Accion.Mover, 3), (Accion.Curar, 4), (Accion.Construir, 5),
+
+                // Postura comparte casilla con curar, por lo mismo que entrenar la comparte
+                // con atacar: nunca se ven a la vez. Curar es del monje, que no elige postura
+                // —cura y huye, y eso no se negocia— y postura es de la tropa de combate.
+                (Accion.Postura, 4),
 
                 // Cancelar cae siempre en la misma esquina, se esté eligiendo un edificio o
                 // una unidad. Que la salida no se mueva es más importante que aprovechar el
@@ -1181,6 +1186,7 @@ namespace TinyTactics.Interfaz
                 case Accion.Mover: return "Mover  ·  M";
                 case Accion.Detener: return "Detener  ·  S";
                 case Accion.Curar: return "Curar";
+                case Accion.Postura: return "Postura  ·  clic para cambiar  ·  X";
                 case Accion.EntrenarPawn: return "Entrenar pawn  ·  50 oro  ·  P";
                 case Accion.Cancelar: return "Cancelar  ·  Esc";
                 default: return "Construir  ·  B";
@@ -1216,7 +1222,7 @@ namespace TinyTactics.Interfaz
         /// Enseña u oculta el aviso. Con texto nulo se apaga el listón entero en vez de
         /// dejar una cinta vacía flotando sobre los comandos.
         /// </summary>
-        void MostrarAviso(string texto)
+        public void MostrarAviso(string texto)
         {
             bool hay = !string.IsNullOrEmpty(texto);
 
@@ -1239,6 +1245,9 @@ namespace TinyTactics.Interfaz
                 case Accion.AtacarAuto: return tema.iconoAtaqueAuto;
                 case Accion.Mover: return tema.iconoMover;
                 case Accion.Detener: return tema.iconoDetener;
+                // Reutiliza el icono del ataque al avanzar: las dos hablan de lo mismo,
+                // de cuánta iniciativa se le deja a la unidad.
+                case Accion.Postura: return tema.iconoAtaqueAuto;
                 case Accion.Curar: return tema.iconoCurar;
                 case Accion.EntrenarPawn: return tema.iconoEntrenar;
 
@@ -1292,11 +1301,13 @@ namespace TinyTactics.Interfaz
                 else
                 {
                     visible = b.Accion != Accion.Curar &&
+                              b.Accion != Accion.Postura &&
                               b.Accion != Accion.Construir &&
                               b.Accion != Accion.EntrenarPawn &&
                               b.Accion != Accion.Cancelar;
 
                     if (b.Accion == Accion.Curar) visible = hayCurandero;
+                    if (b.Accion == Accion.Postura) visible = !hayCurandero;
                     if (b.Accion == Accion.Construir) visible = hayConstructor;
                 }
 

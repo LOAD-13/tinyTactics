@@ -358,6 +358,14 @@ namespace TinyTactics.Entrada
                 return;
             }
 
+            // La postura no abre ningun modo: se pulsa y cambia. Va aqui y no en el bloque
+            // de acciones que esperan objetivo porque no espera nada.
+            if (teclado.xKey.wasPressedThisFrame && _seleccionadas.Count > 0)
+            {
+                CiclarPostura();
+                return;
+            }
+
             if (EdificioSeleccionado != null && _seleccionadas.Count == 0)
             {
                 if (teclado.pKey.wasPressedThisFrame)
@@ -391,6 +399,13 @@ namespace TinyTactics.Entrada
             _apuntando = null;
 
             Vector3 punto = PuntoEnMundo(pantalla);
+
+            // Ciclar la postura es inmediato y no necesita objetivo: se pulsa y ya.
+            if (accion == Interfaz.PanelDeUnidad.Accion.Postura)
+            {
+                CiclarPostura();
+                return;
+            }
 
             if (accion == Interfaz.PanelDeUnidad.Accion.Curar)
             {
@@ -620,6 +635,62 @@ namespace TinyTactics.Entrada
                 // ataque al avanzar caminaba hasta el punto sin pegarle a nada.
                 var maquina = unidad.GetComponent<Unidades.MaquinaDeEstados>();
                 if (maquina != null) maquina.Vigilar(vigilando);
+            }
+        }
+
+        /// <summary>
+        /// Pasa a la siguiente postura todo lo seleccionado: agresiva, defensiva, quieta.
+        /// </summary>
+        /// <remarks>
+        /// Se cicla con un solo botón en vez de ofrecer tres, y no es por ahorrar sitio: son
+        /// tres estados de una misma cosa —cuánta iniciativa se le deja a la unidad— y tres
+        /// botones independientes invitan a leerlos como tres acciones distintas.
+        ///
+        /// La postura del grupo se decide por la PRIMERA unidad seleccionada y se aplica a
+        /// todas. Ciclando cada una por su cuenta, un grupo mixto no convergería nunca: cada
+        /// pulsación las dejaría igual de desordenadas que antes.
+        /// </remarks>
+        void CiclarPostura()
+        {
+            if (_seleccionadas.Count == 0) return;
+
+            var primera = _seleccionadas[0] != null
+                ? _seleccionadas[0].GetComponent<Unidades.MaquinaDeEstados>()
+                : null;
+
+            if (primera == null) return;
+
+            var siguiente = Siguiente(primera.PosturaActual);
+
+            for (int i = 0; i < _seleccionadas.Count; i++)
+            {
+                var u = _seleccionadas[i];
+                if (u == null || !u.Viva) continue;
+
+                var maquina = u.GetComponent<Unidades.MaquinaDeEstados>();
+                if (maquina != null) maquina.CambiarPostura(siguiente);
+            }
+
+            Interfaz.PanelDeUnidad.Actual?.MostrarAviso(Nombre(siguiente));
+        }
+
+        static Datos.Postura Siguiente(Datos.Postura actual)
+        {
+            switch (actual)
+            {
+                case Datos.Postura.Agresiva: return Datos.Postura.Defensiva;
+                case Datos.Postura.Defensiva: return Datos.Postura.Quieta;
+                default: return Datos.Postura.Agresiva;
+            }
+        }
+
+        static string Nombre(Datos.Postura postura)
+        {
+            switch (postura)
+            {
+                case Datos.Postura.Agresiva: return "Postura agresiva  ·  persigue";
+                case Datos.Postura.Defensiva: return "Postura defensiva  ·  aguanta el sitio";
+                default: return "Postura quieta  ·  no responde";
             }
         }
 

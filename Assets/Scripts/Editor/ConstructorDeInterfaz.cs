@@ -240,12 +240,29 @@ namespace TinyTactics.EditorHerramientas
             // genéricos: es exactamente el mismo dibujo que el pawn carga a la espalda, así
             // que la relación entre lo que se ve en el mapa y el número de arriba es
             // inmediata y no hay que explicarla.
-            tema.iconoRecursoOro =
-                PrepararSprite($"{DirRecursos}/Gold/Gold Resource/Gold_Resource.png", PpuInterfaz);
-            tema.iconoRecursoMadera =
-                PrepararSprite($"{DirRecursos}/Wood/Wood Resource/Wood Resource.png", PpuInterfaz);
-            tema.iconoRecursoCarne =
-                PrepararSprite($"{DirRecursos}/Meat/Meat Resource/Meat Resource.png", PpuInterfaz);
+            // Los tres RECORTADOS a su dibujo. Medido sobre los archivos: la moneda de
+            // Gold_Resource ocupa 24x26 px de un lienzo de 128x128 — el 4 %. El HUD escala el
+            // lienzo entero, asi que la moneda salia minuscula en una caja casi vacia. Es el
+            // mismo fallo del pergamino del cartel de final, otra vez.
+            //
+            // Y el oro cambia de dibujo: pasa de la moneda a la MENA (Gold Stone 4), que
+            // ocupa el 21 % del suyo y tiene silueta reconocible a tamano de icono. Ademas es
+            // lo que el jugador ve en el mapa cuando manda a un pawn a por oro, asi que el
+            // contador y su fuente pasan a ensenar la misma cosa.
+            tema.iconoRecursoOro = Recortar(
+                $"{DirRecursos}/Gold/Gold Stones/Gold Stone 4.png",
+                $"{CarpetaUI}/IconoOro.png", new RectInt(35, 42, 63, 55),
+                Vector4.zero, PpuInterfaz);
+
+            tema.iconoRecursoMadera = Recortar(
+                $"{DirRecursos}/Wood/Wood Resource/Wood Resource.png",
+                $"{CarpetaUI}/IconoMadera.png", new RectInt(9, 18, 47, 28),
+                Vector4.zero, PpuInterfaz);
+
+            tema.iconoRecursoCarne = Recortar(
+                $"{DirRecursos}/Meat/Meat Resource/Meat Resource.png",
+                $"{CarpetaUI}/IconoCarne.png", new RectInt(9, 12, 47, 36),
+                Vector4.zero, PpuInterfaz);
 
             // Los retratos vienen con un margen transparente enorme: la cara ocupa 197 de
             // los 256 px del lienzo. Sin recortar, el hueco del panel se ve medio vacio por

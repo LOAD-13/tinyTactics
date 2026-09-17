@@ -5,6 +5,7 @@ using TinyTactics.Datos;
 using TinyTactics.Edificios;
 using TinyTactics.Entrada;
 using TinyTactics.Interfaz;
+using TinyTactics.Mundo;
 using TinyTactics.Nucleo;
 using TinyTactics.Unidades;
 
@@ -58,6 +59,37 @@ namespace TinyTactics.Pruebas
         /// <summary>¿Está abierto? Lo consultan el cursor y el selector para no pisarse.</summary>
         public bool Abierto { get; private set; }
 
+        [Tooltip("Lo que tarda el panel en desplegarse o replegarse.")]
+        [Range(0.05f, 1f)] public float duracionApertura = 0.22f;
+
+        [Tooltip("Tamaño del botón que sobresale cuando el panel está plegado.")]
+        public float ladoPestana = 46f;
+
+        /// <summary>
+        /// Cuánto está abierto el panel, de 0 a 1. Es lo que se anima.
+        /// </summary>
+        /// <remarks>
+        /// La apertura es un número continuo y no un booleano porque el ancho, la opacidad y
+        /// la posición de la pestaña tienen que moverse juntos. Con un booleano habría que
+        /// llevar tres animaciones en paralelo y sincronizarlas a mano.
+        /// </remarks>
+        float _apertura;
+
+        void Animar()
+        {
+            float destino = Abierto ? 1f : 0f;
+            if (Mathf.Approximately(_apertura, destino)) return;
+
+            // unscaledDeltaTime: el panel controla la velocidad del juego, así que si se
+            // animara con el tiempo del juego se abriría a cámara lenta en pausa — justo
+            // cuando más falta hace poder tocarlo.
+            float paso = Time.unscaledDeltaTime / Mathf.Max(0.02f, duracionApertura);
+            _apertura = Mathf.MoveTowards(_apertura, destino, paso);
+        }
+
+        /// <summary>Curva de entrada: rápida al principio y frenando al final.</summary>
+        static float Suave(float t) => 1f - (1f - t) * (1f - t);
+
         readonly HashSet<int> _inmortales = new HashSet<int>();
         readonly List<Unidad> _temporal = new List<Unidad>();
 
@@ -65,7 +97,7 @@ namespace TinyTactics.Pruebas
         TipoUnidad _tipoAAparecer = TipoUnidad.Guerrero;
         bool _colocando;
 
-        GUIStyle _seccion, _hueco, _texto, _textoVivo, _sello;
+        GUIStyle _seccion, _hueco, _texto, _textoVivo, _sello, _ayuda;
         bool _estilosListos;
 
 
@@ -88,7 +120,10 @@ namespace TinyTactics.Pruebas
 
             if (teclado.f1Key.wasPressedThisFrame) Abierto = !Abierto;
 
+            Animar();
+
             if (_colocando) LeerColocacion();
+            if (_pincel != null || _borrando) LeerPincel();
 
             // La inmortalidad se reaplica cada fotograma porque las unidades nuevas nacen
             // mortales: un bando marcado como inmortal tiene que incluir a las que entrene
@@ -290,43 +325,100 @@ namespace TinyTactics.Pruebas
         /// Lo que ocupa el panel ahora mismo, en píxeles de pantalla. Lo consulta el HUD para
         /// apartar el contador de población.
         /// </summary>
-        public float AnchoVisible() => Abierto ? ancho : 34f;
+        /// <remarks>
+        /// Sale de la apertura animada y no del booleano, así el contador de población se
+        /// aparta <b>acompañando</b> al panel en vez de saltar de golpe al final.
+        /// </remarks>
+        public float AnchoVisible() => Mathf.Lerp(ladoPestana, ancho, Suave(_apertura));
 
-        /// <summary>¿El puntero está sobre el panel? Lo pregunta el selector para no ordenar detrás.</summary>
-        public bool CapturaPuntero(Vector2 pantalla) => pantalla.x <= AnchoVisible();
+        /// <summary>
+        /// Cuánto tiene que apartarse lo que vive pegado al borde izquierdo.
+        /// </summary>
+        /// <remarks>
+        /// Es CERO con el panel plegado, no el ancho del botón. El contador de población va
+        /// pegado a la esquina como en cualquier RTS, y solo se mueve cuando el panel llega a
+        /// empujarlo de verdad. Usar <c>AnchoVisible</c> para esto lo dejaba permanentemente
+        /// desplazado 46 píxeles por un botón que está a media altura y no le estorba nada.
+        /// </remarks>
+        public float Empuje => Mathf.Lerp(0f, ancho, Suave(_apertura));
+
+        /// <summary>
+        /// ¿El puntero está sobre el panel o sobre su botón? Lo pregunta el selector para no
+        /// dar órdenes por detrás de la interfaz.
+        /// </summary>
+        /// <remarks>
+        /// Con el panel plegado, la franja ocupada es solo la del botón y solo a media
+        /// altura: el resto del borde izquierdo vuelve a ser mapa jugable. Antes se reservaba
+        /// una banda de 34 px de arriba abajo, y ahí no se podía ni seleccionar ni ordenar
+        /// nada aunque no hubiera nada dibujado.
+        /// </remarks>
+        public bool CapturaPuntero(Vector2 pantalla)
+        {
+            if (_apertura > 0.01f && pantalla.x <= AnchoVisible()) return true;
+
+            // GUI mide la Y de arriba abajo y el ratón al revés: hay que dar la vuelta antes
+            // de comparar con la banda del botón.
+            float y = Screen.height - pantalla.y;
+            float mitad = ladoPestana * 0.5f;
+
+            return pantalla.x <= ladoPestana &&
+                   Mathf.Abs(y - Screen.height * 0.5f) <= mitad;
+        }
 
         void OnGUI()
         {
             PrepararEstilos();
 
             float alto = Screen.height;
+            float t = Suave(_apertura);
 
             // El fondo es la mesa de madera del pack, dibujada en nueve cortes para que sus
-            // escuadras metalicas conserven el grosor. Antes era el GUI.Box gris de Unity, y
-            // desentonaba con todo lo demas: esto no es una ventana de depuracion que se tira
-            // a la basura, es el futuro modo practica y tiene que parecer parte del juego.
-            var marco = new Rect(0f, 0f, AnchoVisible(), alto);
+            // escuadras metalicas conserven el grosor.
+            //
+            // El panel se DESLIZA desde fuera de la pantalla en vez de encogerse: encogiendo,
+            // las escuadras del marco se juntan y el panel parece aplastarse. Deslizando, el
+            // marco conserva su forma en todo el recorrido.
+            float anchoPanel = ancho;
+            float x = Mathf.Lerp(-anchoPanel, 0f, t);
 
-            if (tema != null && tema.panelFondo != null)
-                DibujoGUI.NueveCortes(marco, tema.panelFondo, 48f);
-            else
-                GUI.Box(marco, GUIContent.none);
+            var marco = new Rect(x, 0f, anchoPanel, alto);
 
-            // La pestaña siempre visible. Un panel que solo se abre con una tecla que nadie
-            // recuerda es un panel que no existe.
-            var pestana = new Rect(6f, 8f, 28f, 28f);
-            if (Boton(pestana, Abierto ? "<" : ">", null, false)) Abierto = !Abierto;
+            if (t > 0.001f)
+            {
+                if (tema != null && tema.panelFondo != null)
+                    DibujoGUI.NueveCortes(marco, tema.panelFondo, 48f);
+                else
+                    GUI.Box(marco, GUIContent.none);
+            }
+
+            // El botón que sobresale. Plegado es LO ÚNICO que se ve del panel, así que tiene
+            // que leerse como un botón y no como el canto de algo: una raya en el borde de la
+            // pantalla no invita a pulsarla, y un panel que solo se abre con una tecla que
+            // nadie recuerda es un panel que no existe.
+            //
+            // Va pegado al borde del panel y viaja con él, así que siempre está donde el ojo
+            // lo dejó.
+            // Con el panel plegado, marco.xMax vale 0: centrado sobre el borde, medio botón
+            // se quedaba fuera de la pantalla. Se ancla al borde y se asoma hacia dentro.
+            var pestana = new Rect(Mathf.Max(2f, marco.xMax - ladoPestana * 0.35f),
+                                   alto * 0.5f - ladoPestana * 0.5f,
+                                   ladoPestana, ladoPestana);
+
+            if (Boton(pestana, Abierto ? "◀" : "▶", null, false)) Abierto = !Abierto;
 
             DibujarSello();
 
-            if (!Abierto) return;
+            if (t < 0.999f) return;
 
             // El area interior se mete por dentro del marco del pack, que mide 48 px de
             // escuadra. Antes empezaba en 14 y la barra de desplazamiento quedaba montada
             // sobre la moldura, como si el panel se derramara por el borde.
-            GUILayout.BeginArea(new Rect(26f, 52f, ancho - 52f, alto - 76f));
-            _scroll = GUILayout.BeginScrollView(_scroll, false, false,
-                                                GUIStyle.none, GUIStyle.none, GUIStyle.none);
+            GUILayout.BeginArea(new Rect(marco.x + 26f, 52f, ancho - 52f, alto - 76f));
+            // La barra de desplazamiento vuelve. Se quito para que no montara sobre la
+            // moldura del marco, pero ahora el panel tiene mas contenido del que cabe y sin
+            // barra no hay forma de saber que queda algo debajo: el ultimo boton se corta y
+            // parece un fallo de dibujo, no una lista larga.
+            _scroll = GUILayout.BeginScrollView(_scroll, false, true);
 
             SeccionBando();
             SeccionRecursos();
@@ -334,6 +426,7 @@ namespace TinyTactics.Pruebas
             SeccionTiempo();
             SeccionPartida();
             SeccionAparecer();
+            SeccionEditar();
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
@@ -525,8 +618,7 @@ namespace TinyTactics.Pruebas
                 _colocando = !vivo;
             }
 
-            if (_colocando)
-                GUILayout.Label("Clic en el mapa · dcho. cancela", _seccion);
+            if (_colocando) Ayuda("Clic en el mapa", "Dcho.: cancelar");
         }
 
         Sprite Icono(TipoRecurso recurso)
@@ -605,6 +697,181 @@ namespace TinyTactics.Pruebas
             GUI.Label(hueco, texto, estilo);
         }
 
+        // -----------------------------------------------------------------
+        // Editor de mapa en caliente
+        // -----------------------------------------------------------------
+
+        /// <summary>Qué está pintando el pincel, o nada.</summary>
+        SemillaMapa? _pincel;
+
+        /// <summary>
+        /// True mientras se está pintando o borrando. Lo consulta la cámara.
+        /// </summary>
+        /// <remarks>
+        /// Con un pincel en la mano, la rueda cambia de variante. Sin esto haría las dos
+        /// cosas a la vez —cambiar el árbol y alejar el mapa— que es el mismo choque de
+        /// gestos que ya hubo con el desplazamiento del panel.
+        /// </remarks>
+        public bool PincelActivo => _pincel != null || _borrando;
+
+        int _varianteDePincel;
+        bool _borrando;
+
+        static readonly SemillaMapa[] Sembrables =
+        {
+            SemillaMapa.Oro, SemillaMapa.Arbol, SemillaMapa.Piedra,
+            SemillaMapa.Arbusto, SemillaMapa.Oveja,
+        };
+
+        /// <summary>
+        /// Los pinceles del editor de mapa.
+        /// </summary>
+        /// <remarks>
+        /// Es el primer trozo de la épica del editor (E13), adelantado aquí porque el panel
+        /// ya existe y porque un mapa hecho a mano vale más que uno que salió del ruido: un
+        /// cuello de botella colocado con intención dice algo, uno aleatorio no.
+        ///
+        /// <b>De momento pinta recursos, no terreno.</b> El pintado del tilemap y su paleta
+        /// viven en el ensamblado de Editor, que no existe en una partida: repintar tierra en
+        /// caliente exige moverlo a ejecución, y eso es un trabajo con entidad propia.
+        /// </remarks>
+        void SeccionEditar()
+        {
+            GUILayout.Label("EDITAR MAPA", _seccion);
+
+            for (int i = 0; i < Sembrables.Length; i++)
+            {
+                var semilla = Sembrables[i];
+                bool vivo = _pincel == semilla && !_borrando;
+
+                if (!BotonConIcono(Nombre(semilla), null, vivo)) continue;
+
+                _pincel = vivo ? (SemillaMapa?)null : semilla;
+                _borrando = false;
+                _varianteDePincel = 0;
+            }
+
+            if (BotonConIcono("Borrar", null, _borrando))
+            {
+                _borrando = !_borrando;
+                if (_borrando) _pincel = null;
+            }
+
+            if (_pincel != null) Ayuda("Clic para sembrar", "Rueda: variante");
+            else if (_borrando) Ayuda("Clic para quitar", "Dcho.: soltar");
+        }
+
+        /// <summary>
+        /// Una nota de ayuda de dos lineas, legible sobre la madera.
+        /// </summary>
+        /// <remarks>
+        /// El estilo de seccion no vale para esto: es ambar, pequeno y esta pensado para
+        /// titulos de dos palabras. Una frase entera con ese estilo se pierde contra las
+        /// vetas del fondo, que es exactamente lo que pasaba.
+        /// </remarks>
+        void Ayuda(string primera, string segunda)
+        {
+            GUILayout.Space(2f);
+            GUILayout.Label(primera, _ayuda);
+            GUILayout.Label(segunda, _ayuda);
+            GUILayout.Space(2f);
+        }
+
+        static string Nombre(SemillaMapa semilla)
+        {
+            switch (semilla)
+            {
+                case SemillaMapa.Oro: return "Mena de oro";
+                case SemillaMapa.Arbol: return "Árbol";
+                case SemillaMapa.Piedra: return "Piedra";
+                case SemillaMapa.Arbusto: return "Arbusto";
+                default: return "Oveja";
+            }
+        }
+
+        /// <summary>
+        /// Lee el ratón mientras hay un pincel o el borrador activos.
+        /// </summary>
+        /// <remarks>
+        /// Se pinta con el botón MANTENIDO y no solo con la pulsación: sembrar un bosque a
+        /// clic por árbol es trabajo de chinos. El límite por celda evita que arrastrar
+        /// despacio siembre diez árboles en el mismo sitio.
+        /// </remarks>
+        void LeerPincel()
+        {
+            var raton = Mouse.current;
+            if (raton == null) return;
+
+            if (raton.rightButton.wasPressedThisFrame)
+            {
+                _pincel = null;
+                _borrando = false;
+                return;
+            }
+
+            // La rueda pasa de una variante a otra, igual que las fachadas de las casas.
+            float rueda = raton.scroll.ReadValue().y;
+            if (_pincel != null && Mathf.Abs(rueda) > 0.01f)
+                _varianteDePincel += (int)Mathf.Sign(rueda);
+
+            if (!raton.leftButton.isPressed) { _ultimaCelda = null; return; }
+
+            Vector2 pantalla = raton.position.ReadValue();
+            if (CapturaPuntero(pantalla)) return;
+
+            var camara = Camera.main;
+            var mundo = MundoJuego.Actual;
+            if (camara == null || mundo == null || mundo.Grilla == null) return;
+
+            Vector3 punto = camara.ScreenToWorldPoint(new Vector3(pantalla.x, pantalla.y, 0f));
+            punto.z = 0f;
+
+            var celda = mundo.Grilla.MundoACelda(punto);
+            if (_ultimaCelda == celda) return;
+
+            _ultimaCelda = celda;
+
+            if (_borrando) Borrar(punto);
+            else Sembrar(celda);
+        }
+
+        Vector2Int? _ultimaCelda;
+
+        void Sembrar(Vector2Int celda)
+        {
+            var catalogo = CatalogoDeRecursos.Actual;
+            if (catalogo == null) return;
+
+            var mundo = MundoJuego.Actual;
+            if (mundo == null || mundo.Grilla == null) return;
+
+            // No se siembra sobre agua ni sobre algo que ya está ocupado: un árbol dentro de
+            // un lago o encima de una casa es un mapa que no se puede jugar, y el editor no
+            // debería poder producir eso ni por accidente.
+            if (!mundo.Grilla.Transitable(celda.x, celda.y)) return;
+
+            catalogo.Sembrar(_pincel.Value, _varianteDePincel, celda);
+        }
+
+        /// <summary>
+        /// Quita el nodo que haya bajo el punto y devuelve su terreno.
+        /// </summary>
+        /// <remarks>
+        /// Libera la grilla con el mismo camino que usa un pawn al talar un árbol. Borrar sin
+        /// liberar dejaría celdas bloqueadas por algo que ya no está: un muro invisible en
+        /// mitad del mapa, que es de los fallos más difíciles de relacionar con su causa.
+        /// </remarks>
+        void Borrar(Vector3 punto)
+        {
+            var nodo = NodoRecurso.NodoEn(punto, 1.1f);
+            if (nodo == null) return;
+
+            var mundo = MundoJuego.Actual;
+            if (mundo != null) mundo.LiberarRecurso(nodo.celda, nodo.radioBloqueo);
+
+            Destroy(nodo.gameObject);
+        }
+
         void PrepararEstilos()
         {
             if (_estilosListos) return;
@@ -641,6 +908,17 @@ namespace TinyTactics.Pruebas
 
             _textoVivo = new GUIStyle(_texto) { fontStyle = FontStyle.Bold };
             _textoVivo.normal.textColor = new Color(0.74f, 1f, 0.62f);
+
+            // Blanco puro y centrado, con sitio propio. Las notas de ayuda son lo unico del
+            // panel que el jugador tiene que LEER en vez de reconocer de un vistazo.
+            _ayuda = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true,
+            };
+            _ayuda.normal.textColor = Color.white;
 
             _sello = new GUIStyle(GUI.skin.label)
             {

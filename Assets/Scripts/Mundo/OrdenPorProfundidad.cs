@@ -43,16 +43,42 @@ namespace TinyTactics.Mundo
                  "del muro (ADR-12).")]
         public float desplazamientoY;
 
+        [Tooltip("Desempata a los que caen en el mismo escalón. Lo asigna el propio " +
+                 "componente al despertar; no se toca a mano.")]
+        [SerializeField] int _desempate;
+
         SpriteRenderer _sprite;
         int _ultimo = int.MinValue;
 
-        void Awake() => _sprite = GetComponent<SpriteRenderer>();
+        void Awake()
+        {
+            _sprite = GetComponent<SpriteRenderer>();
+
+            // Desempate estable por objeto. Dos cosas en el mismo escalón de profundidad
+            // comparten orden, y ante un empate el motor dibuja en el orden que quiere —que
+            // puede cambiar de un fotograma a otro. El resultado es el parpadeo entre dos
+            // sprites que se vio en la exposición de la semana 06.
+            //
+            // Es un valor FIJO por objeto, no aleatorio por fotograma: lo que hace falta no
+            // es que el orden sea el correcto —dentro del mismo decímetro da igual quién va
+            // delante— sino que sea SIEMPRE EL MISMO.
+            _desempate = _reparto++ % 3;
+        }
+
+        /// <summary>
+        /// Contador para repartir los desempates en orden. Se usa en vez del identificador
+        /// del objeto porque las dos formas de obtenerlo estan marcadas como obsoletas en
+        /// Unity 6, y porque un contador reparte parejo mientras que un identificador puede
+        /// dejar a tres vecinos en el mismo grupo.
+        /// </summary>
+        static int _reparto;
 
         void LateUpdate()
         {
             if (_sprite == null) return;
 
-            int orden = Calcular(alto, transform.position.y - desplazamientoY) + extra;
+            int orden = Calcular(alto, transform.position.y - desplazamientoY)
+                        + extra + _desempate;
             if (orden == _ultimo) return;
 
             _ultimo = orden;

@@ -44,6 +44,13 @@ namespace TinyTactics.Nucleo
         void RecibirDano(int cantidad, Unidad agresor);
 
         /// <summary>
+        /// Qué lleva puesto. Es lo que la tabla de contadores mira para decidir el
+        /// multiplicador, y por eso vive en la interfaz y no solo en la unidad: un edificio
+        /// también tiene armadura, la suya es <c>Fortificada</c>.
+        /// </summary>
+        Datos.TipoArmadura Armadura { get; }
+
+        /// <summary>
         /// True si es una unidad. Lo consultan las reglas que solo valen para unidades: la
         /// curación del monje y la respuesta al ser agredido.
         /// </summary>

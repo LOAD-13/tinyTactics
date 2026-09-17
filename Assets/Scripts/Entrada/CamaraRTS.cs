@@ -108,7 +108,8 @@ namespace TinyTactics.Entrada
             // camara y el panel no se movia: dos acciones compitiendo por el mismo gesto.
             var pruebas = Pruebas.PanelDePruebas.Actual;
             if (pruebas != null && Mouse.current != null &&
-                pruebas.CapturaPuntero(Mouse.current.position.ReadValue()))
+                (pruebas.PincelActivo ||
+                 pruebas.CapturaPuntero(Mouse.current.position.ReadValue())))
                 return;
 
             var mouse = Mouse.current;

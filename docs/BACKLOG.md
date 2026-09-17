@@ -23,7 +23,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E10` | Presentación — audio, VFX, UI | 14-15 | ⚪ Pendiente |
 | `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
 | `E12` | PvP LAN *(condicional — compuerta S11)* | 12-14 | ⚫ Condicional |
-| `E13` | Editor de mapas | 12-13 | ⚪ Pendiente |
+| `E13` | Editor de mapas | 12-13 | 🔵 Empezada *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
 
 Leyenda: 🔵 en curso · 🟢 cerrada · ⚪ pendiente · ⚫ condicional
 
@@ -1151,10 +1151,174 @@ ganar y se puede perder.
 > entren completas.
 
 ### Semana 08 — El desenlace (E06, parte B)
-El proyectil impacta de verdad: arco, vuelo y fallo si el objetivo se mueve · el monje cura
-aliados solo y huye en vez de pelear · triángulo de contadores entre tipos de unidad ·
-**panel de pruebas v2**: día/tarde/noche, forzar victoria o derrota, reiniciar partida,
-terminar la obra seleccionada, ver grilla, rutas y alcances en ejecución.
+
+> 📌 **Arrastrada de la semana 07:** HU-047 quedó con un criterio sin cumplir —«la postura se
+> cambia desde el panel de la unidad seleccionada»—. Entra aquí como HU-058.
+
+> ⛔ **Descartado tras discutirlo.** El proyectil con impacto real (arco, vuelo y fallo si el
+> objetivo se mueve) estaba planificado y **se retira del alcance**. Un arquero que falla
+> contra objetivos móviles y que no puede tocar edificios es un arquero que nadie entrena, y
+> la complejidad de usarlo dejaría de compensar. La flecha se queda como está: el daño se
+> resuelve al terminar la animación y la flecha lo explica en pantalla.
+
+### HU-057 · Las unidades entrenadas no se apilan
+**Épica:** E06 · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] Varias unidades entrenadas seguidas salen **repartidas en abanico**, no una encima de otra.
+- [ ] Dos unidades quietas en el mismo sitio no intercambian su orden de dibujo.
+
+**Nota técnica.** Fallo detectado en la exposición de la semana 06, y son **dos causas a la
+vez**. Todas las unidades nacían en la misma celda: con la posición idéntica, el empuje blando
+no tiene ninguna dirección hacia la que separarlas; y con la Y idéntica comparten
+`sortingOrder`, y un empate deja el orden en manos del motor, que puede cambiarlo cada
+fotograma. Se arregla repartiendo la salida **y** añadiendo un desempate estable por objeto.
+
+---
+
+### HU-058 · Posturas en el panel *(arrastrada de la semana 07)*
+**Épica:** E06 · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] El panel de la unidad seleccionada permite cambiar entre agresiva, defensiva y quieta.
+- [ ] Un solo botón que cicla, con atajo de teclado.
+- [ ] Aplicado a un grupo, todas acaban en la misma postura.
+
+**Nota de diseño.** Se cicla con un botón en vez de ofrecer tres: son tres estados de una misma
+cosa —cuánta iniciativa se le deja a la unidad— y tres botones invitan a leerlos como tres
+acciones distintas. La postura del grupo se decide por la primera unidad y se aplica a todas;
+ciclando cada una por su cuenta, un grupo mixto no convergería nunca.
+
+---
+
+### HU-059 · El monje cura solo y se repliega
+**Épica:** E06 · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] Busca aliados heridos en su radio y los cura sin que se lo pidan.
+- [ ] Elige al que peor está **por fracción de vida**, no por vida absoluta.
+- [ ] No cura por encima del 95 %.
+- [ ] Al recibir daño se repliega al centro de entrega más cercano.
+
+**Nota de diseño.** La fracción y no el valor absoluto: un guerrero de 140 al que le quedan 60
+está mejor que un arquero de 70 al que le quedan 30, aunque en puntos tenga el doble. Curar al
+que peor está es curar al que se va a morir, que es para lo que sirve un monje.
+
+---
+
+### HU-060 · Triángulo de contadores
+**Épica:** E06 · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] Tipos de ataque (cortante, perforante, flecha) y de armadura (ligera, pesada, asta,
+      fortificada) en la ficha de cada unidad.
+- [ ] Multiplicadores en un `ScriptableObject`, editables sin recompilar.
+- [ ] El triángulo se cumple: **lancero > guerrero > arquero > lancero**.
+- [ ] Ningún multiplicador baja de 0,75.
+- [ ] **Los edificios reciben daño completo de todos los tipos.**
+- [ ] Sin tabla cargada, todo multiplica por 1 y el juego sigue.
+
+**Nota de diseño.** Los multiplicadores son suaves a propósito. Un contador duro convierte el
+combate en un acertijo de composición en vez de en una decisión táctica, y además invalidaría
+de golpe el balance de las cinco unidades, que lleva ajustado desde la semana 04 sin tabla.
+
+La columna de fortificada va entera a 1: penalizar a las flechas contra edificios haría del
+arquero una unidad que no puede participar en la mitad de la partida, y una unidad que solo
+sirve la mitad del tiempo es una unidad que nadie entrena.
+
+---
+
+### HU-061 · Realimentación de impacto
+**Épica:** E06 · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] Unidades y edificios destellan al recibir un golpe.
+- [ ] El destello **aclara** el sprite, no lo pinta de blanco: el color del bando se sigue viendo.
+- [ ] Una obra a medio construir no destella.
+
+**Nota técnica.** Un golpe se ve hoy como una barra que baja, y con veinte unidades peleando no
+se entiende quién le está pegando a quién. Que el destello sea multiplicativo importa: pintar
+de blanco plano borraría de qué facción es la unidad justo en el momento en que más importa
+saberlo.
+
+El destello vive dentro de la máquina de estados por el ADR-11 —es la única que toca el dibujo
+de la unidad—: un segundo componente escribiendo el color pelearía con el desvanecido de la
+muerte, y ganaría el que escribiera el último.
+
+---
+
+### HU-062 · Iconos de recurso legibles
+**Épica:** E06 · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] Los tres iconos del HUD se recortan a su dibujo.
+- [ ] El oro pasa de la moneda a la **mena**.
+
+**Nota técnica.** Medido sobre los archivos: la moneda de `Gold_Resource` ocupa 24x26 px de un
+lienzo de 128x128 — el **4 %**. El HUD escala el lienzo entero, así que salía minúscula en una
+caja casi vacía. Es el mismo fallo del pergamino del cartel de final, otra vez. La mena ocupa
+el 21 % del suyo y además es lo que el jugador ve en el mapa: el contador y su fuente pasan a
+enseñar la misma cosa.
+
+---
+
+### HU-063 · Plantillas de recurso para sembrar en caliente
+**Épica:** E13 *(adelantada)* · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] El generador deja una plantilla apagada de cada cosa sembrable, con hasta cuatro variantes.
+- [ ] Un nodo sembrado en partida bloquea la grilla igual que uno del generador.
+
+**Nota técnica.** Las plantillas **clonan nodos que ya están en el mapa** en vez de construirse
+desde cero. Configurar un árbol requiere acertar con el recurso, el radio de bloqueo, los
+tocones, los segundos de resto y la especie; una segunda copia de ese código se desincroniza
+del original a la primera corrección y el editor produciría árboles que no se comportan como
+los del generador. Copiando uno de verdad, la plantilla es correcta por construcción.
+
+---
+
+### HU-064 · Pinceles de recursos en el panel de partida libre
+**Épica:** E13 *(adelantada)* · **Semana:** 08
+
+**Criterios de aceptación**
+- [ ] Pinceles de mena de oro, árbol, piedra, arbusto y oveja.
+- [ ] Se pinta con el botón **mantenido**, una vez por celda.
+- [ ] La rueda cambia de variante; el clic derecho suelta el pincel.
+- [ ] No se siembra sobre agua ni sobre terreno ocupado.
+- [ ] Borrador que quita el nodo bajo el cursor **y libera su terreno**.
+- [ ] Con el pincel en la mano, la rueda no hace zoom a la cámara.
+
+**Nota de alcance.** Es el primer trozo de la épica E13. Se adelanta desde la semana 12 porque
+el argumento que la ponía allí —«el editor edita un formato de datos, y ese formato todavía se
+está moviendo»— ya no aplica: `DefinicionMapa` lleva estable desde la semana 04 y los edificios
+con celdas desde la 06.
+
+> ⛔ **Fuera de alcance, y por un motivo técnico concreto.** El pincel **no pinta terreno ni
+> relieve**. El pintado del tilemap y su paleta viven en el ensamblado de Editor, que no existe
+> en una partida: repintar tierra en caliente exige mover ese generador a ejecución, y eso es
+> un trabajo con entidad propia. Queda anotado como el primer paso de la E13 completa.
+
+> ⛔ **El guardado de mapas tampoco entra.** Guardar mapas sin ningún sitio donde elegirlos no
+> le sirve a nadie: el menú principal y la selección de mapa son la semana 12, y es ahí donde
+> guardar empieza a significar algo.
+
+---
+
+**Meta de la semana:** cerrar la épica del combate y dejarla balanceada. La IA de la semana 10
+se construye encima de esto, así que el combate tiene que estar quieto antes de PC2.
+
+> **Una sola rama para la parte B:** `feat/E06-cierre`.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-057 | Las unidades entrenadas no se apilan | bajo |
+| HU-058 | Posturas en el panel *(arrastrada)* | bajo |
+| HU-059 | El monje cura solo y se repliega | medio |
+| HU-060 | Triángulo de contadores | alto |
+| HU-061 | Realimentación de impacto | bajo |
+| HU-062 | Iconos de recurso legibles | bajo |
+| HU-063 | Plantillas de recurso | medio |
+| HU-064 | Pinceles de recursos en el panel | medio |
 
 ### Semana 09 — Niebla de guerra y minimapa (E07)
 Grilla de visibilidad por facción · radios de visión · tres estados de niebla · render de la niebla ·

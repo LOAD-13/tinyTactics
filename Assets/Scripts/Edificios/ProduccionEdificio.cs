@@ -202,6 +202,28 @@ namespace TinyTactics.Edificios
         // -----------------------------------------------------------------
 
         /// <summary>Saca la unidad terminada junto al edificio que la fabricó.</summary>
+        /// <summary>
+        /// Desplazamientos, en tiles, para repartir las unidades recién salidas.
+        /// </summary>
+        /// <remarks>
+        /// El orden importa: primero el centro, luego los lados y después la fila de atrás.
+        /// Así una sola unidad sale por la puerta y no de lado, que es lo que se espera, y el
+        /// abanico solo se nota cuando de verdad hay varias.
+        /// </remarks>
+        static readonly Vector2[] Abanico =
+        {
+            new Vector2(0f, 0f),
+            new Vector2(1.1f, 0f),
+            new Vector2(-1.1f, 0f),
+            new Vector2(0.55f, -1.1f),
+            new Vector2(-0.55f, -1.1f),
+            new Vector2(2.2f, 0f),
+            new Vector2(-2.2f, 0f),
+            new Vector2(1.65f, -1.1f),
+            new Vector2(-1.65f, -1.1f),
+            new Vector2(0f, -2.2f),
+        };
+
         void Sacar(DatosUnidad datos)
         {
             if (datos == null) return;
@@ -225,7 +247,19 @@ namespace TinyTactics.Edificios
             // celda pisable más cercana antes de soltar la unidad: nacer sobre terreno
             // bloqueado no es un problema de dibujo, es que el pathfinding no tiene por dónde
             // empezar.
-            Vector3 salida = _edificio.PuntoDeSalida;
+            // Cada unidad sale por un sitio DISTINTO, repartidas en abanico delante del
+            // edificio. Antes todas nacían en la misma celda, y de ahí salían los dos
+            // síntomas que se vieron en la exposición de la semana 06:
+            //
+            //  · Con la posición exactamente igual, el empuje blando no tiene ninguna
+            //    dirección hacia la que separarlas y se quedan encajadas una dentro de otra.
+            //  · Con la Y exactamente igual comparten orden de dibujo, y un empate deja el
+            //    orden en manos del motor: los dos sprites se intercambian cada fotograma.
+            //
+            // Repartir la salida ataca las dos a la vez, y además es lo que hace cualquier
+            // RTS: las unidades nuevas se abren en vez de amontonarse en la puerta.
+            Vector3 salida = _edificio.PuntoDeSalida +
+                             (Vector3)Abanico[_producidas % Abanico.Length];
 
             var grilla = Mundo.MundoJuego.Actual != null ? Mundo.MundoJuego.Actual.Grilla : null;
             if (grilla != null &&

@@ -19,6 +19,8 @@ MonoBehaviour:
   alcance: 0.8
   invulnerable: 0
   postura: 0
+  ataque: 0
+  armadura: 1
   correa: 12
   velocidad: 2.6
   radio: 0.44
