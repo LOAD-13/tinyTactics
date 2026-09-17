@@ -311,6 +311,11 @@ namespace TinyTactics.EditorHerramientas
             var mundo = go.AddComponent<MundoJuego>();
             mundo.definicion = definicion;
 
+            // La tabla de contadores es una regla del juego, no un dato de unidad: se enchufa
+            // una sola vez desde aqui y MundoJuego la publica al despertar.
+            mundo.contadores = AssetDatabase.LoadAssetAtPath<TinyTactics.Datos.TablaDeContadores>(
+                "Assets/Datos/Contadores.asset");
+
             // La economía cuelga del mismo objeto que el mundo: las dos son estado global
             // de la partida y tenerlas juntas evita buscar dónde vive cada cosa.
             var economia = go.AddComponent<Economia>();
@@ -731,6 +736,16 @@ namespace TinyTactics.EditorHerramientas
 
             PrepararCriadero(mundo, ovejas.Padre, mapa, definicion.alto);
 
+            // Plantillas para que el editor pueda sembrar en caliente.
+            PrepararSemillas(raiz, new[]
+            {
+                (SemillaMapa.Arbol, arboles.Padre),
+                (SemillaMapa.Oro, oro.Padre),
+                (SemillaMapa.Piedra, rocas.Padre),
+                (SemillaMapa.Arbusto, arbustos.Padre),
+                (SemillaMapa.Oveja, ovejas.Padre),
+            }, definicion.alto);
+
             ColocarBases(raiz, mapa, definicion.alto, rnd);
             SembrarNubes(raiz, definicion, rnd);
 
@@ -802,6 +817,64 @@ namespace TinyTactics.EditorHerramientas
                 nodo.radioBloqueo = RadioEstorbo;
                 nodo.soloDespejar = true;
                 nodo.extraccionesFijas = 1;
+            }
+        }
+
+        /// <summary>
+        /// Deja una plantilla apagada de cada cosa sembrable, para el editor en caliente.
+        /// </summary>
+        /// <remarks>
+        /// <b>Clona nodos que YA estan en el mapa</b> en vez de construir plantillas desde
+        /// cero, y esa es toda la gracia. Configurar un arbol requiere acertar con el
+        /// recurso, el radio de bloqueo, los tocones, los segundos de resto y la especie; una
+        /// segunda copia de ese codigo se desincroniza del original a la primera correccion y
+        /// el editor empezaria a producir arboles que no se comportan como los del generador.
+        /// Copiando uno de verdad, la plantilla es correcta por construccion.
+        ///
+        /// Se toman hasta cuatro variantes de cada tipo, tomadas espaciadas a lo largo de los
+        /// hijos: los arboles del pack son cuatro especies distintas y agarrar los cuatro
+        /// primeros del mapa daria cuatro veces la misma con mucha probabilidad.
+        /// </remarks>
+        static void PrepararSemillas(Transform raiz,
+                                     (SemillaMapa semilla, Transform padre)[] fuentes,
+                                     int alto)
+        {
+            var mundo = Object.FindFirstObjectByType<MundoJuego>();
+            if (mundo == null) return;
+
+            var catalogo = mundo.GetComponent<CatalogoDeRecursos>();
+            if (catalogo == null) catalogo = mundo.gameObject.AddComponent<CatalogoDeRecursos>();
+
+            var carpeta = new GameObject("PlantillasRecurso").transform;
+            carpeta.SetParent(raiz, false);
+
+            const int Maximo = 4;
+
+            foreach (var (semilla, padre) in fuentes)
+            {
+                if (padre == null || padre.childCount == 0) continue;
+
+                int cuantas = Mathf.Min(Maximo, padre.childCount);
+                int paso = Mathf.Max(1, padre.childCount / cuantas);
+
+                for (int v = 0; v < cuantas; v++)
+                {
+                    var origen = padre.GetChild(v * paso);
+                    if (origen == null) continue;
+
+                    var copia = Object.Instantiate(origen.gameObject, carpeta);
+                    copia.name = $"Semilla_{semilla}_{v}";
+
+                    // Fuera de la pantalla y apagada: una plantilla encima del mapa se ve
+                    // como un objeto duplicado en cualquier gizmo del editor.
+                    copia.transform.position = new Vector3(-60f, -60f, 0f);
+
+                    var profundidad = copia.GetComponent<OrdenPorProfundidad>();
+                    if (profundidad != null) profundidad.alto = alto;
+
+                    copia.SetActive(false);
+                    catalogo.Registrar(semilla, v, copia);
+                }
             }
         }
 

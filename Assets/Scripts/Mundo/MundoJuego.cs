@@ -48,8 +48,19 @@ namespace TinyTactics.Mundo
         /// <summary>Instancia activa. Hay un único mundo por escena.</summary>
         public static MundoJuego Actual { get; private set; }
 
+        [Header("Balance")]
+        [Tooltip("Tabla de contadores entre tipos de ataque y de armadura. La asigna el " +
+                 "generador de la escena.")]
+        public Datos.TablaDeContadores contadores;
+
         void Awake()
         {
+            // La tabla de contadores se publica ANTES que nada: es una regla del juego y
+            // cualquiera que pegue un golpe en el primer fotograma tiene que encontrarla
+            // puesta. Si falta, todo multiplica por uno y el juego sigue — una tabla ausente
+            // no puede romper el combate, solo dejarlo como estaba antes de existir.
+            Datos.TablaDeContadores.Usar(contadores);
+
             Actual = this;
 
             if (definicion == null)
@@ -174,6 +185,23 @@ namespace TinyTactics.Mundo
         /// puñado de celdas y es correcto por construcción, que en pathfinding vale más que
         /// ser rápido: una celda mal abierta manda unidades a atravesar un bosque.
         /// </remarks>
+        /// <summary>
+        /// Marca en la grilla el estorbo de un nodo recien sembrado.
+        /// </summary>
+        /// <remarks>
+        /// La contrapartida de <see cref="LiberarRecurso"/>, y hace falta desde que el
+        /// editor siembra en caliente: un arbol puesto a mano tiene que bloquear exactamente
+        /// igual que uno del generador, o el editor produciria mapas que se comportan
+        /// distinto a los generados y nadie sabria por que.
+        /// </remarks>
+        public void OcuparRecurso(NodoRecurso nodo)
+        {
+            if (Grilla == null || nodo == null) return;
+
+            float radio = nodo.radioBloqueo > 0.01f ? nodo.radioBloqueo : radioEstorbo;
+            Grilla.MarcarObstaculo(nodo.celda, radio);
+        }
+
         public void LiberarRecurso(Vector2Int centro, float radio)
         {
             if (Grilla == null || Mapa == null) return;
