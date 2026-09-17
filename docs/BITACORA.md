@@ -13,13 +13,18 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ## Semana 07 — El conflicto (E06, parte A)
 **Entrega:** domingo 20/09/2026 · **Expo:** lunes 21/09/2026
-**Tag:** _(pendiente)_ `v0.7.0-s07` · **Rama:** `feat/E06-combat`
+**Tag:** [`v0.7.0-s07`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.7.0-s07) · **Rama:** `feat/E06-combat`
 
 ### Lo prometido
 Once HUs: HU-046 responder al ser atacado · HU-047 correa y posturas · HU-048 vida y
 destrucción de edificios · HU-049 la torre con arquero guarnecido · HU-050 torres rivales ·
 HU-051 panel de pruebas v1 · HU-052 iconos del panel · HU-053 retirar el poste ·
 HU-054 estadísticas · HU-055 condición de derrota · HU-056 pantalla de victoria y derrota.
+
+### Lo entregado
+Las once, más tres arreglos que salieron de las pruebas y no estaban en el alcance: la
+marca de clic derecho, el cursor de ataque y el derrumbe con explosiones. La partida
+cambia de naturaleza: ya se puede ganar y se puede perder.
 
 ### Lo que costó de verdad
 
@@ -211,7 +216,7 @@ que el mío: la población no es un recurso, es un límite. Junto al oro y la ma
 
 ## Semana 05 — Economía · HITO 1 · PC1
 **Entrega:** domingo 06/09/2026 · **Expo:** lunes 07/09/2026 · **Expone:** Joaquín
-**Tag:** _(pendiente)_ `v0.5.0-s05`
+**Tag:** [`v0.5.0-s05`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.5.0-s05)
 
 ### Lo prometido
 HU-026 nodos que se agotan · HU-027 almacén por facción · HU-028 el castillo como entidad
@@ -305,7 +310,7 @@ ya estaba plantado allí y el grupo se iba reptando. Ahora el que anda es el que
 
 ## Semana 04 — Unidades y animación
 **Entrega:** domingo 30/08/2026 · **Expo:** lunes 31/08/2026 · **Expone:** Raúl
-**Tag:** _(pendiente)_ `v0.4.0-s04`
+**Tag:** [`v0.4.0-s04`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.4.0-s04)
 
 ### Lo prometido
 HU-019 animador de estados · HU-020 máquina de estados · HU-021 las cinco unidades en los

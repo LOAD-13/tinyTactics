@@ -39,6 +39,19 @@ Entrega **domingo**, exposición **lunes**. Expone un solo integrante, rotando.
 
 ---
 
+### Nota · el editor de mapas se evaluó adelantar y se dejó donde estaba
+
+En la semana 08 se planteó traer la épica E13 (editor de mapas) a la semana 09. **Se descartó**
+y el calendario queda intacto: ver [ADR-17](ARQUITECTURA.md#adr-17).
+
+El motivo no fue técnico —el formato de datos ya está estable y el editor se podría construir
+hoy— sino de calendario: adelantarlo dejaba a la IA rival con una sola semana antes de PC2 en
+vez de dos, y PC2 pide una partida jugable contra un bot.
+
+Lo que sí se adelantó a la semana 08: los pinceles de recursos y el rediseño de los paneles.
+
+---
+
 ## 2. Hitos y evaluaciones
 
 | Hito | Semana | Peso | Qué debe estar corriendo |

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using TinyTactics.Datos;
 using TinyTactics.Nucleo;
 using TinyTactics.Unidades;
 
@@ -200,7 +201,16 @@ namespace TinyTactics.Edificios
             // —igual que la del arquero a pie— y esa decisión es de la semana 08, cuando el
             // proyectil pase a impactar de verdad. Que las dos se comporten igual hoy es lo
             // que hará que el cambio de la semana que viene valga para las dos a la vez.
-            presa.RecibirDano(datos != null ? datos.danoAtaque : 20, null);
+            // La torre dispara flechas, así que pasa por la misma tabla que un arquero: le
+            // cuesta contra armadura pesada y le rinde contra las astas. Una torre exenta de
+            // los contadores sería la única cosa del juego contra la que no hay respuesta
+            // táctica, solo más números.
+            int golpe = datos != null ? datos.danoAtaque : 20;
+
+            float factor = TablaDeContadores.Factor(TipoAtaque.Flecha,
+                                                    ((IObjetivo)presa).Armadura);
+
+            presa.RecibirDano(Mathf.Max(1, Mathf.RoundToInt(golpe * factor)), null);
         }
 
         void LanzarFlecha(Vector3 destino)

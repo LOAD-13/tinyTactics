@@ -97,6 +97,11 @@ namespace TinyTactics.Edificios
         {
             Operativo = true;
 
+            // El color de referencia se relee AHORA. El que se guardó al despertar puede ser
+            // el translúcido del andamio, porque Unity no garantiza el orden entre el Awake
+            // del edificio y el de la obra que vive en el mismo objeto.
+            if (_pintor != null) _colorEnPie = _pintor.color;
+
             // La obra acaba de soltar la barra: ahora cuenta vida en vez de martillazos.
             EnchufarBarra(true);
         }
@@ -261,6 +266,11 @@ namespace TinyTactics.Edificios
 
         int IObjetivo.Faccion => faccion;
         bool IObjetivo.EsUnidad => false;
+
+        // Todos los edificios son fortificados, sin excepción. Darle armadura distinta a una
+        // casa que a un castillo sería un matiz que el jugador no puede ver ni deducir, y
+        // que solo serviría para que el balance dependiera de algo invisible.
+        TipoArmadura IObjetivo.Armadura => TipoArmadura.Fortificada;
         bool IObjetivo.Vivo => !_cayendo && VidaActual > 0;
         Vector3 IObjetivo.Posicion => PuntoDeEntrega;
 
@@ -290,12 +300,55 @@ namespace TinyTactics.Edificios
             // no hay agresor: −1 significa «se cayó solo», que es exactamente lo que pasa.
             if (agresor != null) _ultimoAgresor = agresor.faccion;
 
+            Destellar();
+
             if (_vida > 0) return;
 
             Derribar();
         }
 
         int _ultimoAgresor = -1;
+
+        [Tooltip("Lo que dura el destello al recibir un golpe.")]
+        [Range(0.02f, 0.4f)] public float duracionDestello = 0.10f;
+
+        float _destelloHasta;
+        bool _destellando;
+        SpriteRenderer _pintor;
+        Color _colorEnPie = Color.white;
+
+        /// <summary>
+        /// Enciende el destello de golpe.
+        /// </summary>
+        /// <remarks>
+        /// <b>Una obra a medias no destella.</b> Mientras se levanta, quien escribe el color
+        /// del sprite es <see cref=ObraEnConstruccion/>, que lo va opacando a martillazos.
+        /// Si el destello también escribiera, el último en hacerlo ganaría: al apagarse
+        /// dejaría el andamio con la opacidad del final, y al repintar la obra se comería el
+        /// destello. Un solo dueño del color en cada momento.
+        /// </remarks>
+        void Destellar()
+        {
+            if (_cayendo || !Operativo) return;
+            _destelloHasta = Time.time + duracionDestello;
+        }
+
+        void Update()
+        {
+            // El derrumbe y la obra escriben el color cada fotograma; el destello solo puede
+            // hablar cuando ninguno de los dos tiene la palabra.
+            if (_cayendo || !Operativo || _pintor == null) return;
+
+            bool destella = Time.time < _destelloHasta;
+            if (destella == _destellando) return;
+
+            _destellando = destella;
+
+            _pintor.color = destella
+                ? new Color(_colorEnPie.r * 2.2f, _colorEnPie.g * 2.2f,
+                            _colorEnPie.b * 2.2f, _colorEnPie.a)
+                : _colorEnPie;
+        }
 
         /// <summary>
         /// Lo tira abajo: libera el terreno, deja de contar para todo y se desmorona.
@@ -517,6 +570,14 @@ namespace TinyTactics.Edificios
         void Awake()
         {
             _anillo = transform.Find("Seleccion");
+            _pintor = GetComponent<SpriteRenderer>();
+
+            // El color de partida se guarda en el Awake y no se relee después: la obra en
+            // construcción lo baja a translúcido mientras se levanta, y si el destello
+            // tomara ESE como referencia, un edificio golpeado a medio construir se quedaría
+            // transparente para siempre al apagarse el destello.
+            if (_pintor != null) _colorEnPie = _pintor.color;
+
             MostrarAnillo(false);
             EnchufarBarra();
         }
