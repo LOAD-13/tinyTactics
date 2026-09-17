@@ -50,6 +50,11 @@ namespace TinyTactics.EditorHerramientas
             foreach (TipoUnidad tipo in System.Enum.GetValues(typeof(TipoUnidad)))
                 salida.Add(Escribir(tipo));
 
+            // La tabla de contadores se rehace con las fichas y no aparte: los tipos de
+            // ataque y armadura se asignan aqui, asi que tabla y fichas tienen que salir
+            // siempre del mismo boton o acaban contando cosas distintas.
+            ConstruirContadores();
+
             AssetDatabase.SaveAssets();
             return salida;
         }
@@ -81,6 +86,77 @@ namespace TinyTactics.EditorHerramientas
         }
 
         /// <summary>Estadísticas de la tabla §4 del GDD y tiras de animación del pack.</summary>
+        const string RutaContadores = "Assets/Datos/Contadores.asset";
+
+        /// <summary>
+        /// Crea o reescribe la tabla de contadores.
+        /// </summary>
+        /// <remarks>
+        /// Los multiplicadores son SUAVES a proposito: ninguno baja de 0,75. Un contador duro
+        /// convierte el combate en un acertijo de composicion en vez de en una decision
+        /// tactica, y ademas invalidaria de golpe el balance de las cinco unidades, que lleva
+        /// ajustado desde la semana 04 sin tabla.
+        ///
+        /// La columna de FORTIFICADA esta toda a 1: los edificios reciben dano completo de
+        /// todo el mundo. Penalizar a las flechas contra edificios haria del arquero una
+        /// unidad que no puede participar en la mitad de la partida, y una unidad que solo
+        /// sirve la mitad del tiempo es una unidad que nadie entrena.
+        ///
+        /// El triangulo que sale: LANCERO &gt; GUERRERO &gt; ARQUERO &gt; LANCERO.
+        /// </remarks>
+        static TablaDeContadores ConstruirContadores()
+        {
+            var tabla = AssetDatabase.LoadAssetAtPath<TablaDeContadores>(RutaContadores);
+
+            if (tabla == null)
+            {
+                tabla = ScriptableObject.CreateInstance<TablaDeContadores>();
+                AssetDatabase.CreateAsset(tabla, RutaContadores);
+            }
+
+            tabla.filas = new[]
+            {
+                // El guerrero parte armaduras ligeras y se defiende contra todo lo demas.
+                new TablaDeContadores.Fila
+                {
+                    ataque = TipoAtaque.Cortante,
+                    contraLigera = 1.35f, contraPesada = 1.0f,
+                    contraAsta = 1.25f, contraFortificada = 1.0f,
+                },
+
+                // La lanza esta hecha para atravesar placa: es su unica ventaja y es grande.
+                new TablaDeContadores.Fila
+                {
+                    ataque = TipoAtaque.Perforante,
+
+                    // 0,85 contra ligera. Medido en partida: con 1,0 el lancero ganaba al
+                    // arquero, que es justo el lado del triangulo que no se cumplia. Con 22
+                    // de dano contra 70 de vida lo mataba en 3,2 golpes, y el arquero
+                    // necesitaba 5 disparos para bajar sus 100. La lanza esta hecha para
+                    // placa, no para gente sin armadura.
+                    contraLigera = 0.85f, contraPesada = 1.5f,
+                    contraAsta = 1.0f, contraFortificada = 1.0f,
+                },
+
+                // La flecha rebota en el metal pesado y castiga a quien va con poca proteccion
+                // y una lanza larga, que es el lancero.
+                new TablaDeContadores.Fila
+                {
+                    ataque = TipoAtaque.Flecha,
+                    contraLigera = 1.15f, contraPesada = 0.75f,
+
+                    // 1,55 contra asta, subido desde 1,35 por lo mismo: el arquero tiene que
+                    // ganarle al lancero y con 1,35 no le llegaba. Es el multiplicador mas
+                    // alto de la tabla a proposito — es el unico lado del triangulo donde la
+                    // unidad favorecida tambien es la mas fragil de las dos.
+                    contraAsta = 1.55f, contraFortificada = 1.0f,
+                },
+            };
+
+            EditorUtility.SetDirty(tabla);
+            return tabla;
+        }
+
         static void Rellenar(DatosUnidad d, TipoUnidad tipo)
         {
             switch (tipo)
@@ -91,6 +167,7 @@ namespace TinyTactics.EditorHerramientas
                     d.velocidad = 2.6f; d.radio = 0.44f; d.carnePorSegundo = 0.20f;
                     d.oro = 90; d.madera = 10; d.poblacion = 2;
                     d.postura = Postura.Agresiva; d.correa = 12f;
+                    d.ataque = TipoAtaque.Cortante; d.armadura = TipoArmadura.Pesada;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Warrior/Warrior_Idle.png", 7f),
@@ -105,6 +182,7 @@ namespace TinyTactics.EditorHerramientas
                     d.velocidad = 2.8f; d.radio = 0.46f; d.carnePorSegundo = 0.20f;
                     d.oro = 80; d.madera = 0; d.poblacion = 2;
                     d.postura = Postura.Agresiva; d.correa = 12f;
+                    d.ataque = TipoAtaque.Perforante; d.armadura = TipoArmadura.Asta;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Lancer/Lancer_Idle.png", 8f),
@@ -130,6 +208,7 @@ namespace TinyTactics.EditorHerramientas
                     // engancha desde muy lejos y con la correa larga se pasaria la partida
                     // andando. Aun asi 8, no 4: con 4 abandonaba casi al primer paso.
                     d.postura = Postura.Agresiva; d.correa = 8f;
+                    d.ataque = TipoAtaque.Flecha; d.armadura = TipoArmadura.Ligera;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Archer/Archer_Idle.png", 7f),
@@ -145,6 +224,7 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 120; d.madera = 0; d.poblacion = 3;
                     // El monje cura: no tiene con que responder y perseguir es suicidarse.
                     d.postura = Postura.Quieta; d.correa = 0f;
+                    d.ataque = TipoAtaque.Cortante; d.armadura = TipoArmadura.Ligera;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Monk/Idle.png", 7f),
@@ -161,6 +241,7 @@ namespace TinyTactics.EditorHerramientas
                     // El pawn nace quieto: su trabajo es recolectar. Al recibir un golpe
                     // huye al castillo en vez de pelear.
                     d.postura = Postura.Quieta; d.correa = 0f;
+                    d.ataque = TipoAtaque.Cortante; d.armadura = TipoArmadura.Ligera;
                     // Doce tiras: la tabla del pawn se indexa por estado y por recurso.
                     // El pack ya trae las tres herramientas y los tres sacos, así que la
                     // economía entera se dibuja sin una sola pieza de arte nueva.

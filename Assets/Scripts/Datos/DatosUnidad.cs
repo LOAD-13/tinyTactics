@@ -55,6 +55,21 @@ namespace TinyTactics.Datos
     }
 
     /// <summary>
+    /// Con qué pega una unidad. La mitad de la tabla de contadores.
+    /// </summary>
+    public enum TipoAtaque { Cortante, Perforante, Flecha }
+
+    /// <summary>
+    /// Qué lleva puesto. La otra mitad.
+    /// </summary>
+    /// <remarks>
+    /// Son cuatro y no cinco: el pawn y el monje comparten armadura ligera porque las dos
+    /// son unidades que no están para pelear, y darle a cada una la suya sería inventar una
+    /// distinción que el jugador nunca llegaría a notar.
+    /// </remarks>
+    public enum TipoArmadura { Ligera, Pesada, Asta, Fortificada }
+
+    /// <summary>
     /// Una animación de la unidad: qué tira usa, a qué ritmo y si se repite.
     ///
     /// La ruta lleva <c>{color}</c>, que se sustituye por el nombre del bando en el pack
@@ -114,6 +129,12 @@ namespace TinyTactics.Datos
 
         [Tooltip("Con qué postura nace la unidad. Militares en agresiva; pawns, quietos.")]
         public Postura postura = Postura.Agresiva;
+
+        [Tooltip("Con qué pega. Decide la columna de la tabla de contadores.")]
+        public TipoAtaque ataque = TipoAtaque.Cortante;
+
+        [Tooltip("Qué lleva puesto. Decide la fila de la tabla de contadores.")]
+        public TipoArmadura armadura = TipoArmadura.Ligera;
 
         [Tooltip("Casillas que puede alejarse de donde empezó a perseguir antes de rendirse " +
                  "y volver. Solo limita la persecución automática, nunca una orden del jugador.")]

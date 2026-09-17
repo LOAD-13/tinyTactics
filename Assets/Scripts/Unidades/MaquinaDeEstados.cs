@@ -192,6 +192,8 @@ namespace TinyTactics.Unidades
                 if (Estado == EstadoUnidad.Muriendo) return;
             }
 
+            Repintar();
+
             // Con objetivo vivo se vuelve a golpear en cuanto la tira anterior acaba: una
             // orden mantiene a la unidad pegando sola, sin tener que repetir el clic.
             Buscar();
@@ -543,7 +545,16 @@ namespace TinyTactics.Unidades
         void Buscar()
         {
             if (_objetivo != null || Time.time < _proximaBusqueda) return;
-            if (_unidad.datos == null || _unidad.datos.dano <= 0) return;
+            if (_unidad.datos == null || _unidad.datos.dano == 0) return;
+
+            // El monje tiene daño NEGATIVO y por eso salía por aquí sin hacer nada. Tiene su
+            // propia búsqueda: no caza enemigos, caza heridos propios.
+            if (_unidad.datos.dano < 0)
+            {
+                _proximaBusqueda = Time.time + intervaloVigilancia;
+                BuscarHerido();
+                return;
+            }
 
             // En marcha por orden del jugador no se busca nada. La bandera se apaga sola al
             // llegar: se comprueba aquí y no en el movimiento para no obligar a ese
@@ -629,6 +640,77 @@ namespace TinyTactics.Unidades
         }
 
         /// <summary>
+        /// El aliado más malherido que esté a tiro. Es la búsqueda del monje.
+        /// </summary>
+        /// <remarks>
+        /// Se elige por <b>fracción de vida</b> y no por vida absoluta, y la diferencia
+        /// importa: un guerrero de 140 al que le quedan 60 está mejor que un arquero de 70 al
+        /// que le quedan 30, aunque en puntos tenga el doble. Curar al que peor está es curar
+        /// al que se va a morir, que es para lo que sirve un monje.
+        ///
+        /// No se cura por encima de un 95 %: rematar una barra casi llena gasta la espera de
+        /// quince segundos en nada, y cuando de verdad haga falta el monje estará esperando.
+        /// </remarks>
+        void BuscarHerido()
+        {
+            if (Time.time < _listoParaCurar) return;
+
+            RegistroDeUnidades.VecinasEnRadio(transform.position, radioVigilancia, _cerca);
+
+            Unidad peor = null;
+            float peorFraccion = 0.95f;
+
+            for (int i = 0; i < _cerca.Count; i++)
+            {
+                var u = _cerca[i];
+                if (u == null || !u.Viva || u == _unidad) continue;
+                if (u.faccion != _unidad.faccion || u.datos == null) continue;
+
+                float fraccion = u.Vida / (float)Mathf.Max(1, u.datos.vidaMaxima);
+                if (fraccion >= peorFraccion) continue;
+
+                peorFraccion = fraccion;
+                peor = u;
+            }
+
+            if (peor != null) Enganchar(peor);
+        }
+
+        [Tooltip("Segundos mínimos entre dos repliegues. Sin esto, cada golpe recibido vuelve " +
+                 "a pedir ruta y la unidad tiembla en el sitio en vez de irse.")]
+        [Range(0.5f, 5f)] public float esperaRepliegue = 2f;
+
+        float _proximoRepliegue;
+
+        /// <summary>
+        /// Sale corriendo hacia el centro de entrega más cercano del propio bando.
+        /// </summary>
+        /// <remarks>
+        /// Es lo mismo que hace el pawn, pero el pawn lo resuelve en su recolector porque
+        /// además tiene que soltar el trabajo. El monje no recolecta nada, así que su huida
+        /// vive aquí — y aquí es donde la heredará cualquier unidad futura que tampoco esté
+        /// para pelear.
+        /// </remarks>
+        void Replegarse()
+        {
+            if (Time.time < _proximoRepliegue) return;
+
+            var refugio = Edificios.Edificio.EntregaMasCercana(transform.position, _unidad.faccion);
+            if (refugio == null || _movimiento == null) return;
+
+            _proximoRepliegue = Time.time + esperaRepliegue;
+
+            Cancelar();
+
+            var mundo = Mundo.MundoJuego.Actual;
+            if (mundo == null || mundo.Grilla == null) return;
+
+            var celda = mundo.Grilla.MundoACelda(refugio.PuntoDeEntregaDesde(transform.position));
+            if (mundo.Grilla.CeldaTransitableCercana(celda, 10, out celda))
+                _movimiento.IrA(celda);
+        }
+
+        /// <summary>
         /// Alguien acaba de herir a esta unidad. Decide si responde, si huye o si ni se
         /// inmuta.
         /// </summary>
@@ -657,15 +739,64 @@ namespace TinyTactics.Unidades
                 return;
             }
 
-            // Sin daño positivo no hay respuesta posible, y aquí la guarda no es cosmética:
-            // el monje tiene daño NEGATIVO, así que engancharlo a su agresor lo mandaría a
-            // curar al enemigo que lo está matando. Que huya es de la semana 08; que no
-            // cure al rival, de ahora mismo.
-            if (_unidad.datos == null || _unidad.datos.dano <= 0) return;
+            // Sin daño positivo no hay respuesta posible. Engancharlo a su agresor mandaría
+            // al monje a CURAR al enemigo que lo está matando, porque su daño es negativo.
+            if (_unidad.datos == null || _unidad.datos.dano == 0) return;
+
+            // El monje se repliega, como el pawn. Cuesta 120 de oro y tres de población: es
+            // la unidad más cara del juego y la que menos tiene que hacer en una pelea.
+            if (_unidad.datos.dano < 0) { Replegarse(); return; }
 
             if (PosturaActual == Postura.Quieta) return;
 
             Enganchar(agresor);
+        }
+
+        [Tooltip("Lo que dura el destello al recibir un golpe.")]
+        [Range(0.02f, 0.4f)] public float duracionDestello = 0.09f;
+
+        float _destelloHasta;
+        bool _destellando;
+
+        /// <summary>
+        /// Enciende el destello de golpe. La llama <see cref="Unidad.RecibirDano"/>.
+        /// </summary>
+        /// <remarks>
+        /// Vive aquí y no en un componente aparte por el ADR-11: la máquina es la única que
+        /// toca el dibujo de la unidad. Un segundo componente escribiendo el color pelearía
+        /// con el desvanecido de la muerte, y el que escribiera el último ganaría — que es la
+        /// clase de fallo que solo se ve cuando una unidad muere justo al recibir el golpe.
+        /// </remarks>
+        public void Destellar()
+        {
+            if (Muerta) return;
+            _destelloHasta = Time.time + duracionDestello;
+        }
+
+        /// <summary>
+        /// Aplica o retira el destello. Solo escribe cuando cambia.
+        /// </summary>
+        /// <remarks>
+        /// Un golpe se ve hoy como una barra que baja, y con veinte unidades peleando no se
+        /// entiende quién le está pegando a quién. El destello es lo que convierte el combate
+        /// en algo legible sin añadir una sola pieza de arte.
+        /// </remarks>
+        void Repintar()
+        {
+            if (_sprite == null) return;
+
+            bool destella = Time.time < _destelloHasta;
+            if (destella == _destellando) return;
+
+            _destellando = destella;
+
+            // Multiplicativo y por encima de 1: aclara el sprite conservando su silueta y su
+            // color de bando. Pintarlo de blanco plano borraría de qué facción es justo en el
+            // momento en que más importa saberlo.
+            _sprite.color = destella
+                ? new Color(_colorInicial.r * 2.2f, _colorInicial.g * 2.2f,
+                            _colorInicial.b * 2.2f, _colorInicial.a)
+                : _colorInicial;
         }
 
         /// <summary>Lanza solo la animación de golpe, sin objetivo ni efecto.</summary>
@@ -735,6 +866,13 @@ namespace TinyTactics.Unidades
                     Volver();
                     return;
                 }
+
+                // Si ya no se está moviendo, la persecución anterior TERMINÓ. Sin esta
+                // línea la bandera solo se apagaba al acertar un golpe, así que una unidad
+                // que llegaba y se quedaba un pelo fuera de alcance se plantaba para siempre
+                // creyendo que seguía caminando. Había que reordenarle el ataque a mano, un
+                // clic por espadazo.
+                if (_movimiento != null && !_movimiento.EnMovimiento) _persiguiendo = false;
 
                 // Todavía lejos: caminar hacia él. Se pide la ruta una sola vez, no cada
                 // frame; el buscador va en cola y pedirla sesenta veces por segundo la
@@ -849,7 +987,28 @@ namespace TinyTactics.Unidades
                 return;
             }
 
-            objetivo.RecibirDano(_unidad.Dano, _unidad);
+            objetivo.RecibirDano(Golpe(objetivo), _unidad);
+        }
+
+        /// <summary>
+        /// El daño de un golpe concreto, con el contador ya aplicado.
+        /// </summary>
+        /// <remarks>
+        /// Se resuelve aquí y no en <c>Unidad.Dano</c> porque el multiplicador depende de
+        /// <b>contra quién</b> se pega, y la unidad no lo sabe hasta que tiene objetivo.
+        /// <c>Dano</c> sigue siendo lo que la unidad hace en abstracto —con el hambre ya
+        /// descontada— y esto es lo que hace hoy, contra esto.
+        ///
+        /// Se redondea hacia arriba con un mínimo de 1: un contador malo reduce el daño,
+        /// nunca lo anula. Una unidad que pega cero contra otra está rota, no contrarrestada.
+        /// </remarks>
+        int Golpe(IObjetivo objetivo)
+        {
+            int baseDano = _unidad.Dano;
+            if (baseDano <= 0 || _unidad.datos == null) return baseDano;
+
+            float factor = TablaDeContadores.Factor(_unidad.datos.ataque, objetivo.Armadura);
+            return Mathf.Max(1, Mathf.RoundToInt(baseDano * factor));
         }
 
         /// <summary>

@@ -23,20 +23,32 @@ namespace TinyTactics.Unidades
         int IObjetivo.Faccion => faccion;
         bool IObjetivo.Vivo => Viva;
         bool IObjetivo.EsUnidad => true;
+
+        TipoArmadura IObjetivo.Armadura =>
+            datos != null ? datos.armadura : TipoArmadura.Ligera;
         Vector3 IObjetivo.Posicion => transform.position;
 
         /// <summary>
-        /// Distancia entre centros, tal cual.
+        /// Distancia al CUERPO del objetivo: entre centros menos su radio.
         /// </summary>
         /// <remarks>
-        /// Descartado restar el radio, que sería más fiel al dibujo: los alcances de las
-        /// cinco unidades están ajustados contra esta medida desde la semana 04, y cambiar
-        /// la vara alargaría el cuerpo a cuerpo medio tile sin que nadie lo pidiera. Quien
-        /// mide al borde es el edificio, porque ahí no hay nada ajustado que romper y medir
-        /// al centro sería directamente imposible de alcanzar.
+        /// En la semana 07 se midió entre centros a propósito, para no mover unos alcances
+        /// que llevaban ajustados desde la semana 04. Fue un error, y este es el caso que lo
+        /// demuestra: <b>dos guerreros no podían alcanzarse</b>.
+        ///
+        /// Las cifras. El guerrero tiene 0,80 de alcance y 0,44 de radio; el empuje blando
+        /// separa a dos unidades por la suma de sus radios, o sea 0,88. Midiendo entre
+        /// centros, dos guerreros pegados están «a 0,88» y nunca entran en un alcance de
+        /// 0,80: se creen fuera, intentan acercarse, el empuje los devuelve, y solo conectan
+        /// en los fotogramas sueltos en que el empuje aún no ha terminado de separarlos.
+        ///
+        /// Restando el radio del objetivo la medida pasa a ser «cuánto falta para tocarlo»,
+        /// que es lo que un alcance significa. Y no rompe nada de lo ajustado: el arquero
+        /// pasa de 5,00 a 5,44 efectivos, un 9 %, mientras que el cuerpo a cuerpo pasa de
+        /// imposible a funcionar.
         /// </remarks>
         float IObjetivo.DistanciaDesde(Vector3 punto) =>
-            Vector2.Distance(punto, transform.position);
+            Mathf.Max(0f, Vector2.Distance(punto, transform.position) - Radio);
 
         Vector3 IObjetivo.PuntoDeAtaqueDesde(Vector3 origen) => transform.position;
 
@@ -150,6 +162,8 @@ namespace TinyTactics.Unidades
             if (datos != null && datos.invulnerable) return;
 
             _vida = Mathf.Max(0, _vida - cantidad);
+
+            if (_maquina != null) _maquina.Destellar();
 
             if (_vida > 0)
             {
