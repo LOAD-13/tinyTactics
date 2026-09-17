@@ -60,9 +60,9 @@ MonoBehaviour:
   iconoAtaque: {fileID: 21300000, guid: 23450567bedfb472eb6f8efd4ad515da, type: 3}
   iconoOro: {fileID: 21300000, guid: 7a0f4fab77b344f7b9386a7c87e492b1, type: 3}
   iconoVelocidad: {fileID: 21300000, guid: fae718ae59ba4491e94b6063a1d127ab, type: 3}
-  iconoRecursoOro: {fileID: 21300000, guid: b9b23c4ec748b4bc7bb3afb24a2ed197, type: 3}
-  iconoRecursoMadera: {fileID: 21300000, guid: a1c1e555a725e4b15b512516e3dec87c, type: 3}
-  iconoRecursoCarne: {fileID: 21300000, guid: 7ae60e0e3b7fd419aa2a0b999da0fb07, type: 3}
+  iconoRecursoOro: {fileID: 21300000, guid: 4cb411fcf85ccbb419947350a9aba105, type: 3}
+  iconoRecursoMadera: {fileID: 21300000, guid: 4135b392aa0342844bb19e2c201361d4, type: 3}
+  iconoRecursoCarne: {fileID: 21300000, guid: f23a579e83025f148bc7ce3d5b122db6, type: 3}
   botones:
   - {fileID: 21300000, guid: c53b42628d261ec428f78efc52edc8af, type: 3}
   - {fileID: 21300000, guid: f4405bcb4f2419c459517ae8ba840999, type: 3}
