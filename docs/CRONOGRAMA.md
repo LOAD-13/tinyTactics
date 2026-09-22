@@ -26,7 +26,7 @@ Entrega **domingo**, exposición **lunes**. Expone un solo integrante, rotando.
 | **06** | 13/09 | 14/09 | **Construcción y población.** Colocar casa/cuartel con costo, límite de población, entrenar pawns. Patrones documentados. | Kiara |
 | **07** | 20/09 | 21/09 | **Combate cuerpo a cuerpo.** Guerrero y lancero: HP, daño, barras de vida, muerte. Targeting con grilla espacial. | Raúl |
 | **08** | 27/09 | 28/09 | **Combate a distancia.** Arquero con proyectiles, monje que cura, triángulo de contadores. Cuartel/campo de tiro/monasterio. | Joaquín |
-| **09** | 04/10 | 05/10 | **Niebla de guerra + minimapa.** Visibilidad por facción, minimapa con unidades. | Kiara |
+| **09** | 04/10 | 05/10 | **Niebla de guerra + minimapa + hora del día.** Visibilidad por facción, minimapa con unidades, ciclo de día y noche. | Kiara |
 | **10** | 11/10 | 12/10 | **🏁 HITO 2 · PC2 — IA rival v1.** Capa estratégica + táctica. El bot recolecta, construye, entrena y ataca. Primera partida completa vs bot. | Raúl |
 | **11** | 18/10 | 19/10 | **IA v2 + ⚖️ COMPUERTA PvP.** 3 dificultades, IA que defiende. Decisión go/no-go documentada. | Joaquín |
 | **12** | 25/10 | 26/10 | **Partida completa.** Victoria/derrota por castillo, menú principal, selección de mapa y nº de bandos. | Kiara |

@@ -11,6 +11,168 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 09 — La percepción (E07) · épica cerrada
+**Entrega:** domingo 04/10/2026 · **Expo:** lunes 05/10/2026 · **Expone:** Kiara
+**Tag:** [`v0.9.0-s09`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.9.0-s09) · **Rama:** `feat/E07-niebla-y-minimapa`
+
+### Lo prometido
+Diez HUs: HU-065 grilla de visibilidad por facción · HU-066 radios de visión en las fichas ·
+HU-067 la niebla dibujada · HU-068 lo que está en niebla no se dibuja · HU-069 la niebla como
+regla de juego · HU-070 minimapa con el terreno · HU-071 el minimapa respeta la niebla ·
+HU-072 clic y arrastre mueven la cámara · HU-073 día, mediodía y noche · HU-074 la percepción
+en el panel de partida libre.
+
+### Lo entregado
+Las diez, más dos fallos que solo salieron jugando y que no estaban en el alcance. El ciclo
+del día venía **arrastrado de la semana anterior**, sin épica asignada, y entró aquí porque
+comparte toda la maquinaria con la niebla: la misma lámina multiplicativa, el mismo shader, el
+mismo orden de dibujado. Montarlo por separado habría sido montarlo dos veces.
+
+### Lo que costó de verdad
+
+**El bando con el que arrancas la partida no veía nada, y los otros dos sí.** El síntoma no
+apuntaba a ninguna parte. La causa: el tamaño del mapa se fijaba en el `Start` de la niebla,
+pero el minimapa también tiene `Start` y **Unity no garantiza cuál corre primero**. Cuando
+corría antes el del minimapa, éste pedía el mapa de visibilidad del jugador y se creaba con el
+ancho y el alto todavía a cero —un mapa de **una** celda— que se quedaba cacheado para toda la
+partida. Los demás bandos iban bien porque sus mapas nacían más tarde, ya con el tamaño puesto.
+
+Es el mismo fallo que el cartel de final de la semana 07: dar por bueno un orden de arranque
+que el motor no promete. Se arregló igual que entonces —engancharse cuando hace falta en vez de
+cuando toca— y además se comprueba el tamaño al entregar un mapa, por si alguien vuelve a
+pedirlo demasiado pronto.
+
+**Los pawns no le pegaban al castillo. Y es, otra vez, el fallo de la semana 08.** La distancia
+a un edificio se mide contra su huella, y una unidad no puede meter su centro dentro del muro:
+lo más cerca que llega es su propio radio. Un pawn tiene 0,50 de alcance y 0,42 de radio, así
+que se planta a unos 0,56 del edificio y **nunca entra en su propio alcance**. El guerrero sí
+llegaba, con 0,80.
+
+Alcance, radio y dónde puede aparcar el pathfinding son tres medidas correctas por separado que
+nadie había medido una contra otra. Es literalmente el mismo enunciado que la semana pasada,
+con otros tres números. Contra unidades ya estaba resuelto descontando el radio del objetivo;
+faltaba el caso del edificio, que es el mismo problema visto desde el otro lado.
+
+**La niebla es dura en el espacio y suave en el tiempo, y esa frase costó dos intentos.** Las
+celdas se abrían de golpe y en bloques de diez por segundo: se veía el cuadriculado
+encendiéndose a saltos. El instinto era difuminar el borde, y habría sido un error —un
+difuminado sobre pixel art no cae en la misma rejilla que los tiles y se delata solo. Lo que
+molestaba no era el cuadrado, era el **parpadeo**. Se separaron los dos ritmos: *qué se ve* se
+recalcula diez veces por segundo, *cómo se dibuja* corre cada fotograma, y cada celda se
+desvanece hacia su estado. El escalón de un tile sigue ahí, a propósito.
+
+**El manto de nubes: construido, probado y apagado.** Tapar lo inexplorado con las ocho nubes
+pintadas a mano del pack tenía un argumento bueno —que la frontera de la niebla la dibujara el
+mismo artista que dibujó el bosque de al lado— y se montó entero: repartidas por rejilla,
+recicladas fuera del encuadre y balanceándose en el sitio en vez de ir a la deriva, porque una
+nube que viaja acaba tapando terreno ya explorado. **Jugado, tapaba demasiado:** la partida
+empezaba sin poder leer el mapa, y eso agobia en vez de intrigar. El código se queda con su
+interruptor en el panel, apagado. Apagar algo que funciona es reversible; borrarlo no.
+
+Las nubes grandes sí se quedaron, pero en otro sitio: como ambiente cruzando el mapa. Van a la
+mitad de velocidad que las pequeñas, y esa es toda la gracia — una nube grande que cruza al
+mismo ritmo se lee como un sprite grande moviéndose; a la mitad de velocidad se lee como una
+nube que está más alta. Paralaje sin cámara de paralaje.
+
+**Un campo, un responsable.** Para tapar unidades enteras no se tocó `enabled`, que ya lo
+manejan la selección y la barra de vida, sino `forceRenderingOff`, que existe justo para vetos
+de visibilidad y que no usa nadie más. Y la noche no tiñe sprites: multiplica una lámina por
+encima. Las dos decisiones son el [ADR-11](ARQUITECTURA.md#adr-11) aplicado a otros campos.
+
+### Decisiones
+- [ADR-18](ARQUITECTURA.md#adr-18): la niebla es una textura de un píxel por celda, dura en el
+  espacio y suave en el tiempo.
+- [ADR-19](ARQUITECTURA.md#adr-19): lo que oscurece el mapa se multiplica por encima; no se
+  tiñe sprite a sprite.
+- [ADR-20](ARQUITECTURA.md#adr-20): la niebla es una regla de juego, no un filtro de imagen.
+
+### Lo que se decidió NO hacer
+- **Que la noche recorte los radios de visión.** Es una mecánica de verdad y es tentadora, pero
+  movería en silencio el balance cerrado en la semana 08 y lo movería solo durante un tercio de
+  cada partida. Sin antorchas ni unidades que vean de noche, la oscuridad no añade una decisión
+  — solo incomodidad, y por eso la noche es además la hora más corta de las tres.
+- **Empezar con el mapa entero explorado.** Se probó encendido. La partida era más cómoda, pero
+  la niebla dejaba de contar nada y el minimapa pasaba a ser una foto completa del mapa desde el
+  segundo cero. Se quedó **solo la mitad que hacía falta**: las bases de salida se ven desde el
+  primer fotograma aunque estén en sombra. Se regala *dónde* empieza cada rival —que en un mapa
+  simétrico se deduce mirando el tuyo— y no qué hay entre medias.
+
+---
+
+## Semana 08 — El triángulo (E06, parte B) · épica cerrada
+**Entrega:** domingo 27/09/2026 · **Expo:** lunes 28/09/2026
+**Tag:** [`v0.8.0-s08`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.8.0-s08) · **Rama:** `feat/E06-cierre`
+
+### Lo prometido
+Ocho HUs: HU-057 las unidades entrenadas no se apilan · HU-058 posturas en el panel
+*(arrastrada de la 07)* · HU-059 el monje cura solo y se repliega · HU-060 triángulo de
+contadores · HU-061 realimentación de impacto · HU-062 iconos de recurso legibles ·
+HU-063 plantillas de recurso · HU-064 pinceles de recursos en el panel.
+
+### Lo entregado
+Las ocho, más el rediseño del panel lateral y **dos fallos de combate que solo aparecieron
+al jugar**. La épica E06 queda cerrada: el combate ya no es una cuestión de quién pega más
+fuerte, sino de a quién mandas contra quién.
+
+### Lo que costó de verdad
+
+**Dos guerreros no podían alcanzarse, y la decisión que lo causó se había tomado por
+prudencia.** El guerrero tiene 0,80 de alcance y 0,44 de radio; el empuje entre unidades las
+separa por la suma de los radios, o sea 0,88. Midiendo entre centros, dos guerreros pegados
+están «a 0,88» y nunca entran en un alcance de 0,80: solo conectaban en los fotogramas
+sueltos en que el empuje aún no había terminado de separarlos. Lo incómodo es de dónde venía:
+en la semana 07 se eligió medir entre centros **precisamente para no tocar unos alcances ya
+ajustados**. La lección no es «mide en vez de estimar», que ya estaba aprendida. Es que
+**medir dos sistemas por separado no basta si nadie los mide uno contra otro.**
+
+**Y encima la persecución se quedaba atascada.** `_persiguiendo` solo se limpiaba con un
+golpe acertado, así que una unidad que llegaba un pelo corta no volvía a intentarlo nunca:
+había que clicar una vez por espadazo. Los dos fallos juntos daban el síntoma que Raúl
+describió —«el guerrero lo dejo a 25 % y deja de pegar»— y ninguno de los dos se ve leyendo
+el código sin jugarlo.
+
+**El triángulo salió de jugar, no de la hoja de cálculo.** La primera tabla daba ×1,0 a la
+lanza contra armadura ligera, y con eso el lancero le ganaba al arquero: justo el lado del
+triángulo que tenía que cumplirse al revés. Se bajó a ×0,85 y se subió la flecha contra asta
+a ×1,55. Los tres duelos se probaron uno a uno.
+
+**Ningún contador baja de ×0,75, y es una decisión de diseño.** Lo peor que puede pasar es un
+25 % menos de daño, no la mitad. Un contador duro convierte el combate en un acertijo de
+composición —si no traes la unidad correcta no hay nada que hacer— en vez de en una decisión
+táctica, donde traerla es una ventaja y no un requisito.
+
+**El destello aclara, no pinta de blanco.** Es multiplicativo, así que conserva la silueta y
+el color del bando. Pintar blanco plano borraría de qué facción es la unidad justo en el
+momento en que más importa saberlo. Y vive dentro de la máquina de estados, no en un
+componente aparte, porque dos componentes escribiendo el color del mismo sprite se pelearían
+con el desvanecido de la muerte y ganaría el que escribiera el último ([ADR-11](ARQUITECTURA.md#adr-11)).
+
+**Las plantillas del editor clonan un árbol de verdad.** Configurar uno exige acertar con el
+recurso, el radio de bloqueo, el tocón, los segundos de resto y la especie. Una segunda copia
+de esa configuración se desincroniza a la primera corrección; copiando un nodo que ya está en
+el mapa, la plantilla es correcta por construcción.
+
+**El fallo que vio la clase, corregido.** Las unidades entrenadas se apilaban y sus sprites se
+intercalaban, y eran **dos causas a la vez**: todas nacían en la misma celda —y con la
+posición idéntica el empuje no tiene dirección hacia la que separarlas— y con la altura
+idéntica compartían orden de dibujo, que el motor resuelve como quiere y cambiando cada
+fotograma. Ahora salen en abanico y cada objeto lleva un desempate estable.
+
+### Decisiones
+- [ADR-17](ARQUITECTURA.md#adr-17): el editor de mapas **se queda en la semana 13**.
+
+### Lo que se decidió NO hacer
+- **Penalizar a las flechas contra edificios.** La propuesta era que asediar fuera trabajo de
+  cuerpo a cuerpo. Se descartó: un arquero que no puede participar en la mitad de la partida
+  es una unidad que nadie entrena. La columna de edificios va entera a ×1.
+- **Adelantar el editor de mapas a la semana 09.** El argumento a favor era bueno —el motivo
+  original para dejarlo tarde, que el formato de datos se movía, ya no aplica— pero
+  adelantarlo dejaba a la IA con una semana antes de PC2 en vez de dos, y PC2 pide una partida
+  jugable contra un bot. **El argumento técnico era válido; el riesgo no era técnico, era de
+  calendario, y un riesgo de calendario no se resuelve con un buen argumento técnico.**
+
+---
+
 ## Semana 07 — El conflicto (E06, parte A)
 **Entrega:** domingo 20/09/2026 · **Expo:** lunes 21/09/2026
 **Tag:** [`v0.7.0-s07`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.7.0-s07) · **Rama:** `feat/E06-combat`
