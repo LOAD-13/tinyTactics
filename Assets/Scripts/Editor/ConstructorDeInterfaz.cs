@@ -579,6 +579,11 @@ namespace TinyTactics.EditorHerramientas
             go.AddComponent<HudRecursos>().tema = tema;
             go.AddComponent<CursorJuego>().tema = tema;
 
+            // El minimapa va en el lienzo, con el HUD y el panel de unidad, y no con OnGUI:
+            // necesita escalar con la resolucion igual que ellos, y una RawImage es
+            // exactamente lo que hace falta para ensenar una textura que cambia.
+            go.AddComponent<Minimapa>().tema = tema;
+
             // El resaltado tiñe el sprite que ya está en el mapa; del tema solo saca la caja
             // de madera del cartel de existencias.
             go.AddComponent<ResaltadoDeNodo>().tema = tema;

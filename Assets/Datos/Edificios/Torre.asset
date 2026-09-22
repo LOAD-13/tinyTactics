@@ -23,6 +23,7 @@ MonoBehaviour:
   madera: 70
   planta: {x: 2, y: 2}
   vidaMaxima: 450
+  radioVision: 9.5
   guarnicion: 1
   puntoDisparo: {x: 0, y: 1.05}
   alcanceAtaque: 7.5
