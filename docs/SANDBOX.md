@@ -138,3 +138,32 @@ de botella colocado con intención vale más que uno que salió del ruido.
 
 Y abre trabajo técnico para Kiara, que hoy aporta sobre todo documentación y diseño — que es
 la debilidad real del equipo frente al criterio de dominio técnico de la rúbrica.
+
+---
+
+## Lo que le añadió la épica E07 (semana 09)
+
+El panel crece pegado a las épicas ([ADR-16](ARQUITECTURA.md#adr-16)), y esto es lo que le
+tocó a la percepción:
+
+| Sección | Interruptor | Qué hace |
+|---|---|---|
+| PERCEPCIÓN | **Ignorar niebla** | La apaga entera: se ve el mapa **y** los ejércitos. |
+| PERCEPCIÓN | **Revelar mapa** | Marca el mapa como explorado pero **no** regala visión: se ve el terreno, no lo que se mueve. |
+| PERCEPCIÓN | **Poner nubes** | Enciende el manto de nubes sobre lo inexplorado. Apagado por defecto: tapaba demasiado. |
+| PERCEPCIÓN | **Minimapa** | Lo enseña o lo oculta. Con **M** se abre en grande en el centro de la pantalla. |
+| PERCEPCIÓN | **Con niebla** | Si el minimapa respeta la niebla o enseña el mapa entero. |
+| HORA | **Día · Medio · Noche** | Salta a esa hora del ciclo. |
+| HORA | **Parar el reloj** | Congela la hora donde esté. |
+
+**Por qué las dos primeras son dos y no una.** Saber dónde está la base del rival y saber
+dónde está su ejército son dos cosas distintas, y poder enseñarlas por separado es lo que
+demuestra que la niebla no es una imagen encima del mapa. Con un solo interruptor habría que
+explicarlo de palabra.
+
+**Por qué el reloj se puede parar.** El ciclo completo dura cuatro minutos y medio. Sin poder
+congelarlo, cada retoque del color de la noche cuesta esperar a que la noche llegue, y una
+captura de la noche para la entrega exige que la noche se quede quieta mientras se toma.
+
+> El rótulo **PARTIDA LIBRE** se mudó a la esquina de arriba a la derecha: abajo a la derecha
+> entró el minimapa, y de las cuatro esquinas esa era la única que quedaba libre.

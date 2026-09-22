@@ -50,8 +50,25 @@ namespace TinyTactics.Entrada
         Vector3 _posicionObjetivo;
         float _zoomObjetivo;
 
+        /// <summary>
+        /// La camara de la partida. La pide el minimapa para llevarla a un punto.
+        /// </summary>
+        /// <remarks>
+        /// Se apunta en <c>Awake</c> y no en <c>OnEnable</c> porque a esta no se le apaga y
+        /// enciende el componente: es la camara, esta desde el primer fotograma hasta el
+        /// ultimo, y quien la busca lo hace en su propio <c>Start</c>.
+        /// </remarks>
+        public static CamaraRTS Actual { get; private set; }
+
+        void OnDestroy()
+        {
+            if (Actual == this) Actual = null;
+        }
+
         void Awake()
         {
+            Actual = this;
+
             _camara = GetComponent<Camera>();
             _camara.orthographic = true;
 

@@ -90,6 +90,8 @@ namespace TinyTactics.EditorHerramientas
                 EditorUtility.DisplayProgressBar("Tiny Tactics", "Poblando el mapa…", 0.85f);
                 PoblarMapa(definicion, mapa);
 
+                CrearPercepcion(definicion);
+
                 ConstructorDeInterfaz.CrearLienzo(_tema, definicion.bandos);
 
                 EditorSceneManager.MarkSceneDirty(escena);
@@ -1647,42 +1649,178 @@ namespace TinyTactics.EditorHerramientas
             }
         }
 
-        static void SembrarNubes(Transform raiz, DefinicionMapa definicion, System.Random rnd)
-        {
-            if (definicion.cantidadNubes <= 0) return;
+        // -----------------------------------------------------------------
+        // Percepcion: niebla, nubes y hora del dia
+        // -----------------------------------------------------------------
 
+        const string RutaShaderTinte = "Assets/Shaders/TinteMultiplicativo.shader";
+        const string CarpetaNiebla = "Assets/Datos/Niebla";
+        const string RutaMaterialTinte = CarpetaNiebla + "/TinteMultiplicativo.mat";
+
+        /// <summary>
+        /// Monta la niebla de guerra, su manto de nubes y el ciclo del dia.
+        /// </summary>
+        /// <remarks>
+        /// Los tres van en el MISMO objeto de escena y no cada uno en el suyo porque los tres
+        /// son la misma pregunta —que se ve del mapa y con que luz— y porque el orden de
+        /// dibujado entre ellos importa: la niebla oscurece, las nubes tapan encima y la hora
+        /// oscurece por encima de todo. Repartidos por la jerarquia, quien venga en la semana
+        /// 13 a tocar uno no encontraria los otros dos.
+        /// </remarks>
+        static void CrearPercepcion(DefinicionMapa definicion)
+        {
+            var material = ObtenerMaterialDeTinte();
+
+            var go = new GameObject("Percepcion");
+
+            var niebla = go.AddComponent<NieblaDeGuerra>();
+            niebla.material = material;
+
+            var manto = go.AddComponent<MantoDeNubes>();
+            manto.nubes = CargarNubes().ToArray();
+
+            var ciclo = go.AddComponent<CicloDelDia>();
+            ciclo.material = material;
+
+            if (manto.nubes.Length == 0)
+                Debug.LogWarning("[Tiny Tactics] No encuentro las nubes del pack: la niebla " +
+                                 "se dibujara solo con la sombra, sin el manto.");
+        }
+
+        static List<Sprite> CargarNubes()
+        {
             var sprites = new List<Sprite>();
+
             for (int i = 1; i <= 8; i++)
             {
                 var lista = CargarSpritesOrdenados($"{DirDecoracion}/Clouds/Clouds_{i:D2}.png");
                 if (lista.Count > 0) sprites.Add(lista[0]);
             }
 
+            return sprites;
+        }
+
+        /// <summary>
+        /// El material del tinte multiplicativo, creado la primera vez y reutilizado despues.
+        /// </summary>
+        /// <remarks>
+        /// Se guarda como ASSET y no se crea en ejecucion con <c>Shader.Find</c> a proposito:
+        /// un shader que no usa ningun material del proyecto se queda fuera de la build, y
+        /// entonces la niebla funciona en el editor y desaparece justo en la version que se
+        /// entrega. Existiendo el material, el shader tiene quien lo referencie.
+        /// </remarks>
+        static Material ObtenerMaterialDeTinte()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>(RutaMaterialTinte);
+            if (material != null) return material;
+
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(RutaShaderTinte);
+            if (shader == null)
+            {
+                Debug.LogError($"[Tiny Tactics] No encuentro el shader en {RutaShaderTinte}.");
+                return null;
+            }
+
+            AsegurarCarpeta(CarpetaNiebla);
+
+            material = new Material(shader) { name = "Tinte multiplicativo" };
+            AssetDatabase.CreateAsset(material, RutaMaterialTinte);
+            AssetDatabase.SaveAssets();
+
+            return material;
+        }
+
+        /// <summary>
+        /// Indices de las nubes ANCHAS del pack, dentro de la lista de las ocho.
+        /// </summary>
+        /// <remarks>
+        /// MEDIDO sobre el alfa de los PNG, no elegido a ojo. Las ocho vienen en un lienzo de
+        /// 576x256, pero el dibujo de dentro no: Clouds_01 ocupa 495x157 pixeles y Clouds_05
+        /// 416x152, mientras que Clouds_08 se queda en 88x55. A 64 pixeles por tile, eso son
+        /// nubes de casi ocho tiles de ancho contra otras de poco mas de uno.
+        ///
+        /// Mezclarlas al azar hacia que las grandes se perdieran entre las pequenas. Separar
+        /// los dos grupos es lo que permite darle a cada uno su tamano y su velocidad.
+        /// </remarks>
+        static readonly int[] NubesAnchas = { 0, 1, 4, 5 };
+
+        /// <summary>
+        /// Siembra el cielo: nubes pequenas rapidas y nubes grandes lentas.
+        /// </summary>
+        /// <remarks>
+        /// <b>Las grandes van mas despacio, y esa es toda la gracia.</b> Una nube grande que
+        /// cruza al mismo ritmo que una pequena se lee como un sprite grande moviendose; a
+        /// menos de la mitad de velocidad se lee como una nube que esta mas alta. Es paralaje
+        /// sin camara de paralaje: no hay capas ni profundidad, solo dos velocidades.
+        ///
+        /// Y mas transparentes que las pequenas, por lo mismo: lo que esta mas lejos tiene
+        /// menos contraste.
+        ///
+        /// <b>Van por encima de la niebla.</b> Son cielo, no suelo: una nube que pasa sobre
+        /// terreno sin explorar tiene que pasar POR DELANTE de la sombra, no oscurecerse con
+        /// ella. Quedan por debajo de la lamina de la hora, asi que de noche se apagan con el
+        /// resto del mapa, que es lo correcto.
+        /// </remarks>
+        static void SembrarNubes(Transform raiz, DefinicionMapa definicion, System.Random rnd)
+        {
+            if (definicion.cantidadNubes <= 0) return;
+
+            var sprites = CargarNubes();
             if (sprites.Count == 0) return;
 
             var padre = new GameObject("Nubes").transform;
             padre.SetParent(raiz, false);
 
-            for (int i = 0; i < definicion.cantidadNubes; i++)
+            int pequenas = definicion.cantidadNubes;
+
+            // La mitad que de pequenas, y nunca menos de cinco: con dos o tres en un mapa de
+            // 224 tiles no se cruza ninguna en toda la partida y el efecto no existe.
+            int grandes = Mathf.Max(5, definicion.cantidadNubes / 2);
+
+            for (int i = 0; i < pequenas + grandes; i++)
             {
-                var go = new GameObject($"Nube_{i + 1}");
+                bool ancha = i >= pequenas;
+
+                var go = new GameObject(ancha ? $"NubeGrande_{i - pequenas + 1}" : $"Nube_{i + 1}");
                 go.transform.SetParent(padre, false);
                 go.transform.position = new Vector3(
                     (float)rnd.NextDouble() * definicion.ancho,
                     (float)rnd.NextDouble() * definicion.alto, 0f);
 
                 var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sprites[rnd.Next(sprites.Count)];
-                sr.color = new Color(1f, 1f, 1f, 0.75f);
 
-                // Por encima de todo: las nubes pasan sobre el terreno y las unidades.
-                sr.sortingOrder = 5000 + i;
+                if (ancha)
+                {
+                    sr.sprite = sprites[NubesAnchas[rnd.Next(NubesAnchas.Length)] % sprites.Count];
+                    sr.color = new Color(1f, 1f, 1f, 0.50f + (float)rnd.NextDouble() * 0.16f);
+
+                    float escala = 2.2f + (float)rnd.NextDouble() * 0.9f;
+                    go.transform.localScale = new Vector3(escala, escala, 1f);
+                }
+                else
+                {
+                    sr.sprite = sprites[rnd.Next(sprites.Count)];
+                    sr.color = new Color(1f, 1f, 1f, 0.75f);
+                }
+
+                // Voltear la mitad: son ocho dibujos para veinte nubes, y el ojo las
+                // reconoce enseguida si todas miran al mismo lado.
+                sr.flipX = rnd.Next(2) == 0;
+
+                sr.sortingOrder = 6500 + i;
 
                 var deriva = go.AddComponent<DerivaNube>();
-                deriva.velocidad = 0.35f + (float)rnd.NextDouble() * 0.55f;
+                deriva.velocidad = ancha
+                    ? 0.14f + (float)rnd.NextDouble() * 0.16f
+                    : 0.35f + (float)rnd.NextDouble() * 0.55f;
+
                 deriva.direccion = new Vector2(1f, 0.18f);
                 deriva.limiteMinimo = Vector2.zero;
                 deriva.limiteMaximo = definicion.TamanoEnMundo;
+
+                // Una nube grande mide casi ocho tiles: con el margen de las pequenas
+                // reaparecia con medio cuerpo ya dentro de la pantalla.
+                deriva.margen = ancha ? 26f : 12f;
             }
         }
 

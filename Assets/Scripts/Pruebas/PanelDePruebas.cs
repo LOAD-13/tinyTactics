@@ -93,6 +93,8 @@ namespace TinyTactics.Pruebas
         readonly HashSet<int> _inmortales = new HashSet<int>();
         readonly List<Unidad> _temporal = new List<Unidad>();
 
+        MantoDeNubes _manto;
+
         Vector2 _scroll;
         TipoUnidad _tipoAAparecer = TipoUnidad.Guerrero;
         bool _colocando;
@@ -424,6 +426,8 @@ namespace TinyTactics.Pruebas
             SeccionRecursos();
             SeccionUnidades();
             SeccionTiempo();
+            SeccionHora();
+            SeccionPercepcion();
             SeccionPartida();
             SeccionAparecer();
             SeccionEditar();
@@ -444,16 +448,19 @@ namespace TinyTactics.Pruebas
         /// Sigue cumpliendo lo que tenía que cumplir —que ninguna captura tramposa pase por
         /// buena— porque lo que importa es que se vea que el modo está activo, no la palabra.
         ///
-        /// Va abajo a la derecha y no arriba: arriba a la izquierda vive el contador de
-        /// población y arriba a la derecha el reloj que llegará con el flujo de partida.
+        /// <b>Se mudó a arriba a la derecha en la semana 09.</b> Estaba abajo a la derecha,
+        /// que es donde entró el minimapa, y de las cuatro esquinas esa era la única libre:
+        /// arriba a la izquierda vive el contador de población, abajo en el centro el panel
+        /// de unidad, y el borde izquierdo es de este mismo panel. Entre mover el sello y
+        /// mover el minimapa se mueve el sello, porque el minimapa tiene que estar donde
+        /// todo RTS lo pone: la mano ya sabe ir ahí.
         /// </remarks>
         void DibujarSello()
         {
             const float ancho = 190f;
             const float alto = 46f;
 
-            var sitio = new Rect(Screen.width - ancho - 14f,
-                                 Screen.height - alto - 14f, ancho, alto);
+            var sitio = new Rect(Screen.width - ancho - 14f, 14f, ancho, alto);
 
             if (tema != null)
             {
@@ -539,6 +546,100 @@ namespace TinyTactics.Pruebas
         {
             bool vivo = Mathf.Approximately(Time.timeScale, escala);
             if (BotonConIcono(texto, null, vivo)) Time.timeScale = escala;
+        }
+
+        /// <summary>
+        /// Salta a una hora del dia y congela el reloj.
+        /// </summary>
+        /// <remarks>
+        /// Los tres botones son una necesidad de trabajo, no un adorno: el ciclo completo
+        /// dura cuatro minutos y medio, asi que sin esto cada retoque del color de la noche
+        /// cuesta esperar a que la noche llegue. Y una captura de la noche para la entrega
+        /// exige que la noche se quede quieta mientras se toma.
+        /// </remarks>
+        void SeccionHora()
+        {
+            var ciclo = CicloDelDia.Actual;
+            if (ciclo == null) return;
+
+            GUILayout.Label("HORA", _seccion);
+
+            GUILayout.BeginHorizontal();
+            Hora(ciclo, HoraDelDia.Dia, "Dia");
+            Hora(ciclo, HoraDelDia.Mediodia, "Medio");
+            Hora(ciclo, HoraDelDia.Noche, "Noche");
+            GUILayout.EndHorizontal();
+
+            if (BotonConIcono(ciclo.detenido ? "Reloj parado" : "Parar el reloj",
+                              null, ciclo.detenido))
+                ciclo.detenido = !ciclo.detenido;
+        }
+
+        void Hora(CicloDelDia ciclo, HoraDelDia hora, string texto)
+        {
+            bool vivo = ciclo.Hora == hora;
+            if (BotonConIcono(texto, null, vivo)) ciclo.Ir(hora);
+        }
+
+        /// <summary>
+        /// Los interruptores de la niebla y del minimapa.
+        /// </summary>
+        /// <remarks>
+        /// Son cuatro y no uno porque hacen cuatro cosas distintas, y la diferencia entre
+        /// ellas es justo lo que hay que poder demostrar. <b>Ignorar la niebla</b> la apaga
+        /// entera —se ve el mapa y los ejercitos—, mientras que <b>revelar el mapa</b> deja
+        /// ver el terreno y no lo que se mueve: es la diferencia entre saber donde esta la
+        /// base del rival y saber donde esta su ejercito. Poder ensenar las dos por separado
+        /// es lo que demuestra que la niebla no es una imagen encima del mapa.
+        ///
+        /// Los dos del minimapa van aqui y no en una seccion propia porque el minimapa no es
+        /// otra cosa: es la misma informacion mirada desde arriba, y sus trampas son las
+        /// mismas trampas.
+        /// </remarks>
+        void SeccionPercepcion()
+        {
+            var niebla = NieblaDeGuerra.Actual;
+            var minimapa = Minimapa.Actual;
+
+            if (niebla == null && minimapa == null) return;
+
+            GUILayout.Label("PERCEPCION", _seccion);
+
+            if (niebla != null)
+            {
+                if (BotonConIcono(niebla.ignorarNiebla ? "Niebla apagada" : "Ignorar niebla",
+                                  null, niebla.ignorarNiebla))
+                {
+                    niebla.ignorarNiebla = !niebla.ignorarNiebla;
+                    niebla.Refrescar();
+                }
+
+                if (BotonConIcono(niebla.mapaRevelado ? "Mapa revelado" : "Revelar mapa",
+                                  null, niebla.mapaRevelado))
+                {
+                    niebla.mapaRevelado = !niebla.mapaRevelado;
+                    niebla.Refrescar();
+                }
+            }
+
+            // Se busca una vez y se guarda: esto corre dentro de OnGUI, o sea varias veces
+            // por fotograma mientras el panel este abierto.
+            if (_manto == null) _manto = Object.FindFirstObjectByType<MantoDeNubes>();
+
+            var manto = _manto;
+            if (manto != null && BotonConIcono(manto.activo ? "Nubes puestas" : "Poner nubes",
+                                               null, manto.activo))
+                manto.activo = !manto.activo;
+
+            if (minimapa == null) return;
+
+            GUILayout.BeginHorizontal();
+            if (BotonConIcono("Minimapa", null, minimapa.visible))
+                minimapa.visible = !minimapa.visible;
+
+            if (BotonConIcono("Con niebla", null, minimapa.respetarNiebla))
+                minimapa.respetarNiebla = !minimapa.respetarNiebla;
+            GUILayout.EndHorizontal();
         }
 
         /// <summary>

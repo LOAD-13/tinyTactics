@@ -82,6 +82,18 @@ namespace TinyTactics.Unidades
         public float Radio => datos != null ? datos.radio : 0.42f;
 
         /// <summary>
+        /// Tiles que esta unidad destapa de la niebla.
+        /// </summary>
+        /// <remarks>
+        /// Cae de vuelta a 8 y no a 0 si faltan los datos: una unidad sin ficha con radio 0
+        /// sería una unidad ciega, y una unidad ciega no se nota como un dato mal puesto, se
+        /// nota como una niebla que no se abre. Un valor sano falla de forma visible.
+        /// </remarks>
+        public float RadioDeVision => datos != null && datos.radioVision > 0f
+            ? datos.radioVision
+            : 8f;
+
+        /// <summary>
         /// Velocidad efectiva. Con la despensa vacía el ejército se arrastra.
         ///
         /// El castigo se aplica aquí y no en cada sitio que lee la velocidad para que sea

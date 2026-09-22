@@ -38,6 +38,26 @@ namespace TinyTactics.Unidades
             }
 
             transform.position += hacia.normalized * paso;
+
+            Esconder();
+        }
+
+        /// <summary>
+        /// Una flecha tampoco se dibuja donde el jugador no ve.
+        /// </summary>
+        /// <remarks>
+        /// No necesita saber de qué bando es: lo que decide es si el jugador ve el TROZO DE
+        /// MAPA por el que pasa la flecha, y eso no depende de quién la disparó. Sin esto,
+        /// las flechas de una escaramuza en niebla salen de la nada y se pierden en la nada,
+        /// que es exactamente el dato que la niebla debería estar ocultando.
+        /// </remarks>
+        void Esconder()
+        {
+            var niebla = Mundo.NieblaDeGuerra.Actual;
+            if (niebla == null) return;
+
+            bool tapar = niebla.EstadoParaJugador(transform.position) != Mundo.EstadoVisible.Visible;
+            Mundo.OcultarEnNiebla.Aplicar(gameObject, tapar);
         }
     }
 }

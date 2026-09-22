@@ -16,8 +16,8 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E03` | Unidades y animación | 04 | 🟢 Cerrada |
 | `E04` | Economía | 05 | 🟢 Cerrada |
 | `E05` | Construcción y producción | 06 | 🟢 Cerrada |
-| `E06` | Combate | 07-08 | 🔵 En curso |
-| `E07` | Percepción — niebla y minimapa | 09 | ⚪ Pendiente |
+| `E06` | Combate | 07-08 | 🟢 Cerrada |
+| `E07` | Percepción — niebla, minimapa y hora | 09 | 🟢 Cerrada |
 | `E08` | IA rival | 10-11 | ⚪ Pendiente |
 | `E09` | Flujo de partida y FFA | 12-13 | ⚪ Pendiente |
 | `E10` | Presentación — audio, VFX, UI | 14-15 | ⚪ Pendiente |
@@ -1320,9 +1320,192 @@ se construye encima de esto, así que el combate tiene que estar quieto antes de
 | HU-063 | Plantillas de recurso | medio |
 | HU-064 | Pinceles de recursos en el panel | medio |
 
-### Semana 09 — Niebla de guerra y minimapa (E07)
-Grilla de visibilidad por facción · radios de visión · tres estados de niebla · render de la niebla ·
-minimapa con terreno y unidades · clic en el minimapa mueve la cámara.
+---
+
+# Semana 09 — Percepción (E07)
+
+**Meta de la semana:** que el mapa deje de estar todo a la vista. Hasta ahora la partida se
+jugaba con información perfecta: sabías dónde estaba el rival sin haber mandado a nadie a
+mirar. Desde esta semana hay que ir a ver, y lo que ves se queda en el minimapa.
+
+> **Una sola rama:** `feat/E07-niebla-y-minimapa`.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-065 | Grilla de visibilidad por facción | medio |
+| HU-066 | Radios de visión en las fichas | bajo |
+| HU-067 | La niebla se dibuja dura en el espacio y suave en el tiempo | **alto** |
+| HU-068 | Lo que está en niebla no se dibuja | medio |
+| HU-069 | La niebla es una regla de juego, no un filtro | **alto** |
+| HU-070 | Minimapa con el terreno del mapa | medio |
+| HU-071 | El minimapa enseña bandos y respeta la niebla | medio |
+| HU-072 | Clic y arrastre en el minimapa mueven la cámara | bajo |
+| HU-073 | Día, mediodía y noche | medio |
+| HU-074 | La percepción y la hora, en el panel de partida libre | bajo |
+
+---
+
+### HU-065 · Grilla de visibilidad por facción
+**Épica:** E07 · **Semana:** 09
+
+**Como** jugador **quiero** que cada bando sepa solo lo que ha visto **para** que explorar
+sirva de algo.
+
+**Criterios de aceptación**
+- [ ] Cada facción tiene su propia grilla; no hay una niebla global.
+- [ ] Las bases de salida —castillo y torres— se ven desde el primer fotograma aunque estén en
+      sombra; el terreno y las unidades, no.
+- [ ] Tres estados por celda: nunca vista, explorada sin vigilancia, a la vista.
+- [ ] Lo explorado **nunca** vuelve a nunca visto.
+- [ ] Cambiar de bando en el panel cambia la niebla que se dibuja, sin reiniciar la partida.
+- [ ] El recálculo es periódico, no por fotograma, y sigue corriendo con el juego en pausa.
+
+**Nota técnica.** Un byte por celda ([ADR-18](ARQUITECTURA.md#adr-18)). El mapa por defecto
+tiene 50 176 celdas: cualquier cosa con un objeto de escena por celda se descarta antes de
+escribirla.
+
+---
+
+### HU-066 · Radios de visión en las fichas
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] `DatosUnidad` y `DatosEdificio` llevan `radioVision`, y se toca sin recompilar (ADR-07).
+- [ ] **El radio de visión de toda unidad es mayor que su alcance y que su radio de
+      vigilancia.** Se comprueba al reconstruir el catálogo y avisa por consola si se rompe.
+- [ ] El arquero ve más lejos de lo que dispara; el pawn ve menos que un militar.
+- [ ] Un edificio mira desde el centro de su **planta**, no de su dibujo.
+
+**Nota de balance.** Este invariante es lo que permite que la HU-069 no mueva nada de lo que
+se ajustó en la semana 08. Es la lección de aquella semana convertida en una comprobación
+automática: dos medidas correctas por separado no bastan si nadie las mide una contra otra.
+
+---
+
+### HU-067 · La niebla se dibuja dura en el espacio y suave en el tiempo
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] La niebla es **una** textura de un píxel por celda con filtrado de punto: el borde es un
+      escalón de un tile, alineado con el tileset.
+- [ ] Una celda que se descubre **se desvanece**, no se enciende de golpe.
+- [ ] El dibujado corre cada fotograma aunque la visibilidad se recalcule diez veces por segundo.
+- [ ] Quieto no cuesta nada: sin celdas moviéndose, la textura no se vuelve a subir.
+- [ ] Lo nunca explorado se oscurece mucho pero **deja leer el terreno**.
+- [ ] Lo explorado sin vigilancia lleva apenas un velo: se lee como terreno normal.
+
+**Nota de alcance.** El manto de nubes del pack se construyó y se probó para tapar lo
+inexplorado. Jugado, tapaba tanto que la partida empezaba sin poder leer el mapa. Queda en el
+código con su interruptor en el panel, apagado por defecto ([ADR-18](ARQUITECTURA.md#adr-18)).
+
+---
+
+### HU-068 · Lo que está en niebla no se dibuja
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] Una unidad enemiga fuera de la vista no se dibuja, ni ella ni su barra de vida.
+- [ ] Un edificio enemigo ya descubierto **sigue dibujándose** aunque nadie lo esté mirando.
+- [ ] «Descubierto» significa **haberlo visto**, no que su terreno esté explorado.
+- [ ] Las flechas no se dibujan donde el jugador no ve.
+- [ ] Las unidades propias se ven siempre.
+- [ ] Tapar y destapar no pelea con la selección ni con la barra de vida.
+
+**Nota técnica.** Se veta el dibujado con `forceRenderingOff`, no con `enabled`: ese campo ya
+tiene dueños ([ADR-19](ARQUITECTURA.md#adr-19)).
+
+---
+
+### HU-069 · La niebla es una regla de juego, no un filtro
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] Una unidad no se engancha sola a un enemigo que su bando no ve.
+- [ ] Una torre no dispara a lo que su bando no ve.
+- [ ] El cursor no señala como atacable lo que no se ve: el puntero no es un detector.
+- [ ] No se puede ordenar un ataque sobre una unidad invisible.
+- [ ] Para atacar un edificio basta haberlo descubierto.
+- [ ] **Demostrable en vivo:** los tres duelos de la semana 08 dan el mismo resultado que
+      antes de la niebla.
+
+---
+
+### HU-070 · Minimapa con el terreno del mapa
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] Abajo a la derecha, con el marco de madera del pack y escalando con la resolución.
+- [ ] El terreno se cuece **una vez**: agua, tierra, mesetas, escaleras, bosque, oro y piedra.
+- [ ] Se dibuja con filtrado de punto; nada borroso.
+
+---
+
+### HU-071 · El minimapa enseña bandos y respeta la niebla
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] Unidades y edificios salen con el color de su bando; las propias, más gruesas.
+- [ ] Lo no explorado sale tapado y lo recordado, oscurecido.
+- [ ] Un enemigo que nadie ve **no sale**.
+- [ ] Un rectángulo marca lo que la cámara está encuadrando.
+
+---
+
+### HU-072 · Clic y arrastre en el minimapa mueven la cámara
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] Pulsar lleva la cámara a ese punto, respetando los límites del mapa.
+- [ ] Arrastrar la sigue llevando sin soltar.
+- [ ] Un clic sobre la moldura de madera no mueve la cámara.
+- [ ] Un clic en el minimapa no emite ninguna orden a las unidades seleccionadas.
+- [ ] **M** lo abre en grande en el centro de la pantalla, y sigue respondiendo al clic.
+
+---
+
+### HU-073 · Día, mediodía y noche
+**Épica:** E07 · **Semana:** 09
+
+**Como** jugador **quiero** que pase el tiempo en el mapa **para** que una partida larga no
+sea siempre la misma postal.
+
+**Criterios de aceptación**
+- [ ] Tres horas encadenadas y en bucle, cada una con **su propia duración**.
+- [ ] Cada hora es una meseta y luego un cambio, no un viaje continuo: sin meseta, acortar la
+      noche solo acorta el trayecto, no el rato que está oscuro.
+- [ ] La noche dura menos que el día. Sin antorchas ni unidades que vean de noche, la oscuridad
+      no añade decisión — solo incomodidad.
+- [ ] La hora oscurece **por encima**, sin tocar el color de un solo sprite.
+- [ ] De noche se sigue distinguiendo el color de cada bando.
+- [ ] El mediodía no cuesta ningún dibujado: lámina apagada.
+- [ ] La hora avanza con el tiempo del juego: en pausa no corre, a x4 corre a x4.
+- [ ] **La hora NO cambia los radios de visión.** Queda anotado para la semana de balance.
+
+**Nota de alcance.** Venía pedido de la semana anterior y no estaba en ninguna épica. Entra
+aquí porque comparte toda la maquinaria con la niebla —la misma lámina multiplicativa, el
+mismo shader, el mismo orden de dibujado— y montarlo por separado sería montarlo dos veces.
+
+---
+
+### HU-074 · La percepción y la hora, en el panel de partida libre
+**Épica:** E07 · **Semana:** 09
+
+**Criterios de aceptación**
+- [ ] **Ignorar niebla**: se ve el mapa y los ejércitos.
+- [ ] **Revelar mapa**: se ve el terreno pero **no** lo que se mueve. Las dos trampas son
+      distintas y se pueden enseñar por separado.
+- [ ] Mostrar u ocultar el minimapa, y que el minimapa respete la niebla o no.
+- [ ] Saltar a día, mediodía o noche, y congelar el reloj.
+- [ ] El rótulo **PARTIDA LIBRE** sigue viéndose: ninguna captura tramposa pasa por buena.
+
+**Nota.** El panel crece con cada épica y esto es lo que le tocaba a la E07
+([ADR-16](ARQUITECTURA.md#adr-16)). El sello se muda a la esquina de arriba a la derecha,
+porque abajo a la derecha entra el minimapa y de las cuatro esquinas esa era la única libre.
+
+---
+
+### Semana 09 — Niebla, minimapa y hora del día (E07)
+Detallada arriba, en su propia sección.
 
 ### Semana 10 — IA rival v1 · HITO 2 · PC2 (E08)
 Capa estratégica con build order · gestor de economía de la IA · gestor militar y oleadas ·

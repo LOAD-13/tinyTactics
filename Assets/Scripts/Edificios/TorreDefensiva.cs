@@ -156,6 +156,11 @@ namespace TinyTactics.Edificios
                 var u = _cerca[i];
                 if (u == null || !u.Viva || u.faccion == _edificio.faccion) continue;
 
+                // La torre tampoco dispara a ciegas (ADR-20). Su radio de vision es mayor que
+                // su alcance, asi que en la practica sigue disparando a todo lo que entra a
+                // tiro; lo que ya no hace es acertarle a algo que su bando no ve.
+                if (!Mundo.NieblaDeGuerra.Ve(_edificio.faccion, u.transform.position)) continue;
+
                 // El muñeco de pruebas no cuenta: si contara, las torres se pasarían la
                 // partida disparándole en vez de defender.
                 if (u.datos != null && u.datos.invulnerable) continue;

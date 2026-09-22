@@ -69,6 +69,12 @@ namespace TinyTactics.Datos
                  "tiene que costar más que derribar una casa.")]
         [Min(1)] public int vidaMaxima = 400;
 
+        [Header("Percepcion")]
+        [Tooltip("Tiles que el edificio destapa de la niebla, medidos desde el centro de su " +
+                 "PLANTA y no de su dibujo. Un castillo ve mas lejos que una casa: es la " +
+                 "atalaya del bando, y sin eso la base propia empezaria la partida a oscuras.")]
+        [Min(0f)] public float radioVision = 7f;
+
         [Header("Defensa")]
         [Tooltip("Lleva un arquero en la almena que dispara solo. Solo la torre.")]
         public bool guarnicion;
