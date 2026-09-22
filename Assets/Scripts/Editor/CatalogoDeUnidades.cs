@@ -80,6 +80,7 @@ namespace TinyTactics.EditorHerramientas
 
             datos.tipo = tipo;
             Rellenar(datos, tipo);
+            ComprobarVista(datos);
 
             EditorUtility.SetDirty(datos);
             return datos;
@@ -157,6 +158,35 @@ namespace TinyTactics.EditorHerramientas
             return tabla;
         }
 
+        /// <summary>
+        /// Avisa si un radio de vision rompe la regla de la niebla.
+        /// </summary>
+        /// <remarks>
+        /// <b>La regla:</b> el radio de vision de una unidad tiene que ser mayor que su
+        /// alcance de ataque y que su radio de vigilancia. Si fuera menor, la niebla le
+        /// quitaria objetivos que antes alcanzaba —o la dejaria enganchandose a cosas que no
+        /// ve— y el balance cerrado en la semana 08 se moveria sin que nadie lo hubiera
+        /// decidido.
+        ///
+        /// La comprobacion esta aqui y no en un comentario porque el fallo que enseno la
+        /// semana 08 fue exactamente este: dos medidas correctas por separado que nadie habia
+        /// medido una contra otra. Un aviso en consola al reconstruir el catalogo cuesta
+        /// cinco lineas y cierra esa puerta.
+        /// </remarks>
+        static void ComprobarVista(DatosUnidad d)
+        {
+            if (d == null || d.radioVision <= 0f) return;
+
+            float minimo = Mathf.Max(d.alcance, MaquinaDeEstados.RadioVigilanciaPorDefecto);
+            if (d.radioVision > minimo) return;
+
+            Debug.LogWarning(
+                $"[Tiny Tactics] {d.nombreVisible} ve {d.radioVision} tiles pero necesita " +
+                $"mas de {minimo} (alcance {d.alcance}, vigilancia " +
+                $"{MaquinaDeEstados.RadioVigilanciaPorDefecto}). Con la niebla puesta, esta " +
+                "unidad perderia objetivos que antes alcanzaba.");
+        }
+
         static void Rellenar(DatosUnidad d, TipoUnidad tipo)
         {
             switch (tipo)
@@ -168,6 +198,7 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 90; d.madera = 10; d.poblacion = 2;
                     d.postura = Postura.Agresiva; d.correa = 12f;
                     d.ataque = TipoAtaque.Cortante; d.armadura = TipoArmadura.Pesada;
+                    d.radioVision = 9f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Warrior/Warrior_Idle.png", 7f),
@@ -183,6 +214,7 @@ namespace TinyTactics.EditorHerramientas
                     d.oro = 80; d.madera = 0; d.poblacion = 2;
                     d.postura = Postura.Agresiva; d.correa = 12f;
                     d.ataque = TipoAtaque.Perforante; d.armadura = TipoArmadura.Asta;
+                    d.radioVision = 9f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Lancer/Lancer_Idle.png", 8f),
@@ -209,6 +241,10 @@ namespace TinyTactics.EditorHerramientas
                     // andando. Aun asi 8, no 4: con 4 abandonaba casi al primer paso.
                     d.postura = Postura.Agresiva; d.correa = 8f;
                     d.ataque = TipoAtaque.Flecha; d.armadura = TipoArmadura.Ligera;
+                    // El ojo del ejercito: ve mas lejos de lo que dispara. Un arquero que
+                    // solo viera hasta donde alcanza no serviria para explorar, y explorar
+                    // es la mitad de lo que se le va a pedir desde esta semana.
+                    d.radioVision = 10.5f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Archer/Archer_Idle.png", 7f),
@@ -225,6 +261,7 @@ namespace TinyTactics.EditorHerramientas
                     // El monje cura: no tiene con que responder y perseguir es suicidarse.
                     d.postura = Postura.Quieta; d.correa = 0f;
                     d.ataque = TipoAtaque.Cortante; d.armadura = TipoArmadura.Ligera;
+                    d.radioVision = 8.5f;
                     d.clips = new[]
                     {
                         Clip(EstadoUnidad.Reposo, $"{DirUnidades}/Monk/Idle.png", 7f),
@@ -242,6 +279,10 @@ namespace TinyTactics.EditorHerramientas
                     // huye al castillo en vez de pelear.
                     d.postura = Postura.Quieta; d.correa = 0f;
                     d.ataque = TipoAtaque.Cortante; d.armadura = TipoArmadura.Ligera;
+                    // Menos vista que un militar: un pawn no esta para explorar, y si viera
+                    // como un arquero el jugador no tendria ninguna razon para arriesgar a
+                    // un arquero mandandolo a mirar.
+                    d.radioVision = 8f;
                     // Doce tiras: la tabla del pawn se indexa por estado y por recurso.
                     // El pack ya trae las tres herramientas y los tres sacos, así que la
                     // economía entera se dibuja sin una sola pieza de arte nueva.

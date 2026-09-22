@@ -1183,7 +1183,7 @@ namespace TinyTactics.Interfaz
             {
                 case Accion.Atacar: return "Atacar  ·  A";
                 case Accion.AtacarAuto: return "Atacar al avanzar  ·  T";
-                case Accion.Mover: return "Mover  ·  M";
+                case Accion.Mover: return "Mover  ·  V";
                 case Accion.Detener: return "Detener  ·  S";
                 case Accion.Curar: return "Curar";
                 case Accion.Postura: return "Postura  ·  clic para cambiar  ·  X";

@@ -179,6 +179,120 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-20 · La niebla es una regla de juego, no un filtro de imagen
+
+**Decisión.** La visibilidad **condiciona la simulación y la entrada**, no solo el dibujado.
+Una unidad no se engancha por su cuenta a un enemigo que su bando no está viendo, una torre no
+le dispara, el cursor no lo señala y el jugador no puede ordenar un ataque sobre él.
+
+**Por qué.** Una niebla que solo oscurece píxeles es decorado: el ejército enemigo sigue
+tirando de tus tropas desde dentro de la oscuridad y tus torres siguen acertándole a lo que no
+ves. Peor aún, el cursor se convertiría en un detector de enemigos — bastaría barrer el negro
+con el ratón para saber qué hay detrás.
+
+**Lo que hace que esto no mueva el balance.** Una regla nueva sobre un combate recién ajustado
+es un riesgo real, y se cierra con un invariante: **el radio de visión de toda unidad es mayor
+que su alcance de ataque y que su radio de vigilancia.** Con eso, ninguna unidad pierde un
+objetivo que antes alcanzaba, así que la conducta observable en un combate no cambia — cambia
+lo que pasa *fuera* del combate, que es justo lo que se quería añadir.
+
+El invariante no se queda en este párrafo: `CatalogoDeUnidades` lo **comprueba** al reconstruir
+las fichas y avisa por consola si alguna lo rompe. Es la respuesta directa al fallo de la
+semana 08, donde dos medidas correctas por separado se rompieron porque nadie las había medido
+una contra otra.
+
+**Los edificios se recuerdan; las unidades no.** Para atacar un edificio basta haberlo
+descubierto; para atacar una unidad hay que estar viéndola. La diferencia no es un capricho: un
+edificio no se mueve, así que el recuerdo sigue siendo cierto, mientras que el fantasma de una
+unidad en el sitio donde estaba hace diez segundos es información falsa.
+
+**Y un edificio se recuerda por haberlo VISTO, no por estar en terreno explorado.** La memoria
+vive en el edificio —un entero, un bit por bando— y no en la grilla. Atarla al terreno parece
+equivalente y no lo es: en cuanto una zona está explorada, cualquier cosa que el rival levante
+ahí aparecería sola en el momento de terminarla, sin que nadie hubiera ido a mirar.
+
+**Las bases de salida se ven desde el primer fotograma, aunque estén en sombra.** Solo las bases:
+el terreno sigue sin explorar y las unidades siguen sin verse. Lo único que se regala es **dónde**
+empieza cada rival —un dato que en un mapa simétrico el jugador puede deducir mirando el suyo— y
+no cuántos son ni qué están construyendo.
+
+> **Se probó la versión grande de esto y se descartó jugándola.** Empezar con el mapa entero
+> explorado hacía la partida más cómoda, pero la niebla dejaba de contar nada y el minimapa pasaba
+> a ser una foto completa del mapa desde el segundo cero. Lo que hacía falta era mucho menos: ver
+> dónde está cada rival, no qué hay entre medias.
+
+**Alcance de esta semana.** La regla se aplica a todos los bandos por igual, pero hoy solo hay
+un bando con quien la note. Si la IA de la semana 10 debe respetarla o no —y con qué
+dificultad— es la decisión que ya estaba puesta en la semana 11.
+
+---
+
+### ADR-19 · Lo que oscurece el mapa se multiplica por encima; no se tiñe sprite a sprite
+
+**Decisión.** La niebla de guerra y el ciclo del día oscurecen mediante **láminas por encima
+del mapa con mezcla multiplicativa** (`Blend DstColor Zero`), no bajándole el color a cada
+`SpriteRenderer`.
+
+**Por qué multiplicar y no pintar encima.** Un negro semitransparente sobre un guerrero azul da
+una mancha gris con forma de guerrero; multiplicar da un guerrero azul apagado. En pixel art la
+diferencia salta a la vista, porque el contorno negro del pack deja de ser negro y el sprite
+pierde el borde que lo separa del fondo.
+
+**Por qué por encima y no en cada sprite.** Es el [ADR-11](#adr-11) otra vez: la máquina de
+estados es la única dueña del color de su unidad, y ahí viven el destello del impacto y el
+desvanecido de la muerte. Con la noche escribiendo el mismo campo, gana el último que escriba —
+o la noche apaga el destello, o el destello enciende la noche. Una lámina por encima no necesita
+permiso de nadie y además funciona igual sobre el terreno, los recursos y las nubes, que no
+tienen máquina de estados ninguna.
+
+**Regla derivada, y es la general:** *un campo, un dueño*. Cuando la niebla necesitó tapar
+unidades enteras no tocó `enabled` —que ya tienen dueño: la selección y la barra de vida— sino
+`forceRenderingOff`, que existe justo para vetos de visibilidad y que no usa nadie más.
+
+---
+
+### ADR-18 · La niebla es una textura de un píxel por celda: dura en el espacio, suave en el tiempo
+
+**Decisión.** El estado de visibilidad se vuelca en una `Texture2D` de **un píxel por celda con
+filtrado de punto**, estirada sobre un único sprite que cubre el mapa. El borde es un escalón de
+un tile, y lo que se suaviza es **cuándo** cambia cada tile, no su forma.
+
+**Por qué una textura.** El mapa por defecto mide 224×224: **50 176 celdas**. Un objeto con su
+`SpriteRenderer` por celda son cincuenta mil objetos que el motor recorre, ordena y dibuja cada
+fotograma para tapar algo que casi nunca cambia. Un `byte[]` de 50 KB se recorre entero en una
+fracción de milisegundo y se sube de una vez.
+
+**Por qué filtrado de punto, que es la parte estética.** Un difuminado suave sobre pixel art se
+delata: sus bordes no caen en la misma rejilla que los tiles y su gris no sale de la paleta del
+pack. Con punto, el borde de la niebla es un escalón de un tile alineado con el tileset.
+
+**Lo que quita la dureza es el tiempo, no el espacio.** Cada celda guarda un número de 0 a 3
+que persigue a su estado real, y el color sale de interpolar entre los tintes con ese número: al
+descubrirse, una celda recorre los tres peldaños en medio segundo en vez de encenderse de golpe.
+El dibujado corre cada fotograma; **qué se ve** se recalcula solo diez veces por segundo. Con los
+dos ritmos juntos, las celdas se abrían a saltos de diez por segundo y se veía el cuadriculado
+encendiéndose — no molestaba el cuadrado, molestaba el parpadeo. El desvanecido no cambia ni un
+tile de lo que la unidad ve; solo cuánto tarda en enterarse el jugador.
+
+**Lo que no se ve se oscurece, no se tapa.** Lo nunca explorado deja leer el terreno por debajo.
+Una partida que empieza sin poder ver la forma del mapa agobia en vez de intrigar, y lo que la
+niebla tiene que esconder son los ejércitos, no la costa.
+
+**El manto de nubes: construido, probado y apagado.** Se implementó tapar lo inexplorado con las
+ocho nubes pintadas a mano del pack —repartidas por rejilla, recicladas y balanceándose en el
+sitio— con el argumento de que la frontera de la niebla la dibujara el mismo artista que dibujó
+el bosque de al lado. **Jugado, tapaba demasiado:** la partida empezaba sin poder leer nada. El
+código se queda y el interruptor está en el panel de partida libre, apagado por defecto: apagar
+algo que funciona es reversible y borrarlo no, y la idea sigue sirviendo para un modo de
+exploración de verdad. La deriva de nubes sobre el mapa descubierto sí se queda, que es ambiente
+y no información.
+
+**Tres estados y no dos.** Nunca visto · explorado sin vigilancia · a la vista. El intermedio no
+es adorno: sin él, el mapa se cierra en negro detrás de cada patrulla y el jugador pierde la
+costa y los bosques que ya había pagado por descubrir.
+
+---
+
 ### ADR-17 · El editor de mapas se queda en la semana 13
 
 **Decisión.** La épica **E13 · Editor de mapas** se mantiene donde estaba: semanas 12-13. Se

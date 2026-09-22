@@ -128,7 +128,7 @@ namespace TinyTactics.Edificios
             if (grilla == null) return;
 
             _celdas = _ficha.CeldasDesde(grilla.MundoACelda(mundo));
-            _valido = Cabe(grilla, _celdas);
+            _valido = Cabe(grilla, _celdas) && Conocido(grilla);
 
             // La posición sale del MISMO cálculo que usará el edificio de verdad. Si la
             // silueta se colocara «donde está el ratón» y el edificio «donde dicen las
@@ -167,6 +167,28 @@ namespace TinyTactics.Edificios
         /// porque un edificio a caballo entre el llano y una meseta se dibuja flotando sobre
         /// el acantilado y, peor, puede partir en dos la única rampa de la zona.
         /// </remarks>
+        /// <summary>
+        /// No se construye sobre terreno que el bando no ha explorado.
+        /// </summary>
+        /// <remarks>
+        /// Sin esto, la niebla tendria un agujero: un jugador podria levantar una torre en
+        /// mitad de la base enemiga sin haber mandado a nadie a mirar, y ademas veria por
+        /// donde aparece la silueta en rojo que hay algo debajo. Basta con las cuatro
+        /// esquinas de la planta — una planta cuyas cuatro esquinas estan exploradas no tiene
+        /// dentro ningun trozo sin explorar, porque la exploracion se pinta en discos.
+        /// </remarks>
+        bool Conocido(GrillaMapa grilla)
+        {
+            if (grilla == null) return false;
+
+            var c = _celdas;
+
+            return Mundo.NieblaDeGuerra.Conoce(_faccion, grilla.CeldaAMundo(c.xMin, c.yMin))
+                && Mundo.NieblaDeGuerra.Conoce(_faccion, grilla.CeldaAMundo(c.xMax - 1, c.yMin))
+                && Mundo.NieblaDeGuerra.Conoce(_faccion, grilla.CeldaAMundo(c.xMin, c.yMax - 1))
+                && Mundo.NieblaDeGuerra.Conoce(_faccion, grilla.CeldaAMundo(c.xMax - 1, c.yMax - 1));
+        }
+
         public static bool Cabe(GrillaMapa grilla, RectInt celdas)
         {
             if (grilla == null) return false;

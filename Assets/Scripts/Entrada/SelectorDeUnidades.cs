@@ -382,7 +382,10 @@ namespace TinyTactics.Entrada
             if (teclado.tKey.wasPressedThisFrame)
                 PedirAccion(Interfaz.PanelDeUnidad.Accion.AtacarAuto);
 
-            if (teclado.mKey.wasPressedThisFrame)
+            // V y no M: la M abre el minimapa en grande desde la semana 09. De todos los
+            // atajos este era el que menos falta hacia, porque mover ya tiene el clic
+            // derecho y nadie arma la orden de mover con el teclado.
+            if (teclado.vKey.wasPressedThisFrame)
                 PedirAccion(Interfaz.PanelDeUnidad.Accion.Mover);
 
             if (teclado.sKey.wasPressedThisFrame)
@@ -569,7 +572,8 @@ namespace TinyTactics.Entrada
             // significar «mátalo a él». Atacar el edificio con un guerrero al lado es perder
             // la pelea mientras se pega a una pared.
             var fortaleza = Edificios.Edificio.Bajo(punto);
-            if (fortaleza != null && fortaleza.faccion != faccionJugador)
+            if (fortaleza != null && fortaleza.faccion != faccionJugador &&
+                Mundo.NieblaDeGuerra.Descubierto(faccionJugador, fortaleza))
             {
                 Autoridad.Emitir(
                     new OrdenAtacar { Faccion = faccionJugador, Estructura = fortaleza },
@@ -857,6 +861,13 @@ namespace TinyTactics.Entrada
                 if (u == null || !u.Viva) continue;
                 if ((u.faccion == faccionJugador) != propia) continue;
                 if (propia && _seleccionadas.Contains(u)) continue;
+
+                // No se puede clicar lo que no se ve (ADR-20). Sin esta linea, un enemigo en
+                // niebla sigue teniendo posicion aunque su dibujo este apagado, y el jugador
+                // podria ordenar un ataque sobre una unidad invisible: acertaria a ciegas y
+                // ademas sabria que esta ahi.
+                if (!propia && !Mundo.NieblaDeGuerra.Ve(faccionJugador, u.transform.position))
+                    continue;
 
                 float d2 = ((Vector2)(u.transform.position - mundo)).sqrMagnitude;
                 if (d2 > mejor) continue;

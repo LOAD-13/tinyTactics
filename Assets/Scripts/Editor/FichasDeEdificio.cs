@@ -113,6 +113,7 @@ namespace TinyTactics.EditorHerramientas
                     d.golpesDeObra = 32;
                     d.vidaMaxima = 350;
                     d.poblacionQueAporta = 5;
+                    d.radioVision = 6f;
                     d.centroDeEntrega = false;
                     d.construible = true;
                     d.fabrica = new DatosUnidad[0];
@@ -125,6 +126,7 @@ namespace TinyTactics.EditorHerramientas
                     d.golpesDeObra = 50;
                     d.vidaMaxima = 600;
                     d.poblacionQueAporta = 0;
+                    d.radioVision = 7f;
                     d.centroDeEntrega = false;
                     d.construible = true;
 
@@ -145,6 +147,7 @@ namespace TinyTactics.EditorHerramientas
                     d.golpesDeObra = 46;
                     d.vidaMaxima = 550;
                     d.poblacionQueAporta = 0;
+                    d.radioVision = 7f;
                     d.centroDeEntrega = false;
                     d.construible = true;
                     d.fabrica = new[] { CatalogoDeUnidades.Obtener(TipoUnidad.Arquero) };
@@ -157,6 +160,7 @@ namespace TinyTactics.EditorHerramientas
                     d.golpesDeObra = 56;
                     d.vidaMaxima = 500;
                     d.poblacionQueAporta = 0;
+                    d.radioVision = 7f;
                     d.centroDeEntrega = false;
                     d.construible = true;
                     d.fabrica = new[] { CatalogoDeUnidades.Obtener(TipoUnidad.Monje) };
@@ -169,6 +173,11 @@ namespace TinyTactics.EditorHerramientas
                     d.golpesDeObra = 34;
                     d.vidaMaxima = 450;
                     d.poblacionQueAporta = 0;
+
+                    // Por encima de su alcance de 7,5: una torre que dispara mas lejos de
+                    // lo que ve seria una torre que no dispara, porque con la niebla puesta
+                    // nadie apunta a lo que no se ve.
+                    d.radioVision = 9.5f;
                     d.centroDeEntrega = false;
                     d.construible = true;
 
@@ -202,6 +211,11 @@ namespace TinyTactics.EditorHerramientas
                     // El castillo es la condicion de derrota: tiene que costar un asedio,
                     // no una incursion de dos guerreros mientras miras a otro lado.
                     d.vidaMaxima = 1500;
+
+                    // La atalaya del bando. Con cinco por tres celdas de planta, este radio
+                    // es lo que hace que la partida empiece con la base propia y su primer
+                    // anillo de bosque a la vista, y no a oscuras dentro de tu propia casa.
+                    d.radioVision = 11f;
 
                     // Los diez de población de salida. Es el número que decide cuántas
                     // unidades caben antes de tener que construir la primera casa, así que

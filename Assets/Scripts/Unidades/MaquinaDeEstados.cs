@@ -468,7 +468,19 @@ namespace TinyTactics.Unidades
         [Header("Ataque automático")]
         [Tooltip("Radio en el que busca enemigos por su cuenta. Quien limita de verdad la " +
                  "persecución es la correa, no este radio.")]
-        public float radioVigilancia = 7.5f;
+        public float radioVigilancia = RadioVigilanciaPorDefecto;
+
+        /// <summary>
+        /// Radio de vigilancia de fabrica, en tiles.
+        /// </summary>
+        /// <remarks>
+        /// Es una constante publica y no un 7,5 escrito aqui porque el catalogo de unidades
+        /// lo necesita para comprobar la regla de la niebla: todo radio de VISION tiene que
+        /// ser mayor que el de vigilancia. Con el numero duplicado, cambiar uno dejaria la
+        /// comprobacion validando contra el valor viejo, que es la clase de fallo que no
+        /// avisa — simplemente deja de avisar.
+        /// </remarks>
+        public const float RadioVigilanciaPorDefecto = 7.5f;
 
         [Tooltip("Cada cuánto mira alrededor. No hace falta cada frame y sale caro.")]
         public float intervaloVigilancia = 0.3f;
@@ -591,6 +603,13 @@ namespace TinyTactics.Unidades
                 var u = _cerca[i];
                 if (u == null || !u.Viva || u.faccion == _unidad.faccion) continue;
 
+                // La niebla es una regla, no un filtro de imagen (ADR-20): una unidad no se
+                // engancha a un enemigo que su bando no esta viendo. No mueve nada del
+                // balance de la semana 08 porque todo radio de vision es mayor que el radio
+                // de vigilancia de su unidad — si no lo fuera, la niebla le estaria quitando
+                // objetivos que antes alcanzaba, y eso si seria un cambio de balance.
+                if (!Mundo.NieblaDeGuerra.Ve(_unidad.faccion, u.transform.position)) continue;
+
                 float d = Vector2.Distance(transform.position, u.transform.position);
                 if (d > mejorDistancia) continue;
 
@@ -627,6 +646,11 @@ namespace TinyTactics.Unidades
                 var e = casas[i];
                 if (e == null || e.faccion == _unidad.faccion) continue;
                 if (!((IObjetivo)e).Vivo) continue;
+
+                // Para un edificio basta CONOCERLO, no verlo ahora: un edificio no se mueve,
+                // asi que seguir derribando el de al lado despues de tirar el primero no es
+                // adivinar, es acordarse.
+                if (!Mundo.NieblaDeGuerra.Descubierto(_unidad.faccion, e)) continue;
 
                 float d = e.DistanciaA(transform.position);
                 if (d > mejorDistancia) continue;
@@ -843,6 +867,24 @@ namespace TinyTactics.Unidades
             }
 
             float alcance = Mathf.Max(0.4f, _unidad.datos.alcance);
+
+            // Contra un EDIFICIO, el alcance efectivo suma el radio de la propia unidad.
+            //
+            // El motivo: la distancia a un edificio se mide contra su huella, y la unidad
+            // no puede meter su centro dentro del muro. Lo mas cerca que puede llegar es su
+            // propio radio, asi que un pawn —alcance 0,50, radio 0,42— se planta a unos 0,56
+            // del edificio y nunca entra en su propio alcance. Resultado: los pawns no le
+            // pegaban al castillo, y el guerrero si porque su 0,80 daba de sobra.
+            //
+            // Es EXACTAMENTE el fallo de la semana 08 con otra cara: alli eran dos guerreros
+            // que no se alcanzaban porque el empuje los separaba mas que su alcance. Alcance,
+            // radio y donde puede pararse el pathfinding son tres medidas correctas por
+            // separado, y nadie las habia medido una contra otra. Contra unidades ya se
+            // arreglo —Unidad.DistanciaDesde descuenta el radio del objetivo—; faltaba el
+            // caso de los edificios, que es el mismo problema visto desde el otro lado: alli
+            // sobra el radio del objetivo, aqui el propio.
+            if (!_objetivo.EsUnidad) alcance += _unidad.Radio;
+
             float distancia = _objetivo.DistanciaDesde(transform.position);
 
             if (distancia > alcance)

@@ -22,6 +22,7 @@ MonoBehaviour:
   ataque: 0
   armadura: 0
   correa: 0
+  radioVision: 8.5
   velocidad: 2.7
   radio: 0.4
   carnePorSegundo: 0.15
