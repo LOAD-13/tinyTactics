@@ -105,8 +105,14 @@ namespace TinyTactics.Interfaz
             // árboles, repetido con los edificios.
             if (HayEnemigo(punto, faccion)) return Forma.Ataque;
 
+            // El puntero tampoco delata lo que hay en niebla: si la mira roja apareciera
+            // sobre un enemigo invisible, el cursor seria un detector de enemigos y la
+            // niebla no serviria para nada. Es el mismo criterio del aspa sobre los
+            // edificios de la semana 07, aplicado al revés.
             var enemigo = Edificios.Edificio.Bajo(punto);
-            if (enemigo != null && enemigo.faccion != faccion) return Forma.Ataque;
+            if (enemigo != null && enemigo.faccion != faccion &&
+                Mundo.NieblaDeGuerra.Descubierto(faccion, enemigo))
+                return Forma.Ataque;
 
             var mundo = MundoJuego.Actual;
             if (mundo == null || mundo.Grilla == null) return Forma.Normal;
@@ -142,6 +148,7 @@ namespace TinyTactics.Interfaz
             {
                 var u = _cerca[i];
                 if (u == null || !u.Viva || u.faccion == faccion) continue;
+                if (!Mundo.NieblaDeGuerra.Ve(faccion, u.transform.position)) continue;
                 if (((Vector2)(u.transform.position - punto)).sqrMagnitude <= radio2) return true;
             }
 
