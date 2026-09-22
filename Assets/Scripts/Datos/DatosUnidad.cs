@@ -140,6 +140,15 @@ namespace TinyTactics.Datos
                  "y volver. Solo limita la persecución automática, nunca una orden del jugador.")]
         [Min(0f)] public float correa = 7f;
 
+        [Header("Percepcion")]
+        [Tooltip("Tiles que esta unidad destapa de la niebla a su alrededor. " +
+                 "REGLA QUE NO SE PUEDE ROMPER: el radio de vision tiene que ser MAYOR que " +
+                 "el alcance de ataque y que el radio de vigilancia de la unidad. Si fuera " +
+                 "menor, la niebla le quitaria objetivos que antes alcanzaba y el balance " +
+                 "cerrado en la semana 08 se moveria sin que nadie lo hubiera decidido. El " +
+                 "catalogo de unidades lo comprueba al reconstruirse y avisa si se rompe.")]
+        [Min(0f)] public float radioVision = 8f;
+
         [Header("Movimiento")]
         [Tooltip("Unidades de mundo por segundo. Un tile mide 1.")]
         public float velocidad = 3f;

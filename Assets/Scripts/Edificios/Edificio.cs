@@ -77,6 +77,50 @@ namespace TinyTactics.Edificios
             }
         }
 
+        /// <summary>
+        /// Centro de la PLANTA en coordenadas de mundo.
+        /// </summary>
+        /// <remarks>
+        /// No es <c>transform.position</c>. El origen de un edificio está donde le toca para
+        /// que el dibujo case con el terreno, y en un castillo eso cae muy por encima del
+        /// suelo que ocupa. La niebla y el minimapa preguntan por el suelo, no por el tejado.
+        /// </remarks>
+        public Vector3 PosicionDePlanta
+        {
+            get
+            {
+                var c = celdas;
+                if (c.width <= 0 || c.height <= 0) return transform.position;
+
+                return new Vector3(c.x + c.width * 0.5f, c.y + c.height * 0.5f, 0f);
+            }
+        }
+
+        /// <summary>
+        /// Bandos que han llegado a ver este edificio, uno por bit.
+        /// </summary>
+        /// <remarks>
+        /// <b>Es memoria del edificio, no del terreno, y la diferencia importa.</b> La
+        /// alternativa era dar por descubierto todo lo que este sobre terreno explorado, y
+        /// con el mapa conocido desde el arranque eso significa que un cuartel levantado en
+        /// la semana veinte de partida, en una esquina que nadie vigila, apareceria solo.
+        /// Guardandolo en el edificio, lo que se recuerda es lo que se vio.
+        ///
+        /// Un entero y no una lista: hay cinco bandos como mucho y esto se consulta una vez
+        /// por edificio y ronda. Un <c>HashSet</c> por edificio seria una reserva de memoria
+        /// por casa para guardar como mucho cinco numeros.
+        /// </remarks>
+        int _vistoPor;
+
+        public bool VistoPor(int faccion) => (_vistoPor & (1 << faccion)) != 0;
+
+        public void MarcarVisto(int faccion) => _vistoPor |= 1 << faccion;
+
+        /// <summary>Tiles que el edificio destapa de la niebla alrededor de su planta.</summary>
+        public float RadioDeVision => datos != null && datos.radioVision > 0f
+            ? datos.radioVision
+            : 7f;
+
         [Header("Selección")]
         [Tooltip("Holgura alrededor de la huella en la que un clic ya cuenta como suyo.")]
         [Range(0f, 2f)] public float holguraSeleccion = 0.25f;
