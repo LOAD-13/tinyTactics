@@ -165,7 +165,12 @@ namespace TinyTactics.Unidades
         /// derrumbe no tienen a quién devolverle el golpe— y porque así no hay que tocar
         /// las llamadas que ya existían.
         /// </param>
-        public void RecibirDano(int cantidad, Unidad agresor = null)
+        /// <param name="conDestello">
+        /// El destello cuenta un GOLPE. El hambre no es un golpe: pasa <c>false</c>, o el
+        /// ejercito entero parpadearia cada dos segundos mientras se muere de hambre y no
+        /// se entenderia nada de lo que pasa en pantalla.
+        /// </param>
+        public void RecibirDano(int cantidad, Unidad agresor = null, bool conDestello = true)
         {
             if (_vida == 0 || cantidad <= 0) return;
 
@@ -175,7 +180,7 @@ namespace TinyTactics.Unidades
 
             _vida = Mathf.Max(0, _vida - cantidad);
 
-            if (_maquina != null) _maquina.Destellar();
+            if (conDestello && _maquina != null) _maquina.Destellar();
 
             if (_vida > 0)
             {

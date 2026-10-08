@@ -740,7 +740,10 @@ namespace TinyTactics.Entrada
             if (elegida != null)
             {
                 SeleccionarEdificio(null);
-                Anadir(elegida);
+
+                if (EsDobleClic(elegida)) SeleccionarDelMismoTipo(elegida);
+                else Anadir(elegida);
+
                 return;
             }
 
@@ -748,6 +751,61 @@ namespace TinyTactics.Entrada
             // debajo. Al revés, el castillo se comería los clics de los pawns que tiene
             // delante, que es justo donde se amontonan al depositar.
             if (!acumula) SeleccionarEdificio(Edificios.Edificio.EdificioEn(mundo, faccionJugador));
+        }
+
+        Unidad _ultimaClicada;
+        float _instanteDelClic = -10f;
+
+        [Tooltip("Segundos para que dos clics sobre la misma unidad cuenten como doble.")]
+        [Range(0.1f, 1f)] public float ventanaDeDobleClic = 0.35f;
+
+        /// <summary>¿Este clic es el segundo sobre la misma unidad?</summary>
+        bool EsDobleClic(Unidad u)
+        {
+            bool doble = _ultimaClicada == u &&
+                         Time.unscaledTime - _instanteDelClic <= ventanaDeDobleClic;
+
+            _ultimaClicada = u;
+            _instanteDelClic = Time.unscaledTime;
+
+            return doble;
+        }
+
+        /// <summary>
+        /// Todas las unidades de ese tipo que se vean en pantalla.
+        /// </summary>
+        /// <remarks>
+        /// En pantalla y no en todo el mapa, que es la convencion del genero y ademas la
+        /// util: doble clic sobre un arquero selecciona a los arqueros de esta pelea, no a
+        /// los cuatro que quedaron guardando la base al otro lado del mapa.
+        /// </remarks>
+        void SeleccionarDelMismoTipo(Unidad modelo)
+        {
+            if (modelo == null || modelo.datos == null) return;
+
+            var camara = Camera.main;
+            if (camara == null) { Anadir(modelo); return; }
+
+            float mitadAlto = camara.orthographicSize;
+            float mitadAncho = mitadAlto * camara.aspect;
+            Vector3 ojo = camara.transform.position;
+
+            LimpiarSeleccion();
+
+            var todas = RegistroDeUnidades.Todas;
+
+            for (int i = 0; i < todas.Count; i++)
+            {
+                var u = todas[i];
+                if (!EsSeleccionable(u) || u.datos == null) continue;
+                if (u.datos.tipo != modelo.datos.tipo) continue;
+
+                var p = u.transform.position;
+                if (Mathf.Abs(p.x - ojo.x) > mitadAncho) continue;
+                if (Mathf.Abs(p.y - ojo.y) > mitadAlto) continue;
+
+                Anadir(u);
+            }
         }
 
         void SeleccionarEdificio(Edificios.Edificio edificio)
@@ -882,6 +940,25 @@ namespace TinyTactics.Entrada
         /// <summary>Solo unidades vivas del propio bando. Las enemigas no se seleccionan.</summary>
         bool EsSeleccionable(Unidad u) =>
             u != null && u.Viva && u.gameObject.activeInHierarchy && u.faccion == faccionJugador;
+
+        /// <summary>
+        /// Reemplaza la seleccion por esta lista. Lo usan los grupos de control.
+        /// </summary>
+        /// <remarks>
+        /// Publico y en el selector, y no manipulando la lista desde fuera: la seleccion no
+        /// es solo una lista, es tambien los corchetes encendidos en cada unidad y el numero
+        /// de version que el panel vigila para saber si tiene que redibujarse. Quien la toque
+        /// por su cuenta rompe una de esas dos cosas.
+        /// </remarks>
+        public void SeleccionarGrupo(IReadOnlyList<Unidad> unidades)
+        {
+            LimpiarSeleccion();
+
+            if (unidades == null) return;
+
+            for (int i = 0; i < unidades.Count; i++)
+                if (EsSeleccionable(unidades[i])) Anadir(unidades[i]);
+        }
 
         void Anadir(Unidad u)
         {

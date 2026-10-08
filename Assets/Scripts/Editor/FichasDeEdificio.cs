@@ -205,7 +205,12 @@ namespace TinyTactics.EditorHerramientas
 
                 default: // Castillo
                     d.nombreVisible = "Castillo";
-                    d.oro = 0; d.madera = 0;
+
+                    // Caro, y con un motivo doble: es el edificio que mas poblacion da y es
+                    // la condicion de derrota. Barato, la respuesta a cualquier problema
+                    // seria otro castillo; a este precio, levantarlo es una decision que
+                    // cuesta un ejercito entero y hay que querer tomarla.
+                    d.oro = 300; d.madera = 250;
                     d.planta = new Vector2Int(5, 3);
                     d.golpesDeObra = 90;
                     // El castillo es la condicion de derrota: tiene que costar un asedio,
@@ -223,9 +228,12 @@ namespace TinyTactics.EditorHerramientas
                     d.poblacionQueAporta = 10;
                     d.centroDeEntrega = true;
 
-                    // No se construye: ya está puesto al empezar. El día que haya expansiones
-                    // bastará con poner esto en true.
-                    d.construible = false;
+                    // Construible desde la semana 10, y el dia llego tal y como decia la
+                    // nota que habia aqui. Dos cosas lo pidieron a la vez: un bando al que
+                    // le derriban el castillo se quedaba paralizado —sin sitio donde
+                    // depositar y sin centro desde el que construir— y no habia forma de
+                    // expandirse a una segunda base.
+                    d.construible = true;
                     d.fabrica = new[] { CatalogoDeUnidades.Obtener(TipoUnidad.Pawn) };
                     break;
             }

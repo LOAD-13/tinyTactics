@@ -68,6 +68,17 @@ namespace TinyTactics.Unidades
         /// <summary>Lo que lleva encima ahora mismo.</summary>
         public TipoRecurso Carga => _carga;
 
+        /// <summary>
+        /// Con que recurso esta trabajando ahora, o el ultimo que trabajo.
+        /// </summary>
+        /// <remarks>
+        /// La IA lo necesita para saber cuantos de sus pawns estan en la madera y cuantos en
+        /// el oro sin llevar ella su propia cuenta. Una cuenta paralela se desincroniza en
+        /// cuanto muere un pawn o el jugador le da otra orden; preguntandoselo al pawn, el
+        /// dato es siempre el de verdad.
+        /// </remarks>
+        public TipoRecurso Recurso => _nodo != null ? _nodo.recurso : _ultimoTipo;
+
         void Awake()
         {
             _unidad = GetComponent<Unidad>();

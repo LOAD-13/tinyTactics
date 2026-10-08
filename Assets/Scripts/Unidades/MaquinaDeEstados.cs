@@ -414,7 +414,7 @@ namespace TinyTactics.Unidades
 
             // Un ataque ordenado contra un edificio tambien encadena: el jugador que manda
             // tirar un cuartel quiere que sigan con la base, no que se queden parados.
-            _demoliendo = !objetivo.EsUnidad;
+            _demoliendo = true;
 
             // El ancla se pone tambien aqui. Si el objetivo muere y la unidad encadena con
             // el siguiente edificio, ese enganche ya sera automatico y necesita desde donde
@@ -631,8 +631,12 @@ namespace TinyTactics.Unidades
         /// <summary>True si el último objetivo propio era un edificio.</summary>
         bool _demoliendo;
 
-        [Tooltip("Hasta dónde busca el siguiente edificio al terminar de derribar uno.")]
-        public float radioDemolicion = 9f;
+        [Tooltip("Hasta donde busca el siguiente blanco al terminar con el anterior. " +
+                 "Eran 9 y se quedaba corto: un grupo que derribaba un edificio se quedaba " +
+                 "plantado porque el siguiente estaba a 11 tiles, y habia que reordenarle el " +
+                 "ataque a mano. 14 cubre una base entera sin que la unidad se vaya de " +
+                 "excursion por el mapa.")]
+        public float radioDemolicion = 14f;
 
         void SeguirDemoliendo()
         {
@@ -659,8 +663,75 @@ namespace TinyTactics.Unidades
                 mejor = e;
             }
 
-            if (mejor != null) Enganchar(mejor);
-            else _demoliendo = false;
+            if (mejor != null) { Enganchar(mejor); return; }
+
+            // Sin edificios a mano, se mira si queda alguien vivo a quien pegarle. Es lo
+            // que el jugador espera de un grupo al que mando a asaltar una base: terminado
+            // un edificio sigue con lo que tenga delante, sea un muro o un guerrero. Antes
+            // solo seguia con edificios, asi que un grupo que acababa con el ultimo cuartel
+            // se quedaba quieto entre los defensores.
+            if (SeguirConAlguien()) return;
+
+            _demoliendo = false;
+        }
+
+        /// <summary>¿Esta unidad puede y debe responder a un golpe?</summary>
+        bool PuedePelear() =>
+            _unidad.datos != null && _unidad.datos.dano > 0 &&
+            PosturaActual != Postura.Quieta &&
+            _unidad.datos.tipo != TipoUnidad.Pawn;
+
+        /// <summary>
+        /// ¿El agresor esta lo bastante cerca como para que valga la pena girarse?
+        /// </summary>
+        /// <remarks>
+        /// Se mide con un margen sobre el alcance propio: responder a quien te pega desde el
+        /// otro lado del mapa seria abandonar el asalto por una flecha perdida, que es justo
+        /// lo que el comentario de mas arriba dice que no hay que hacer. Responder a quien
+        /// tienes pegado es otra cosa.
+        /// </remarks>
+        bool CercaDeMi(Unidad agresor)
+        {
+            float alcance = Mathf.Max(0.4f, _unidad.datos.alcance) +
+                            _unidad.Radio + agresor.Radio;
+
+            return Vector2.Distance(transform.position, agresor.transform.position)
+                   <= alcance + margenDeRespuesta;
+        }
+
+        /// <summary>Tiles de mas sobre el alcance propio para considerar que te tienen al lado.</summary>
+        const float margenDeRespuesta = 1.5f;
+
+        /// <summary>Engancha a la unidad enemiga viva mas cercana dentro del radio.</summary>
+        bool SeguirConAlguien()
+        {
+            if (_unidad.datos == null || _unidad.datos.dano <= 0) return false;
+
+            RegistroDeUnidades.VecinasEnRadio(transform.position, radioDemolicion, _cerca);
+
+            Unidad mejor = null;
+            float mejorDistancia = radioDemolicion;
+
+            for (int i = 0; i < _cerca.Count; i++)
+            {
+                var u = _cerca[i];
+                if (u == null || !u.Viva || u.faccion == _unidad.faccion) continue;
+                if (!Mundo.NieblaDeGuerra.Ve(_unidad.faccion, u.transform.position)) continue;
+
+                float d = Vector2.Distance(transform.position, u.transform.position);
+                if (d > mejorDistancia) continue;
+
+                mejorDistancia = d;
+                mejor = u;
+            }
+
+            if (mejor == null) return false;
+
+            Enganchar(mejor);
+
+            // Se conserva el trabajo abierto: al terminar con esta tambien seguira buscando.
+            _demoliendo = true;
+            return true;
         }
 
         /// <summary>
@@ -742,6 +813,22 @@ namespace TinyTactics.Unidades
         {
             if (Muerta || agresor == null || !agresor.Viva) return;
             if (agresor == _unidad || agresor.faccion == _unidad.faccion) return;
+
+            // EXCEPCION, y es la que evita que una oleada se deje matar: si lo que estoy
+            // golpeando es un EDIFICIO y quien me pega es una unidad que tengo al lado,
+            // paso a por ella. Pegarle a un muro mientras tres guerreros te desmontan es la
+            // peor jugada posible, y es literalmente lo que hacia una oleada de camino a la
+            // base enemiga: cruzaba por delante de los defensores, no respondia a nadie, y
+            // llegaba muerta.
+            //
+            // Al terminar con el agresor no se pierde el asalto: el trabajo queda abierto y
+            // la unidad encadena con el siguiente edificio que tenga cerca.
+            if (_objetivo != null && !_objetivo.EsUnidad && PuedePelear() && CercaDeMi(agresor))
+            {
+                Enganchar(agresor);
+                _demoliendo = true;
+                return;
+            }
 
             // Quien ya está peleando no cambia de objetivo por un golpe nuevo. Sin esto,
             // dos unidades que se hieren a la vez se turnan el objetivo cada golpe y
