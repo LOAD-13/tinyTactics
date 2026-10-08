@@ -29,6 +29,7 @@ MonoBehaviour:
   ritmoSustento: 0.1
   avisoCarne: 25
   danoConHambre: 0.5
+  vidaPorHambre: 1
   velocidadConHambre: 0.6
   tiempoPawn: 12
   colaMaxima: 5
