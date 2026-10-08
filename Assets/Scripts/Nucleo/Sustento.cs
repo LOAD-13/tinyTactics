@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TinyTactics.Nucleo
@@ -71,6 +72,64 @@ namespace TinyTactics.Nucleo
 
             for (int f = 0; f < _gasto.Length; f++)
                 if (_gasto[f] > 0f) _economia.ConsumirCarne(f, _gasto[f] * ritmo);
+
+            PasarHambre(unidades, segundos);
+        }
+
+        float[] _deuda;
+
+        /// <summary>
+        /// Un bando sin carne pierde vida, poco a poco y en todas sus unidades.
+        /// </summary>
+        /// <remarks>
+        /// <b>Hasta la semana 10 el hambre solo bajaba dano y velocidad, y no se notaba.</b>
+        /// Una partida entera a cero de carne terminaba sin que nadie lo arreglara, porque
+        /// el castigo era invisible: con menos dano y menos velocidad sigues jugando igual
+        /// de mal que el rival, que tambien esta sin carne. Quitando vida, el hambre se
+        /// convierte en un reloj — y la carne, en una decision.
+        ///
+        /// Se lleva una DEUDA por bando en vez de redondear cada pasada. A un cuarto de
+        /// segundo por pasada, el dano por unidad es una fraccion: redondeando se quedaria
+        /// en cero siempre y el hambre no haria nada. Acumulando, la deuda llega a uno y se
+        /// cobra entera.
+        ///
+        /// Y se cobra SIN destello: el destello cuenta un golpe, y veinte unidades
+        /// parpadeando a la vez cada dos segundos haria ilegible cualquier pelea.
+        /// </remarks>
+        void PasarHambre(IReadOnlyList<Unidades.Unidad> unidades, float segundos)
+        {
+            var datos = _economia.datos;
+            if (datos == null || datos.vidaPorHambre <= 0f) return;
+
+            if (_deuda == null || _deuda.Length != _gasto.Length)
+                _deuda = new float[_gasto.Length];
+
+            bool alguien = false;
+
+            for (int f = 0; f < _deuda.Length; f++)
+            {
+                if (!_economia.ConHambre(f)) { _deuda[f] = 0f; continue; }
+
+                _deuda[f] += datos.vidaPorHambre * segundos;
+                if (_deuda[f] >= 1f) alguien = true;
+            }
+
+            if (!alguien) return;
+
+            for (int i = 0; i < unidades.Count; i++)
+            {
+                var u = unidades[i];
+                if (u == null || !u.Viva || u.datos == null || u.datos.invulnerable) continue;
+                if (u.faccion < 0 || u.faccion >= _deuda.Length) continue;
+
+                int golpe = Mathf.FloorToInt(_deuda[u.faccion]);
+                if (golpe <= 0) continue;
+
+                u.RecibirDano(golpe, null, false);
+            }
+
+            for (int f = 0; f < _deuda.Length; f++)
+                if (_deuda[f] >= 1f) _deuda[f] -= Mathf.Floor(_deuda[f]);
         }
 
         // -----------------------------------------------------------------
