@@ -584,6 +584,11 @@ namespace TinyTactics.EditorHerramientas
             // exactamente lo que hace falta para ensenar una textura que cambia.
             go.AddComponent<Minimapa>().tema = tema;
 
+            // Los grupos de control no son interfaz, son entrada, pero van aqui por lo mismo
+            // que el resto: este es el objeto que el generador crea siempre y el sitio donde
+            // quien busque «que escucha el teclado» va a mirar primero.
+            go.AddComponent<Entrada.GruposDeControl>();
+
             // El resaltado tiñe el sprite que ya está en el mapa; del tema solo saca la caja
             // de madera del cartel de existencias.
             go.AddComponent<ResaltadoDeNodo>().tema = tema;

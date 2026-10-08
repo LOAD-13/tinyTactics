@@ -6,6 +6,7 @@ using UnityEngine.Rendering.Universal;
 using UnityEngine.Tilemaps;
 using TinyTactics.Edificios;
 using TinyTactics.Entrada;
+using TinyTactics.IA;
 using TinyTactics.Mundo;
 using TinyTactics.Nucleo;
 using TinyTactics.Unidades;
@@ -91,6 +92,7 @@ namespace TinyTactics.EditorHerramientas
                 PoblarMapa(definicion, mapa);
 
                 CrearPercepcion(definicion);
+                CrearCerebros(definicion);
 
                 ConstructorDeInterfaz.CrearLienzo(_tema, definicion.bandos);
 
@@ -1652,6 +1654,102 @@ namespace TinyTactics.EditorHerramientas
         // -----------------------------------------------------------------
         // Percepcion: niebla, nubes y hora del dia
         // -----------------------------------------------------------------
+
+        // -----------------------------------------------------------------
+        // La IA rival
+        // -----------------------------------------------------------------
+
+        const string CarpetaIA = "Assets/Datos/IA";
+        const string RutaPlanIA = CarpetaIA + "/PlanEstandar.asset";
+        const string RutaDificultadIA = CarpetaIA + "/Normal.asset";
+
+        /// <summary>
+        /// Un cerebro por bando rival. El bando 0 es el del jugador.
+        /// </summary>
+        /// <remarks>
+        /// Los cerebros van en objetos sueltos de la escena y no colgando del mundo: cada uno
+        /// es un JUGADOR, no una pieza del mapa, y en la jerarquia tiene que leerse asi. El
+        /// dia que el flujo de partida permita elegir cuantos bots hay (semana 12), esto sera
+        /// crear o no crear un objeto.
+        /// </remarks>
+        static void CrearCerebros(DefinicionMapa definicion)
+        {
+            var plan = ObtenerPlanDeIA();
+            var dificultad = ObtenerDificultadIA();
+            var fichas = FichasDeEdificio.ObtenerTodas();
+
+            var padre = new GameObject("Cerebros").transform;
+
+            for (int faccion = 1; faccion < definicion.bandos; faccion++)
+            {
+                var go = new GameObject($"CerebroIA_{faccion}");
+                go.transform.SetParent(padre, false);
+
+                var cerebro = go.AddComponent<CerebroIA>();
+                cerebro.faccion = faccion;
+                cerebro.plan = plan;
+                cerebro.dificultad = dificultad;
+                cerebro.fichas = fichas.ToArray();
+            }
+        }
+
+        static PlanDeIA ObtenerPlanDeIA()
+        {
+            var plan = AssetDatabase.LoadAssetAtPath<PlanDeIA>(RutaPlanIA);
+            if (plan != null) return plan;
+
+            AsegurarCarpeta(CarpetaIA);
+
+            plan = ScriptableObject.CreateInstance<PlanDeIA>();
+            plan.nombreVisible = "Estandar";
+
+            // La apertura. Se lee de arriba abajo y es lo unico que hay que tocar para que
+            // el rival juegue distinto: cinco pawns antes de nada, una casa para no toparse
+            // con la poblacion, cuartel, tres guerreros que ya son una amenaza, y a partir
+            // de ahi se alterna economia y ejercito hasta abrir el campo de tiro.
+            plan.pasos = new[]
+            {
+                Renglon(Objetivo.Pawns, 5),
+                Renglon(Objetivo.Casas, 1),
+                Renglon(Objetivo.Pawns, 8),
+                Renglon(Objetivo.Cuarteles, 1),
+                Renglon(Objetivo.Guerreros, 3),
+                Renglon(Objetivo.Casas, 2),
+                Renglon(Objetivo.CamposDeTiro, 1),
+                Renglon(Objetivo.Arqueros, 3),
+                Renglon(Objetivo.Torres, 1),
+                Renglon(Objetivo.Pawns, 10),
+                Renglon(Objetivo.Guerreros, 6),
+                Renglon(Objetivo.Casas, 3),
+                Renglon(Objetivo.Monasterios, 1),
+                Renglon(Objetivo.Monjes, 1),
+            };
+
+            AssetDatabase.CreateAsset(plan, RutaPlanIA);
+            AssetDatabase.SaveAssets();
+
+            return plan;
+        }
+
+        static PasoDelPlan Renglon(Objetivo que, int cuantos) =>
+            new PasoDelPlan { que = que, cantidad = cuantos };
+
+        static DatosIA ObtenerDificultadIA()
+        {
+            var datos = AssetDatabase.LoadAssetAtPath<DatosIA>(RutaDificultadIA);
+            if (datos != null) return datos;
+
+            AsegurarCarpeta(CarpetaIA);
+
+            datos = ScriptableObject.CreateInstance<DatosIA>();
+            datos.nivel = NivelDeIA.Normal;
+            datos.nombreVisible = "Normal";
+
+            AssetDatabase.CreateAsset(datos, RutaDificultadIA);
+            AssetDatabase.SaveAssets();
+
+            return datos;
+        }
 
         const string RutaShaderTinte = "Assets/Shaders/TinteMultiplicativo.shader";
         const string CarpetaNiebla = "Assets/Datos/Niebla";
