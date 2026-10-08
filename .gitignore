@@ -125,3 +125,6 @@ desktop.ini
 
 # Entregables semanales: viven en la carpeta del curso, no en el repo
 /Semana*/
+
+# Cache de Python de las herramientas de tools/
+__pycache__/
