@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using TinyTactics.Datos;
 using TinyTactics.Edificios;
 using TinyTactics.Entrada;
+using TinyTactics.IA;
 using TinyTactics.Interfaz;
 using TinyTactics.Mundo;
 using TinyTactics.Nucleo;
@@ -428,6 +429,7 @@ namespace TinyTactics.Pruebas
             SeccionTiempo();
             SeccionHora();
             SeccionPercepcion();
+            SeccionRivales();
             SeccionPartida();
             SeccionAparecer();
             SeccionEditar();
@@ -640,6 +642,94 @@ namespace TinyTactics.Pruebas
             if (BotonConIcono("Con niebla", null, minimapa.respetarNiebla))
                 minimapa.respetarNiebla = !minimapa.respetarNiebla;
             GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// Los bots: que estan pensando, y el interruptor para pararlos.
+        /// </summary>
+        /// <remarks>
+        /// <b>Un bot que no dice en que esta pensando cuesta tardes.</b> Cuando algo va mal
+        /// —los pawns parados, el ejercito que no sale, un edificio que no se planta— la
+        /// diferencia entre arreglarlo en cinco minutos y en toda una tarde es si la causa
+        /// esta en pantalla o hay que deducirla. Por eso cada cerebro publica en que paso de
+        /// su plan va y que esta haciendo su ejercito.
+        ///
+        /// Y <b>bot contra bot</b> es la herramienta de prueba de la semana: se pone un
+        /// cerebro tambien en el bando del jugador, se acelera a x4 y en dos minutos hay una
+        /// partida entera jugada sin tocar el raton. Todo lo que puede fallar sale ahi.
+        /// </remarks>
+        void SeccionRivales()
+        {
+            var cerebros = CerebroIA.Todos;
+            if (cerebros.Count == 0) return;
+
+            GUILayout.Label("RIVALES", _seccion);
+
+            int jugador = SelectorDeUnidades.Actual != null
+                ? SelectorDeUnidades.Actual.faccionJugador
+                : 0;
+
+            bool hayBotEnMiBando = false;
+
+            for (int i = 0; i < cerebros.Count; i++)
+            {
+                var cerebro = cerebros[i];
+                if (cerebro == null) continue;
+
+                if (cerebro.faccion == jugador) hayBotEnMiBando = true;
+
+                if (BotonConIcono($"Bando {cerebro.faccion + 1}: " +
+                                  (cerebro.pensando ? "pensando" : "en pausa"),
+                                  null, cerebro.pensando))
+                    cerebro.pensando = !cerebro.pensando;
+
+                GUILayout.Label($"  {cerebro.PasoVisible}", _ayuda);
+                GUILayout.Label($"  {cerebro.Estado}", _ayuda);
+                GUILayout.Label($"  ejercito: {cerebro.EstadoMilitar} · " +
+                                $"oleadas: {cerebro.Oleadas}", _ayuda);
+            }
+
+            if (BotonConIcono(hayBotEnMiBando ? "Quitar bot de mi bando" : "Bot contra bot",
+                              null, hayBotEnMiBando))
+                AlternarBotPropio(jugador, hayBotEnMiBando);
+        }
+
+        /// <summary>
+        /// Pone o quita un cerebro en el bando del jugador.
+        /// </summary>
+        /// <remarks>
+        /// El cerebro nuevo se clona de uno que ya existe en vez de configurarse a mano: asi
+        /// juega con el mismo plan y la misma dificultad que los demas, y si alguien cambia
+        /// el plan no hay una segunda copia que se quede vieja. Es el mismo criterio que las
+        /// plantillas de recurso de la semana 08 — copiar uno de verdad en vez de fabricar
+        /// otro.
+        /// </remarks>
+        void AlternarBotPropio(int faccion, bool quitar)
+        {
+            var cerebros = CerebroIA.Todos;
+
+            if (quitar)
+            {
+                for (int i = cerebros.Count - 1; i >= 0; i--)
+                    if (cerebros[i] != null && cerebros[i].faccion == faccion)
+                        Destroy(cerebros[i].gameObject);
+
+                return;
+            }
+
+            CerebroIA modelo = null;
+            for (int i = 0; i < cerebros.Count; i++)
+                if (cerebros[i] != null) { modelo = cerebros[i]; break; }
+
+            if (modelo == null) return;
+
+            var go = new GameObject($"CerebroIA_{faccion}_pruebas");
+            var nuevo = go.AddComponent<CerebroIA>();
+
+            nuevo.faccion = faccion;
+            nuevo.plan = modelo.plan;
+            nuevo.dificultad = modelo.dificultad;
+            nuevo.fichas = modelo.fichas;
         }
 
         /// <summary>

@@ -19,8 +19,8 @@ MonoBehaviour:
   - archivo: Castle
     huella: {x: 4.875, y: 3.25}
     huellaCentro: {x: 0, y: -0.265625}
-  oro: 0
-  madera: 0
+  oro: 300
+  madera: 250
   planta: {x: 5, y: 3}
   vidaMaxima: 1500
   radioVision: 11
@@ -32,6 +32,6 @@ MonoBehaviour:
   golpesDeObra: 90
   centroDeEntrega: 1
   poblacionQueAporta: 10
-  construible: 0
+  construible: 1
   fabrica:
   - {fileID: 11400000, guid: 8366d06deef447b4c989c44b2262b06d, type: 2}

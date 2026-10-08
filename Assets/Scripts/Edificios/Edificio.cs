@@ -682,7 +682,26 @@ namespace TinyTactics.Edificios
         /// acorte el viaje de vuelta sin que el pawn tenga que saber nada de mapas: pregunta
         /// por el más cercano y ya está.
         /// </summary>
+        /// <remarks>
+        /// <b>Si el bando no tiene ningun centro de entrega, vale cualquier edificio suyo.</b>
+        /// Sin esta regla, perder el castillo era perder la partida sin remedio y sin que
+        /// nadie lo dijera: los pawns se quedaban con la carga en las manos, sin donde
+        /// soltarla, y sin poder depositar no hay oro — asi que tampoco habia forma de pagar
+        /// el castillo nuevo. Un bloqueo cerrado sobre si mismo que dejaba al bando vivo en
+        /// el marcador y muerto en la practica.
+        ///
+        /// Es una regla de emergencia y se nota que lo es: mientras tengas castillo, se
+        /// entrega en el castillo. Solo cuando no queda ninguno se admite soltar la carga en
+        /// un cuartel o en una casa, que es lo justo para poder levantar otro.
+        /// </remarks>
         public static Edificio EntregaMasCercana(Vector3 punto, int faccion)
+        {
+            var mejor = Buscar(punto, faccion, true);
+
+            return mejor != null ? mejor : Buscar(punto, faccion, false);
+        }
+
+        static Edificio Buscar(Vector3 punto, int faccion, bool soloCentros)
         {
             Edificio mejor = null;
             float mejorDistancia = float.MaxValue;
@@ -690,8 +709,8 @@ namespace TinyTactics.Edificios
             for (int i = 0; i < _todos.Count; i++)
             {
                 var e = _todos[i];
-                if (e == null || !e.centroDeEntrega || !e.Operativo || e.faccion != faccion)
-                    continue;
+                if (e == null || !e.Operativo || e.faccion != faccion) continue;
+                if (soloCentros && !e.centroDeEntrega) continue;
 
                 float d = e.DistanciaA(punto);
                 if (d >= mejorDistancia) continue;

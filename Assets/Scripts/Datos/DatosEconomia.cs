@@ -59,6 +59,13 @@ namespace TinyTactics.Datos
         [Tooltip("Daño que conserva el ejército con la despensa vacía.")]
         [Range(0.1f, 1f)] public float danoConHambre = 0.5f;
 
+        [Tooltip("Vida por segundo que pierde CADA unidad de un bando sin carne. " +
+                 "Con 1, un pawn de 60 aguanta un minuto y un guerrero de 140 algo mas de " +
+                 "dos: es una hemorragia lenta que obliga a resolver el hambre, no una " +
+                 "sentencia inmediata. En 0 el hambre solo baja dano y velocidad, que es " +
+                 "como funcionaba hasta la semana 10.")]
+        [Range(0f, 10f)] public float vidaPorHambre = 1f;
+
         [Tooltip("Velocidad que conserva el ejército con la despensa vacía.")]
         [Range(0.1f, 1f)] public float velocidadConHambre = 0.6f;
 
