@@ -11,6 +11,108 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 10 — El rival (E08, parte A) · 🏁 HITO 2 · PC2
+**Entrega:** domingo 11/10/2026 · **Expo:** lunes 12/10/2026 · **Expone:** Joaquín
+**Tag:** [`v0.10.0-s10`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.10.0-s10) · **Rama:** `feat/E08-ia-rival`
+
+### Lo prometido
+Once HUs: HU-075 cerebro por bando con sus tres capas · HU-076 el plan es un dato ·
+HU-077 la IA mantiene su economía · HU-078 construye donde cabe · HU-079 entrena y junta
+oleadas · HU-080 ataca lo que conoce · HU-081 partida completa contra el bot ·
+HU-082 pausar la IA y ver su plan · HU-083 grupos de control · HU-084 la barra al castillo ·
+HU-085 la IA defiende su casa *(adelantada de la semana 11)*.
+
+### Lo entregado
+Las once. Y una cosa que no estaba en el alcance y acabó siendo lo más útil de la semana:
+**un arnés de pruebas que corre fuera de Unity** ([ADR-22](ARQUITECTURA.md#adr-22)).
+
+También entraron cuatro cosas que salieron de jugar y que no estaban previstas: el castillo
+pasó a ser construible, el hambre pasó a quitar vida, la IA aprendió a gestionar carne, y los
+edificios dejaron de montarse unos sobre otros.
+
+### Lo que costó de verdad
+
+**La IA se quedaba plantada delante de la base enemiga, y tardé tres intentos en verlo.** El
+síntoma era siempre el mismo —un ejército entero parado entre los escombros— y las dos
+primeras explicaciones eran ciertas pero no eran *la* causa:
+
+1. El contador de oleadas subía cada vez que se emitía la orden de atacar, y eso corre tres
+   veces por segundo. En dos segundos el número que el bot pedía superaba a su ejército.
+   **Arreglado, y seguía pasando.**
+2. El contador pasó a subir solo cuando el objetivo caía. Mejor, pero el fondo seguía ahí.
+   **Arreglado, y seguía pasando.**
+3. **La causa de verdad: había confundido una ofensiva con un edificio.** Cada edificio
+   derribado contaba como una oleada cumplida, y cada oleada exige más gente que la anterior.
+   Tiras un cuartel y necesitas 7, tiras una casa y necesitas 9, otra y 11 — mientras te
+   matan unidades. Llega un punto en que **el número crece más rápido de lo que el bot puede
+   reponer**, y se queda esperando un refuerzo que no va a llegar nunca.
+
+Una ofensiva es ahora un **periodo**, no un edificio: una vez empezada no vuelve a mirar ese
+número, encadena objetivos hasta que la tropa baja del umbral de retirada. Y la espera tiene
+un límite: si la tropa no crece en treinta segundos, ataca con lo que haya.
+
+**La lección no es el fallo, es cómo se encontró.** Las dos primeras veces arreglé lo que
+tenía delante sin preguntarme si explicaba *todo* el síntoma. La tercera, la decisión se sacó
+a una función pura y se le puso una prueba que recorre **cada tamaño de oleada del 1 al 50 con
+cada tamaño de tropa del 2 al 20** y exige que el bot acabe atacando. 950 comprobaciones de
+que el bloqueo no puede repetirse. Esa prueba habría cazado el fallo el primer día.
+
+**Las pruebas no podían existir, y por eso existen fuera de Unity.** El Test Runner del motor
+exige que las pruebas vivan en un ensamblado con `.asmdef`, y **un `.asmdef` no puede
+referenciar `Assembly-CSharp`**, que es donde está todo el código del juego. La alternativa era
+meter el proyecto entero en `.asmdef` a mitad de semestre. En vez de eso: se compila con el
+Roslyn de Unity y se ejecuta en .NET normal. Y la causalidad va al revés de lo que parece —
+**no es que se pueda probar porque está bien escrito, es que se escribe separando la decisión
+del efecto para poder probarla.**
+
+Primera cosecha, el mismo día: la prueba del pasillo falló y el fallo era de la prueba.
+`CerrariaElPaso` detecta **bolsas pequeñas** sin salida, no que el mapa se parta en dos —
+inunda hasta 256 celdas y se rinde. No estaba escrito en ninguna parte.
+
+**Perder el castillo era perder la partida sin que nadie lo dijera.** Un bando sin castillo no
+tenía dónde depositar; sin depositar no hay oro; sin oro no se paga un castillo nuevo. Un
+bloqueo cerrado sobre sí mismo que dejaba al bando vivo en el marcador y muerto en la práctica,
+con los pawns parados y la carga en las manos. El castillo pasó a ser construible —el propio
+código decía *«el día que haya expansiones bastará con poner esto en true»*, y el día era hoy—
+y, cuando no queda ningún centro de entrega, vale cualquier edificio propio.
+
+**El hambre no se notaba.** Bajaba daño y velocidad, y eso es invisible cuando el rival también
+está sin carne: una partida entera a cero terminaba sin que nadie lo arreglara. Ahora quita
+vida, 1 por segundo y unidad. Y la IA tuvo que aprender a gestionarla, con una regla reactiva
+fuera del plan: a cero de carne, cuatro de cada diez pawns van a por ovejas.
+
+**Los edificios de la IA se montaban unos sobre otros**, y era un fallo de bulto: el buscador
+de sitio comprobaba la **planta** y no la **huella**. La planta de una torre son 2×2 celdas,
+pero su dibujo mide casi tres tiles de alto. Es exactamente la distinción que el
+[ADR-14](ARQUITECTURA.md#adr-14) fijó en la semana 06, y no la apliqué aquí.
+
+**Una oleada cruzaba por delante de los defensores sin responder y llegaba muerta.** El
+comentario que lo causaba era correcto —*«una unidad que abandona su camino porque le rozó una
+flecha nunca llega»*— y se volvió en nuestra contra: pegarle a un muro mientras tres guerreros
+te desmontan es la peor jugada posible. Ahora, si lo que golpeas es un edificio y quien te pega
+está al lado, te giras.
+
+### Decisiones
+- [ADR-21](ARQUITECTURA.md#adr-21): el plan de la IA es un dato, no código.
+- [ADR-22](ARQUITECTURA.md#adr-22): las pruebas del proyecto corren fuera de Unity.
+
+### Lo que se decidió NO hacer
+- **Las tres dificultades.** Siguen en la semana 11. El `ScriptableObject` con los
+  multiplicadores ya está y solo existe el perfil Normal: calibrar tres sin haber visto jugar
+  a uno es calibrar a ciegas.
+- **Arreglar a ojo el orden de dibujo de una unidad sobre una torre.** Hacía falta leer el
+  `sortingOrder` de las dos cosas en ejecución, y eso no se puede hacer desde fuera del editor.
+  Tras arreglar el solapamiento entre edificios, quedó pendiente de medición en vez de de
+  suposición — que es lo que ya había salido mal dos veces esta misma semana.
+
+### Nota de higiene del repositorio
+Las herramientas de editor que se instalan como paquete de Unity **escriben su dependencia en
+`Packages/manifest.json`**. Ese archivo queda fuera de los commits mientras las tenga, por la
+misma razón por la que nunca se versionó nada de la cadena de herramientas: el repositorio es
+público y el proyecto es del equipo.
+
+---
+
 ## Semana 09 — La percepción (E07) · épica cerrada
 **Entrega:** domingo 04/10/2026 · **Expo:** lunes 05/10/2026 · **Expone:** Kiara
 **Tag:** [`v0.9.0-s09`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.9.0-s09) · **Rama:** `feat/E07-niebla-y-minimapa`

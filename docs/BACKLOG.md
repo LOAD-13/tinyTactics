@@ -18,7 +18,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E05` | Construcción y producción | 06 | 🟢 Cerrada |
 | `E06` | Combate | 07-08 | 🟢 Cerrada |
 | `E07` | Percepción — niebla, minimapa y hora | 09 | 🟢 Cerrada |
-| `E08` | IA rival | 10-11 | ⚪ Pendiente |
+| `E08` | IA rival | 10-11 | 🔵 En curso |
 | `E09` | Flujo de partida y FFA | 12-13 | ⚪ Pendiente |
 | `E10` | Presentación — audio, VFX, UI | 14-15 | ⚪ Pendiente |
 | `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
@@ -1507,9 +1507,176 @@ porque abajo a la derecha entra el minimapa y de las cuatro esquinas esa era la 
 ### Semana 09 — Niebla, minimapa y hora del día (E07)
 Detallada arriba, en su propia sección.
 
+---
+
+# Semana 10 — IA rival v1 (E08) · 🏁 HITO 2 · PC2
+
+**Meta de la semana:** que se pueda jugar una partida completa contra la máquina. Es lo que
+pide PC2 textualmente, y todo lo demás de la semana se subordina a eso.
+
+> **Una sola rama:** `feat/E08-ia-rival`.
+
+**Lo que juega a favor:** la IA no necesita código de juego nuevo. Desde la semana 02 toda
+acción es una orden serializable y las unidades obedecen a una autoridad (ADR-01), así que el
+bot emite exactamente las mismas órdenes que el ratón. La semana 10 no construye juego:
+construye un jugador.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-075 | Un cerebro por bando, con sus tres capas y su reloj | medio |
+| HU-076 | El plan de la IA es un dato, no código | medio |
+| HU-077 | La IA mantiene su economía sola | **alto** |
+| HU-078 | La IA construye donde cabe y sin cerrarse el paso | **alto** |
+| HU-079 | La IA entrena ejército y lo junta en oleadas | medio |
+| HU-080 | La IA ataca lo que conoce y respeta su propia niebla | medio |
+| HU-081 | Partida completa contra el bot, de principio a final | **alto** |
+| HU-082 | Pausar la IA y ver su plan, desde el panel | bajo |
+| HU-083 | Grupos de control con las teclas numéricas | bajo |
+| HU-084 | La barra espaciadora lleva a tu base | bajo |
+| HU-085 | La IA defiende su casa | medio |
+
+---
+
+### HU-075 · Un cerebro por bando, con sus tres capas y su reloj
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] Un cerebro por bando rival, con su facción, su plan y su dificultad.
+- [ ] Tres capas con tres ritmos: estratégica (~1 Hz), táctica (~3 Hz), FSM por unidad.
+- [ ] **Ningún script de la IA toca `MovimientoUnidad` ni `MaquinaDeEstados`.** Todo pasa por
+      `Autoridad.Emitir`. Se comprueba con un `grep`.
+- [ ] Los cerebros piensan **desfasados** entre sí: dos bots nunca deciden en el mismo
+      fotograma.
+- [ ] Sin plan asignado, avisa por consola en vez de quedarse callado.
+
+---
+
+### HU-076 · El plan de la IA es un dato, no código
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] El *build order* vive en un `ScriptableObject` editable sin recompilar.
+- [ ] Es una lista de **objetivos** («ten 5 pawns»), no de acciones («entrena un pawn»).
+- [ ] Un objetivo que se vuelve a incumplir —le matan dos pawns— se vuelve a perseguir.
+- [ ] Terminado el plan, el bot sigue entrenando **lo que menos tenga** de su bucle militar.
+- [ ] Probado sin abrir Unity ([ADR-22](ARQUITECTURA.md#adr-22)).
+
+---
+
+### HU-077 · La IA mantiene su economía sola
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] Ningún pawn se queda parado: cada vuelta, los ociosos reciben nodo.
+- [ ] El reparto madera/oro sigue la proporción del plan y **se recalcula entero** cada vuelta.
+- [ ] Ningún recurso se queda sin nadie, ni siquiera con dos pawns.
+- [ ] Si no hay nodos del recurso que toca, se prueba con el otro antes de rendirse.
+- [ ] El bot levanta una casa **antes** de toparse con la población, no después.
+- [ ] Nunca planta dos casas a la vez por no haber mirado si ya hay una en obras.
+
+---
+
+### HU-078 · La IA construye donde cabe y sin cerrarse el paso
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] Busca sitio **en anillos** desde su castillo hacia afuera: el primer hueco válido es
+      siempre el más cercano.
+- [ ] Usa las mismas reglas que el jugador (`ColocadorEdificios.Cabe`), no una copia.
+- [ ] No deja ninguna zona sin salida.
+- [ ] Las torres se plantan más lejos que el resto.
+- [ ] Paga **antes** de emitir la orden, igual que el clic del jugador.
+- [ ] Probado sin abrir Unity, incluido que nunca devuelve un sitio inválido.
+
+---
+
+### HU-079 · La IA entrena ejército y lo junta en oleadas
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] No manda unidades sueltas: espera a juntar la oleada.
+- [ ] Cada oleada es mayor que la anterior, con un tope.
+- [ ] Hay una espera inicial: un bot que ataca en el minuto uno no da partida.
+- [ ] Entrena por los mismos edificios y pagando lo mismo que el jugador.
+
+---
+
+### HU-080 · La IA ataca lo que conoce y respeta su propia niebla
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] Solo ataca edificios que su bando ha **descubierto**.
+- [ ] Va al más cercano, no directo al castillo.
+- [ ] Sus unidades no se enganchan a enemigos que su bando no ve (ya lo daba la E07).
+
+---
+
+### HU-081 · Partida completa contra el bot, de principio a final
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] Una partida entera: el bot recolecta, construye, entrena, ataca y defiende.
+- [ ] La partida **termina**: el árbitro y el cartel de final funcionan con un bot.
+- [ ] El bot no se atasca: ni pawns parados, ni edificios sin sitio, ni oleadas que no salen.
+- [ ] **Demostrable en vivo.** Es lo que pide PC2.
+
+---
+
+### HU-082 · Pausar la IA y ver su plan, desde el panel
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] El panel enseña, por bando: paso del plan, qué está haciendo y cuántas oleadas lleva.
+- [ ] Se puede pausar cada bot por separado.
+- [ ] **Bot contra bot**: se puede poner un cerebro también en el bando del jugador.
+
+**Nota.** Lo de bot contra bot no es un juguete: a x4 es una partida entera en dos minutos sin
+tocar el ratón, y es donde salen los atascos. Es la herramienta de prueba de la semana.
+
+---
+
+### HU-083 · Grupos de control con las teclas numéricas
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] `Ctrl`+número crea el grupo; `Shift`+número añade; el número solo, selecciona.
+- [ ] Doble pulsación del número lleva además la cámara al grupo.
+- [ ] Un grupo del que han matado a la mitad sigue seleccionando a la otra mitad.
+- [ ] Diez grupos: del 1 al 9 y el 0.
+- [ ] **Extra:** doble clic en una unidad selecciona todas las de su tipo **en pantalla**.
+
+---
+
+### HU-084 · La barra espaciadora lleva a tu base
+**Épica:** E08 · **Semana:** 10
+
+**Criterios de aceptación**
+- [ ] `Espacio` centra la cámara en el castillo propio.
+- [ ] Respeta los límites del mapa.
+
+---
+
+### HU-085 · La IA defiende su casa
+**Épica:** E08 · **Semana:** 10
+
+**Como** jugador **quiero** que atacar al bot tenga consecuencias **para** que no sea solo una
+carrera a ver quién derriba antes.
+
+**Criterios de aceptación**
+- [ ] Si hay enemigos rondando su base, la oleada **se da la vuelta**.
+- [ ] Defender gana a atacar: no sigue camino del enemigo mientras le queman la casa.
+- [ ] Lo detecta con la grilla espacial, no recorriendo todas las unidades.
+- [ ] **Solo reacciona a lo que su bando ve.** No puede defenderse de lo que no ve.
+- [ ] El radio de alarma es mayor que la visión del castillo: defender tarde es no defender.
+
+**Nota de alcance.** Estaba en la semana 11 y se adelanta. Una vez que existe la capa táctica,
+defender es la misma decisión —a dónde mando el ejército— con otra respuesta; dejarlo para la
+semana siguiente significaba volver a abrir el mismo archivo.
+
+---
+
 ### Semana 10 — IA rival v1 · HITO 2 · PC2 (E08)
-Capa estratégica con build order · gestor de economía de la IA · gestor militar y oleadas ·
-la IA emite las mismas órdenes que el jugador · primera partida completa vs bot.
+Detallada arriba, en su propia sección.
 
 ### Semana 11 — IA v2 y compuerta PvP (E08)
 Tres dificultades por multiplicador · IA que defiende su base · IA que decide si la niebla la afecta ·

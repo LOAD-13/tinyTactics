@@ -179,6 +179,61 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-22 · Las pruebas del proyecto corren fuera de Unity
+
+**Decisión.** La lógica que decide —la grilla de visibilidad, el plan de la IA, dónde cabe un
+edificio— se compila con el Roslyn del propio Unity y se ejecuta en .NET normal, con un arnés
+de cuarenta líneas. `python tools/probar.py`, segundos, sin abrir el editor.
+
+**Por qué no el Test Runner de Unity.** Sus pruebas viven en un ensamblado con `.asmdef`, y
+**un `.asmdef` no puede referenciar `Assembly-CSharp`**, que es donde está todo el código del
+juego. La alternativa era meter el proyecto entero en `.asmdef` a mitad de semestre: una
+refactorización con su propio riesgo, para resolver un problema que no era ese.
+
+**Por qué esto funciona.** Las clases que deciden son C# puro: solo tocan `Vector2Int`,
+`RectInt` y `Mathf`, que son estructuras y aritmética. Se ejecutan igual dentro y fuera del
+motor.
+
+**Y por eso el código está escrito así.** La causalidad va al revés de lo que parece: no es
+que se pueda probar porque está bien escrito, es que **se escribe separando la decisión del
+efecto para poder probarla**. `PlanDeIA.PasoActual`, `TamanoDeOleada`, `PawnsParaMadera` y
+`BuscadorDeSitio` son estáticos y sin estado por esa razón.
+
+> **Lo que NO cubren, y hay que decirlo:** nada que toque `GameObject`, `Debug.Log`,
+> corrutinas o el ciclo de vida de un `MonoBehaviour`. Esas llamadas son nativas y no existen
+> fuera del motor. Estas pruebas cubren **las decisiones, no el dibujado** — jugar sigue
+> haciendo falta.
+
+Primera cosecha: la prueba del pasillo falló, y el fallo era de la prueba. `CerrariaElPaso`
+detecta **bolsas pequeñas** que se quedan sin salida, no que el mapa se parta en dos — inunda
+hasta un límite de 256 celdas y se rinde. Nadie lo había escrito en ninguna parte.
+
+---
+
+### ADR-21 · El plan de la IA es un dato, no código
+
+**Decisión.** El *build order* del rival vive en un `ScriptableObject`: una lista de objetivos
+—«ten 5 pawns», «ten 1 cuartel»— que se recorre en orden. Cambiar cómo juega el bot no cuesta
+una recompilación.
+
+**Por qué.** Es el [ADR-07](#adr-07) aplicado al comportamiento en vez de a los números. En la
+semana 16, la de ajuste, se van a hacer cien iteraciones sobre cómo abre el rival; con el plan
+en un `switch` serían diez.
+
+**Y son objetivos, no acciones.** «Ten cinco pawns» y no «entrena un pawn». La diferencia se
+ve cuando algo sale mal: un plan de acciones sigue adelante aunque le maten dos pawns, y uno de
+objetivos vuelve a por ellos solo. El plan deja de ser una lista que se recorre una vez y pasa
+a ser **una descripción de cómo quiere estar el bot**.
+
+**Lo que queda fuera del plan, a propósito.** Las reglas que no pueden esperar —si se va a
+quedar sin población, casa ya; si hay enemigos en casa, defender— van antes que el plan y no
+dentro. Un bot que recorre su plan sin reaccionar se queda a tope de población con oro de sobra
+y una cola parada, y eso desde fuera no se lee como una IA fácil: se lee como una IA rota.
+
+**De regalo, la semana 11.** Las tres dificultades pueden ser, literalmente, tres planes.
+
+---
+
 ### ADR-20 · La niebla es una regla de juego, no un filtro de imagen
 
 **Decisión.** La visibilidad **condiciona la simulación y la entrada**, no solo el dibujado.

@@ -27,19 +27,28 @@ Entrega **domingo**, exposición **lunes**. Expone un solo integrante, rotando.
 | **07** | 20/09 | 21/09 | **Combate cuerpo a cuerpo.** Guerrero y lancero: HP, daño, barras de vida, muerte. Targeting con grilla espacial. | Raúl |
 | **08** | 27/09 | 28/09 | **Combate a distancia.** Arquero con proyectiles, monje que cura, triángulo de contadores. Cuartel/campo de tiro/monasterio. | Joaquín |
 | **09** | 04/10 | 05/10 | **Niebla de guerra + minimapa + hora del día.** Visibilidad por facción, minimapa con unidades, ciclo de día y noche. | Kiara |
-| **10** | 11/10 | 12/10 | **🏁 HITO 2 · PC2 — IA rival v1.** Capa estratégica + táctica. El bot recolecta, construye, entrena y ataca. Primera partida completa vs bot. | Raúl |
-| **11** | 18/10 | 19/10 | **IA v2 + ⚖️ COMPUERTA PvP.** 3 dificultades, IA que defiende. Decisión go/no-go documentada. | Joaquín |
+| **10** | 11/10 | 12/10 | **🏁 HITO 2 · PC2 — IA rival v1.** Capa estratégica + táctica. El bot recolecta, construye, entrena, ataca **y defiende su base**. Primera partida completa vs bot. Grupos de control. | Joaquín |
+| **11** | 18/10 | 19/10 | **IA v2 + ⚖️ COMPUERTA PvP.** 3 dificultades calibradas, decisión de si la IA respeta la niebla, y decisión go/no-go del PvP documentada. | Raúl |
 | **12** | 25/10 | 26/10 | **Partida completa.** Victoria/derrota por castillo, menú principal, selección de mapa y nº de bandos. | Kiara |
-| **13** | 01/11 | 02/11 | **Escalado a FFA.** Spawns múltiples, IA multi-bando, tuning de rendimiento a ~250 unidades. Segundo mapa. | Raúl |
-| **14** | 08/11 | 09/11 | **Audio y feedback.** Música, SFX, AudioMixer, partículas de impacto y construcción. | Joaquín |
+| **13** | 01/11 | 02/11 | **Escalado a FFA.** Spawns múltiples, IA multi-bando, tuning de rendimiento a ~250 unidades. Segundo mapa. | Joaquín |
+| **14** | 08/11 | 09/11 | **Audio y feedback.** Música, SFX, AudioMixer, partículas de impacto y construcción. | Raúl |
 | **15** | 15/11 | 16/11 | **🏁 HITO 3 · PC3 — UI/UX.** HUD final, panel de selección, tooltips, menús, pausa. Tercer mapa, FFA de 5 corriendo. | Kiara |
-| **16** | 22/11 | 23/11 | **Balance y QA.** Sesiones de prueba reales, ajuste de números (incluida la carne), plan de pruebas, corrección de bugs. VFX. | Raúl |
-| **17** | 29/11 | 30/11 | **📦 Entrega final.** Build jugable + documentación técnica consolidada desde la bitácora. | Joaquín |
+| **16** | 22/11 | 23/11 | **Balance y QA.** Sesiones de prueba reales, ajuste de números (incluida la carne), plan de pruebas, corrección de bugs. VFX. | Joaquín |
+| **17** | 29/11 | 30/11 | **📦 Entrega final.** Build jugable + documentación técnica consolidada desde la bitácora. | Raúl |
 | **18** | — | 07/12 | **Examen final.** Preparación individual: los tres dominan el proyecto completo. | — |
 
 ---
 
 ### Nota · el editor de mapas se evaluó adelantar y se dejó donde estaba
+
+> **Corrección de la columna «Expone» (22/09/2026).** La rotación real es la que se cumplió:
+> semana 07 Joaquín, 08 Raúl, 09 Kiara. La columna llevaba otra secuencia desde el principio y
+> nadie la había cruzado con quién expuso de verdad. Corregida de la 10 en adelante.
+>
+> **Cambio de alcance (22/09/2026).** *La IA que defiende su base* pasa de la semana 11 a la
+> 10. Una vez que existe la capa táctica, defender es decidir a dónde va la oleada, no un
+> sistema nuevo: hacerlo en la 11 significaría volver a abrir el mismo archivo. La semana 11 se
+> queda con las tres dificultades, la niebla de la IA y la compuerta del PvP.
 
 En la semana 08 se planteó traer la épica E13 (editor de mapas) a la semana 09. **Se descartó**
 y el calendario queda intacto: ver [ADR-17](ARQUITECTURA.md#adr-17).
