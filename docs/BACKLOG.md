@@ -20,12 +20,12 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E07` | Percepción — niebla, minimapa y hora | 09 | 🟢 Cerrada |
 | `E08` | IA rival | 10-11 | 🔵 En curso |
 | `E09` | Flujo de partida y FFA | 12-13 | ⚪ Pendiente |
-| `E10` | Presentación — audio, VFX, UI | 14-15 | ⚪ Pendiente |
+| `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🔵 Empezada *(efectos de sonido adelantados a la 11)* |
 | `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
-| `E12` | PvP LAN *(condicional — compuerta S11)* | 12-14 | ⚫ Condicional |
+| `E12` | PvP LAN *(condicional — compuerta S11)* | — | ⛔ NO-GO en la semana 11 · [ADR-24](ARQUITECTURA.md#adr-24) |
 | `E13` | Editor de mapas | 12-13 | 🔵 Empezada *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
 
-Leyenda: 🔵 en curso · 🟢 cerrada · ⚪ pendiente · ⚫ condicional
+Leyenda: 🔵 en curso · 🟢 cerrada · ⚪ pendiente · ⚫ condicional · ⛔ descartada con decisión documentada
 
 ---
 
@@ -1675,12 +1675,172 @@ semana siguiente significaba volver a abrir el mismo archivo.
 
 ---
 
+# Semana 11 — IA v2, compuerta del PvP y primer audio (E08 · E10)
+
+**Meta de la semana:** cerrar la IA rival con sus tres dificultades, decidir el PvP con el
+criterio que se fijó en la semana 02, y que el juego **suene**.
+
+> **Una sola rama:** `feat/E08-dificultades-y-audio`.
+
+**El audio se parte en dos, a propósito** (decidido el 15/10/2026). Esta semana entran los
+**efectos puntuales**, que es lo que hace falta oír dentro del juego para decidir qué sonidos
+de la primera tanda se cambian; si eso esperara a la 14, no habría tiempo de buscar
+sustitutos. La **música, el ambiente por hora del día, el mezclador por buses y las
+partículas** se quedan en la semana 14, que sigue siendo la semana de audio y feedback y
+conserva lo más vistoso para exponer.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-086 | Tres dificultades: Fácil, Normal y Difícil | medio |
+| HU-087 | Cambiar la dificultad de cada rival desde el panel | bajo |
+| HU-088 | La IA respeta la niebla en las tres dificultades | bajo |
+| HU-089 | Compuerta del PvP: decisión documentada | bajo |
+| HU-090 | Pruebas automáticas de dificultad y audio | bajo |
+| HU-091 | Un altavoz por escena, con catálogo por nombre de archivo | medio |
+| HU-092 | El combate suena, y solo lo que ves | medio |
+| HU-093 | La economía y la construcción suenan | bajo |
+| HU-094 | La interfaz suena | bajo |
+| HU-095 | La oleada termina lo que empieza y pelea con quien le sale al paso | medio |
+| HU-096 | Diario de partida para analizar a la IA con datos | bajo |
+
+---
+
+### HU-086 · Tres dificultades: Fácil, Normal y Difícil
+**Épica:** E08 · **Semana:** 11
+
+**Como** jugador **quiero** elegir lo duro que es el rival **para** poder aprender contra uno
+fácil y medirme contra uno difícil.
+
+**Criterios de aceptación**
+- [ ] Tres perfiles en `Assets/Datos/IA`: `Facil`, `Normal`, `Dificil`.
+- [ ] Cuatro palancas: ventaja de recursos, tamaño de oleada, espera antes de atacar y ritmo
+      de decisión. **Más difícil lo es en las cuatro a la vez**, nunca en una sí y en otra no.
+- [ ] Normal queda exactamente como el bot de la semana 10, el único calibrado jugando.
+- [ ] La ventaja de recursos se aplica al depositar y no se pierde redondeando cargas
+      pequeñas.
+- [ ] Las estadísticas apuntan lo recolectado de verdad, no el regalo de la dificultad.
+- [ ] Regenerar la escena **no pisa** un perfil ya ajustado a mano.
+
+---
+
+### HU-087 · Cambiar la dificultad de cada rival desde el panel
+**Épica:** E08 · **Semana:** 11
+
+**Criterios de aceptación**
+- [ ] Un botón por rival recorre Fácil → Normal → Difícil, en caliente.
+- [ ] «Bot contra bot» hereda los perfiles del rival que clona.
+
+---
+
+### HU-088 · La IA respeta la niebla en las tres dificultades
+**Épica:** E08 · **Semana:** 11 · ver [ADR-23](ARQUITECTURA.md#adr-23)
+
+**Criterios de aceptación**
+- [ ] Ningún perfil ve el mapa entero.
+- [ ] Existe una trampa «ve todo» por rival en el panel, solo para pruebas.
+
+---
+
+### HU-089 · Compuerta del PvP: decisión documentada
+**Épica:** E08 / E12 · **Semana:** 11 · ver [ADR-24](ARQUITECTURA.md#adr-24)
+
+**Criterios de aceptación**
+- [ ] Las tres condiciones de la semana 02 evaluadas una por una, con evidencia.
+- [ ] Decisión escrita y su coste comparado con lo que desplazaría.
+- [ ] Si es NO-GO, el análisis de viabilidad dice qué está ya preparado y qué faltaría.
+
+---
+
+### HU-090 · Pruebas automáticas de dificultad y audio
+**Épica:** E08 / E10 · **Semana:** 11
+
+**Criterios de aceptación**
+- [ ] Las decisiones de dificultad y de audio son funciones puras (`ReglasDeDificultad`,
+      `ReglasDeSonido`) y pasan por el arnés sin abrir Unity.
+
+---
+
+### HU-091 · Un altavoz por escena, con catálogo por nombre de archivo
+**Épica:** E10 · **Semana:** 11 *(adelantada de la 14)* · ver [ADR-25](ARQUITECTURA.md#adr-25)
+
+**Como** equipo **queremos** cambiar un sonido sustituyendo un archivo **para** probar la
+primera tanda sin tocar código.
+
+**Criterios de aceptación**
+- [ ] Los efectos viven en `Assets/Audio/Efectos/` y se enganchan por **prefijo** de nombre:
+      `golpe_cortante_01`, `_02`, `_03` son tomas del mismo sonido.
+- [ ] Regenerar relee las tomas pero respeta volumen, tono y límites ajustados a mano.
+- [ ] Un número fijo de altavoces reutilizados; si se agotan, se roba el más viejo.
+- [ ] Cada sonido tiene tope de copias simultáneas y separación mínima.
+- [ ] No repite la misma toma dos veces seguidas y varía un poco el tono.
+- [ ] Interruptor de sonido en el panel.
+
+---
+
+### HU-092 · El combate suena, y solo lo que ves
+**Épica:** E10 · **Semana:** 11 *(adelantada de la 14)*
+
+**Criterios de aceptación**
+- [ ] Golpe cortante (guerrero, pawn), perforante (lancero), disparo e impacto de flecha,
+      curación, muerte y flecha de torre.
+- [ ] **Lo que pasa en la niebla no se oye.**
+- [ ] Se atenúa al alejarse de la cámara y se reparte entre los dos altavoces según el lado.
+
+---
+
+### HU-093 · La economía y la construcción suenan
+**Épica:** E10 · **Semana:** 11 *(adelantada de la 14)*
+
+**Criterios de aceptación**
+- [ ] Hacha, pico y oveja **en la misma vuelta de animación que cuenta el golpe** (ADR-13).
+- [ ] Martillo en la obra, depósito al entregar, edificio terminado (solo los tuyos),
+      derrumbe y escombros al caer.
+
+---
+
+### HU-094 · La interfaz suena
+**Épica:** E10 · **Semana:** 11 *(adelantada de la 14)*
+
+**Criterios de aceptación**
+- [ ] Seleccionar, ordenar mover, ordenar atacar, botón del panel, acción no válida, unidad
+      entrenada (solo las tuyas), victoria y derrota.
+- [ ] Las órdenes suenan escuchando a la autoridad, no tocando cada sitio que emite.
+- [ ] Las órdenes del bot no suenan, tampoco con «bot contra bot».
+
+---
+
+### HU-095 · La oleada termina lo que empieza y pelea con quien le sale al paso
+**Épica:** E08 · **Semana:** 11 · *(salió de las partidas de prueba de esta semana)*
+
+**Como** jugador **quiero** que el rival se comporte como un ejército **para** que una
+oleada sea una amenaza y no un regalo de recursos.
+
+**Criterios de aceptación**
+- [ ] Al derribar un edificio, la oleada sigue con lo que queda **de esa misma base**: se
+      mide desde donde cayó la presa, no desde la primera unidad de la lista (que podía ser
+      un recluta en casa y se llevaba al ejército entero de vuelta).
+- [ ] Si en el camino hay tropas enemigas a 6 tiles de cualquiera de las suyas, la oleada
+      entera ataca a la más cercana y después vuelve a su objetivo.
+- [ ] Los pawns no cuentan como amenaza, y solo cuenta lo que el bando ve (ADR-23).
+- [ ] Un bando sin castillo sigue defendiendo lo que le queda en pie.
+
+---
+
+### HU-096 · Diario de partida para analizar a la IA con datos
+**Épica:** E08 · **Semana:** 11
+
+**Criterios de aceptación**
+- [ ] `Logs/partida_ia.log` apunta qué hace cada ejército, cada edificio que cae y quién lo
+      derriba, cada obra, cada eliminación y una foto de cada bando cada 30 segundos.
+- [ ] Solo en el editor y en builds de desarrollo; la build final no escribe nada.
+
+---
+
 ### Semana 10 — IA rival v1 · HITO 2 · PC2 (E08)
 Detallada arriba, en su propia sección.
 
-### Semana 11 — IA v2 y compuerta PvP (E08)
-Tres dificultades por multiplicador · IA que defiende su base · IA que decide si la niebla la afecta ·
-**decisión go/no-go de PvP documentada**.
+### Semana 11 — IA v2, compuerta PvP y primer audio (E08 · E10)
+Detallada arriba, en su propia sección.
 
 ### Semana 12 — Flujo de partida (E09)
 Condición de victoria y derrota · pantalla de resultado · menú principal · selección de mapa ·
@@ -1691,8 +1851,10 @@ Spawns múltiples · IA multi-bando · perfilado con 250 unidades · optimizaci�
 segundo mapa.
 
 ### Semana 14 — Audio y feedback (E10)
-AudioMixer con buses · música de fondo · SFX de combate, construcción y recolección ·
-partículas de impacto · feedback visual de daño.
+AudioMixer con buses y volumen por canal · música de partida, combate y menú, con transición
+cuando empieza una pelea · ambiente que sigue la hora del día · partículas de impacto,
+construcción y derrumbe · feedback visual de daño. *(Los efectos de sonido puntuales se
+adelantaron a la semana 11.)*
 
 ### Semana 15 — UI/UX · HITO 3 · PC3 (E10)
 HUD final con los assets del pack · panel de unidad seleccionada · tooltips · menú de pausa ·

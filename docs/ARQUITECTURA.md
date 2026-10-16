@@ -179,6 +179,127 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-25 · Solo suena lo que ves, y cada sonido es un archivo con nombre
+
+**Decisión.** Un único componente, `SonidoJuego`, hace sonar el juego. Cada sonido del mapa
+pasa dos filtros antes de sonar: **la niebla** —si el jugador no ve esa celda, no lo oye— y
+**la cámara** —cuanto más lejos de la pantalla, más flojo, y se va al altavoz de su lado—.
+Los archivos se enganchan por **prefijo de nombre** a través de un catálogo, no a mano.
+
+**Por qué la niebla filtra el sonido.** Porque es una regla, no un efecto (ADR-20). Un
+choque de espadas que se oye desde la niebla le dice al jugador dónde está el rival, que es
+exactamente lo que la niebla existe para esconder. Un juego que oculta la imagen y deja
+pasar el sonido tiene la niebla a medias.
+
+**Por qué la cámara atenúa.** Una base de diez pawns trabajando son diez hachazos por
+segundo. Si sonaran todos a tope estés donde estés, el jugador oiría su propia base
+mientras mira una batalla al otro lado del mapa. La caída empieza antes del borde y termina
+algo después, a propósito: lo que pasa justo fuera de la pantalla se oye flojito, y ese es
+el aviso de que hay que mirar ahí.
+
+**Por qué un tope por sonido.** Treinta guerreros pegando a la vez son treinta espadazos en
+el mismo fotograma. Sin tope, una batalla grande es un muro de ruido que además se come los
+avisos de la interfaz. Cada sonido tiene un máximo de copias simultáneas y una separación
+mínima; treinta golpes en el mismo instante suenan como uno (y una prueba lo comprueba).
+
+**Por qué por nombre de archivo.** Los sonidos de esta semana son una primera tanda y
+algunos se van a cambiar. Con el catálogo por prefijo, cambiar un sonido es sustituir el
+archivo por otro con el mismo nombre, y añadir una variación es soltar un `_04` al lado.
+Ninguna de las dos cosas toca código. Al regenerar se releen las tomas pero **no** el
+volumen ni los límites, que son ajustes hechos a oído.
+
+**Y las órdenes suenan escuchando a la autoridad**, no tocando los once sitios del selector
+que emiten órdenes. Un sitio olvidado sería una orden muda, y la autoridad es el único paso
+por el que pasan todas (ADR-01). Las del bot no suenan.
+
+**Lo que no es todavía.** No hay mezclador ni buses: eso, con la música y el ambiente, es
+la semana 14. Los volúmenes viven en el catálogo hasta entonces.
+
+> Todos los efectos son **CC0**. La primera tanda vino de OpenGameArt, BigSoundBank y Kenney;
+> tras oírla en el juego se cambió casi la mitad por sonidos más acordes al pixel art
+> (Juhani Junkala · 512 Retro SFX, Kenney · Impact, RPG Audio, Interface, UI Audio y Music
+> Jingles, artisticdude · RPG Sound Pack), elegidos a oído entre unos diez candidatos por
+> sonido. Cambiarlos no tocó una línea de código: es justo lo que este ADR pretendía.
+
+---
+
+### ADR-24 · Compuerta del PvP: NO-GO
+
+**Decisión.** El PvP en red local **no se implementa**. Se documenta como análisis de
+viabilidad, que es lo que el cronograma fijó en la semana 02 para este caso y lo que el
+docente autorizó por escrito.
+
+**Las tres condiciones, una por una.**
+
+| Condición fijada en la semana 02 | Estado en la semana 11 |
+|---|---|
+| Combate e IA cerrados y sin fallos bloqueantes | ✅ La IA se cierra esta semana |
+| El juego corre estable con 3 bandos | ✅ Es la configuración de todas las pruebas desde la 09 |
+| Holgura real: nada del cronograma base atrasado | ❌ No |
+
+**Por qué falla la tercera.** Quedan seis semanas y está pendiente el flujo de partida con
+menú, el FFA de cinco bandos con rendimiento a 250 unidades, el segundo y tercer mapa, el
+editor de mapas, la UI final, el balance y la build. Y esta misma semana ya se adelanta audio
+para llegar con margen. No hay holgura: hay un calendario lleno que se está cumpliendo.
+
+**Qué costaría un GO.** La red de un RTS no envía posiciones: envía órdenes, y las dos
+máquinas ejecutan la misma simulación al mismo ritmo (*lockstep*), como Age of Empires y
+StarCraft. Eso exige, además de la conexión:
+
+1. **Determinismo bit a bit.** Hoy el movimiento integra con `Time.deltaTime` en coma
+   flotante y varias cosas usan `Random` sin semilla compartida. Habría que pasar la
+   simulación a pasos fijos y a un generador común.
+2. **Órdenes que viajen.** Las órdenes son objetos con datos (ADR-01), pero señalan a sus
+   unidades y edificios por referencia de objeto. Por la red tendrían que viajar como
+   identificadores.
+3. **Un reloj de turnos** que agrupe las órdenes de cada jugador y las aplique en el mismo
+   paso en las dos máquinas.
+4. **Detectar la desincronización** —un resumen del estado cada pocos pasos— porque cuando
+   dos simulaciones se separan, lo hacen en silencio.
+
+Estimación: unas tres semanas, de la 12 a la 14, que saldrían del menú, del FFA y de la UI.
+Es cambiar un juego terminado de un jugador por uno a medio hacer de dos.
+
+**Qué queda ganado aunque sea NO-GO.** Lo más caro de un *lockstep* ya está: toda acción es
+una orden con datos que pasa por un único punto (ADR-01), la IA usa ese mismo punto, y el
+movimiento es por grilla, que es lo que hace viable el determinismo (ADR-02, ADR-08). La
+arquitectura está preparada para la red; lo que se descarta es el tiempo, no la posibilidad.
+
+---
+
+### ADR-23 · La IA respeta la niebla en las tres dificultades
+
+**Decisión.** Ningún perfil de dificultad ve el mapa entero. La dificultad se gana con
+recursos y con ritmo —más carga por depósito, oleadas mayores, ataques antes, decisiones
+más seguidas—, nunca con información. `veTodoElMapa` queda como trampa de pruebas en el
+panel, y una prueba comprueba que ningún perfil la tiene puesta.
+
+**Por qué.** Las dos trampas se sienten distinto aunque den la misma ventaja. Un rival con
+más oro se percibe como «es fuerte»; un rival que va directo a tu base sin haberla explorado
+se percibe como «hace trampa», y eso rompe la partida aunque los números estén equilibrados.
+El ADR-06 ya fijaba que la dificultad sería economía y ritmo; esto lo cierra del todo.
+
+**Y es coherente con lo que ya había.** La niebla es una regla (ADR-20), el sonido la
+respeta (ADR-25) y la IA la respetaba desde la semana 10. Hacer trampa solo en Difícil sería
+la única excepción del juego a su propia regla.
+
+**Las cuatro palancas, y en el mismo sentido.** Más difícil es más difícil en las cuatro a
+la vez: nunca más recursos y oleadas más pequeñas. Normal queda exactamente como el bot de
+la semana 10, el único calibrado jugando; Fácil y Difícil se apartan de él.
+
+| | Fácil | Normal | Difícil |
+|---|---|---|---|
+| Recursos por carga | × 0,75 | × 1 | × 1,35 |
+| Tamaño de oleada | × 0,7 | × 1 | × 1,3 |
+| Espera antes de atacar | 240 s | 60 s | 30 s |
+| Segundos entre decisiones | × 1,5 | × 1 | × 0,7 |
+
+La ventaja de recursos guarda la fracción que no cabe en cada carga y la suma a la
+siguiente: las cargas son de cinco o diez, y redondear cada una por separado se comería el
+multiplicador entero.
+
+---
+
 ### ADR-22 · Las pruebas del proyecto corren fuera de Unity
 
 **Decisión.** La lógica que decide —la grilla de visibilidad, el plan de la IA, dónde cabe un

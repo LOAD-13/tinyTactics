@@ -28,16 +28,33 @@ Entrega **domingo**, exposición **lunes**. Expone un solo integrante, rotando.
 | **08** | 27/09 | 28/09 | **Combate a distancia.** Arquero con proyectiles, monje que cura, triángulo de contadores. Cuartel/campo de tiro/monasterio. | Joaquín |
 | **09** | 04/10 | 05/10 | **Niebla de guerra + minimapa + hora del día.** Visibilidad por facción, minimapa con unidades, ciclo de día y noche. | Kiara |
 | **10** | 11/10 | 12/10 | **🏁 HITO 2 · PC2 — IA rival v1.** Capa estratégica + táctica. El bot recolecta, construye, entrena, ataca **y defiende su base**. Primera partida completa vs bot. Grupos de control. | Joaquín |
-| **11** | 18/10 | 19/10 | **IA v2 + ⚖️ COMPUERTA PvP.** 3 dificultades calibradas, decisión de si la IA respeta la niebla, y decisión go/no-go del PvP documentada. | Raúl |
-| **12** | 25/10 | 26/10 | **Partida completa.** Victoria/derrota por castillo, menú principal, selección de mapa y nº de bandos. | Kiara |
+| **11** | 18/10 | 19/10 | **IA v2 + ⚖️ COMPUERTA PvP + primer audio.** 3 dificultades, la IA respeta la niebla en las tres, decisión go/no-go del PvP documentada (**NO-GO**). Efectos de sonido de combate, economía, construcción e interfaz. | Raúl |
+| **12** | 25/10 | 26/10 | **Partida completa + empieza la UI.** Pantalla de inicio, menú principal y pantalla de partida libre (mapa, nº de bandos, dificultad de cada rival). El panel de pruebas deja de verse en partida normal: solo vive en el modo sandbox o tras un atajo oculto. | Kiara |
 | **13** | 01/11 | 02/11 | **Escalado a FFA.** Spawns múltiples, IA multi-bando, tuning de rendimiento a ~250 unidades. Segundo mapa. | Joaquín |
-| **14** | 08/11 | 09/11 | **Audio y feedback.** Música, SFX, AudioMixer, partículas de impacto y construcción. | Raúl |
+| **14** | 08/11 | 09/11 | **Audio y feedback.** Música con transición a combate, ambiente por hora del día, AudioMixer con volumen por canal, partículas de impacto y construcción, feedback de daño. | Raúl |
 | **15** | 15/11 | 16/11 | **🏁 HITO 3 · PC3 — UI/UX.** HUD final, panel de selección, tooltips, menús, pausa. Tercer mapa, FFA de 5 corriendo. | Kiara |
 | **16** | 22/11 | 23/11 | **Balance y QA.** Sesiones de prueba reales, ajuste de números (incluida la carne), plan de pruebas, corrección de bugs. VFX. | Joaquín |
 | **17** | 29/11 | 30/11 | **📦 Entrega final.** Build jugable + documentación técnica consolidada desde la bitácora. | Raúl |
 | **18** | — | 07/12 | **Examen final.** Preparación individual: los tres dominan el proyecto completo. | — |
 
 ---
+
+### Nota · semana 11: el audio se parte en dos y la UI empieza en la 12
+
+> **Decidido el 15/10/2026.** Los efectos de sonido puntuales pasan de la semana 14 a la 11:
+> son lo que hace falta oír dentro del juego para decidir qué sonidos de la primera tanda se
+> cambian, y esperar a la 14 no dejaría tiempo para buscar sustitutos. La música, el
+> ambiente, el mezclador y las partículas se quedan en la 14, que conserva tema propio y lo
+> más vistoso para exponer. **Criterio: adelantar sí, pero sin dejar ninguna semana sin
+> algo que demostrar.**
+>
+> La UI deja de ser una sola semana. Empieza en la **12** con el menú, la pantalla de inicio
+> y la partida libre como modo de verdad —es lo que la 12 ya pedía como «flujo de
+> partida»—, sigue en la 13 con el sandbox ordenado junto al editor de mapas, y la **15**
+> la termina: HUD final, tooltips, pausa y opciones. La UI final se hace con Canvas y los
+> marcos del pack, no con la GUI inmediata del panel actual, para que la 15 pula y no rehaga.
+>
+> **Compuerta del PvP: NO-GO** — ver [ADR-24](ARQUITECTURA.md#adr-24).
 
 ### Nota · el editor de mapas se evaluó adelantar y se dejó donde estaba
 

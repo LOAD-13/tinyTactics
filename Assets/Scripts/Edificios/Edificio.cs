@@ -151,7 +151,11 @@ namespace TinyTactics.Edificios
         }
 
         /// <summary>La llama el colocador al plantar la obra.</summary>
-        public void MarcarEnObras() => Operativo = false;
+        public void MarcarEnObras()
+        {
+            Operativo = false;
+            DiarioDePartida.Anotar($"Obra nueva: {tipo} del bando {faccion + 1}");
+        }
 
         /// <summary>
         /// Deja el edificio cuadrado con su ficha y con el terreno que va a ocupar.
@@ -405,6 +409,10 @@ namespace TinyTactics.Edificios
             var libro = EstadisticasPartida.Actual;
             if (libro != null) libro.EdificioCaido(faccion, _ultimoAgresor);
 
+            DiarioDePartida.Anotar(_ultimoAgresor >= 0
+                ? $"CAE {tipo} del bando {faccion + 1}, lo derriba el bando {_ultimoAgresor + 1}"
+                : $"CAE {tipo} del bando {faccion + 1}");
+
             // Deja de estar operativo ANTES que nada. Con esta sola línea se cae solo todo
             // lo que colgaba de él: deja de ser centro de entrega, deja de fabricar y deja
             // de aportar población — y el límite baja sin que nadie lo descuente, porque la
@@ -418,6 +426,8 @@ namespace TinyTactics.Edificios
 
             Seleccionar(false);
             MostrarAnillo(false);
+
+            Audio.SonidoJuego.Sonar(Audio.Sonido.EdificioDerrumbe, PuntoDeEntrega);
 
             var obra = GetComponent<ObraEnConstruccion>();
             if (obra != null) Destroy(obra);
@@ -520,6 +530,8 @@ namespace TinyTactics.Edificios
 
             var go = new GameObject("Explosion");
             go.transform.position = donde;
+
+            Audio.SonidoJuego.Sonar(Audio.Sonido.ExplosionEscombros, donde);
 
             // Se desata del edificio a propósito: el edificio se está hundiendo y apagándose,
             // y una explosión que heredara esa animación se hundiría y se apagaría con él.
