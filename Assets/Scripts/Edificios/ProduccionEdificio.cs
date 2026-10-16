@@ -275,6 +275,10 @@ namespace TinyTactics.Edificios
             var libro = Nucleo.EstadisticasPartida.Actual;
             if (libro != null) libro.UnidadEntrenada(_edificio != null ? _edificio.faccion : 0);
 
+            if (_edificio != null)
+                Audio.SonidoJuego.SonarSiEsMio(Audio.Sonido.EntrenarUnidad, _edificio.faccion,
+                                               salida);
+
             var unidad = copia.GetComponent<Unidad>();
             if (unidad != null) unidad.Configurar(datos, _edificio.faccion);
 

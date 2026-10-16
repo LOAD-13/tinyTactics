@@ -113,6 +113,10 @@ namespace TinyTactics.Interfaz
             var arbitro = ArbitroDePartida.Actual;
             _desenlace = arbitro != null ? arbitro.DesenlacePara(_bando) : Desenlace.Derrota;
 
+            Audio.SonidoJuego.SonarInterfaz(_desenlace == Desenlace.Victoria
+                ? Audio.Sonido.Victoria
+                : Audio.Sonido.Derrota);
+
             Componer();
 
             _visible = true;

@@ -1087,6 +1087,8 @@ namespace TinyTactics.Interfaz
             var selector = SelectorDeUnidades.Actual;
             if (selector == null || ranura == null) return;
 
+            Audio.SonidoJuego.SonarInterfaz(Audio.Sonido.BotonPanel);
+
             if (ranura.Edificio != null) selector.PedirConstruir(ranura.Edificio);
             else if (ranura.Unidad != null) selector.PedirFabricar(ranura.Unidad);
         }
@@ -1203,6 +1205,10 @@ namespace TinyTactics.Interfaz
         public void Avisar(string texto)
         {
             if (string.IsNullOrEmpty(texto)) return;
+
+            // Todo aviso del panel es un «no se puede»: faltan recursos, no cabe, no hay
+            // poblacion. Suena aqui, en el unico sitio por el que pasan todos.
+            Audio.SonidoJuego.SonarInterfaz(Audio.Sonido.AccionNoValida);
 
             MostrarAviso(texto);
             _avisoHasta = Time.unscaledTime + 2.5f;

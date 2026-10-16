@@ -966,6 +966,10 @@ namespace TinyTactics.Entrada
             _seleccionadas.Add(u);
             u.Seleccionar(true);
             VersionSeleccion++;
+
+            // Una caja de veinte unidades llama aqui veinte veces en el mismo fotograma; la
+            // separacion minima del catalogo hace que eso sea UN clic y no veinte.
+            Audio.SonidoJuego.SonarInterfaz(Audio.Sonido.SeleccionarUnidad);
         }
 
         /// <summary>Suelta todo lo seleccionado. La usa el panel de pruebas al cambiar de bando.</summary>
