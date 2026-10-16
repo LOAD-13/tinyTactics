@@ -33,6 +33,9 @@ namespace TinyTactics.Unidades
 
             if (hacia.sqrMagnitude <= paso * paso)
             {
+                // Al llegar, no al caducar: la red de seguridad de tres segundos es para una
+                // flecha perdida, y una flecha perdida no golpea nada.
+                Audio.SonidoJuego.Sonar(Audio.Sonido.FlechaImpacto, _destino);
                 Destroy(gameObject);
                 return;
             }

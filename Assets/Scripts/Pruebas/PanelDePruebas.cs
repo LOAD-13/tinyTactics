@@ -430,6 +430,7 @@ namespace TinyTactics.Pruebas
             SeccionHora();
             SeccionPercepcion();
             SeccionRivales();
+            SeccionSonido();
             SeccionPartida();
             SeccionAparecer();
             SeccionEditar();
@@ -683,6 +684,18 @@ namespace TinyTactics.Pruebas
                                   null, cerebro.pensando))
                     cerebro.pensando = !cerebro.pensando;
 
+                // La dificultad se cambia en caliente, sin reiniciar: es como se calibra.
+                // Se pone un bando en Facil y otro en Dificil, se acelera a x4 y en pocos
+                // minutos se ve si la distancia entre los dos es la que tiene que ser.
+                GUILayout.BeginHorizontal();
+                if (BotonConIcono($"Dificultad: {cerebro.NombreDificultad}", null))
+                    cerebro.CambiarDificultad();
+
+                if (BotonConIcono(cerebro.trampaVerTodo ? "Ve todo" : "Con niebla",
+                                  null, cerebro.trampaVerTodo))
+                    cerebro.trampaVerTodo = !cerebro.trampaVerTodo;
+                GUILayout.EndHorizontal();
+
                 GUILayout.Label($"  {cerebro.PasoVisible}", _ayuda);
                 GUILayout.Label($"  {cerebro.Estado}", _ayuda);
                 GUILayout.Label($"  ejercito: {cerebro.EstadoMilitar} · " +
@@ -692,6 +705,26 @@ namespace TinyTactics.Pruebas
             if (BotonConIcono(hayBotEnMiBando ? "Quitar bot de mi bando" : "Bot contra bot",
                               null, hayBotEnMiBando))
                 AlternarBotPropio(jugador, hayBotEnMiBando);
+        }
+
+        /// <summary>
+        /// El sonido, encendido o apagado.
+        /// </summary>
+        /// <remarks>
+        /// Un solo interruptor esta semana. Los volumenes por canal —musica, efectos,
+        /// ambiente, interfaz— llegan en la semana 14 con el mezclador, que es cuando hay
+        /// mas de un canal que separar.
+        /// </remarks>
+        void SeccionSonido()
+        {
+            var sonido = Audio.SonidoJuego.Actual;
+            if (sonido == null) return;
+
+            GUILayout.Label("SONIDO", _seccion);
+
+            if (BotonConIcono(sonido.silenciado ? "Sonido apagado" : "Sonido encendido",
+                              null, !sonido.silenciado))
+                sonido.silenciado = !sonido.silenciado;
         }
 
         /// <summary>
@@ -729,6 +762,7 @@ namespace TinyTactics.Pruebas
             nuevo.faccion = faccion;
             nuevo.plan = modelo.plan;
             nuevo.dificultad = modelo.dificultad;
+            nuevo.perfiles = modelo.perfiles;
             nuevo.fichas = modelo.fichas;
         }
 

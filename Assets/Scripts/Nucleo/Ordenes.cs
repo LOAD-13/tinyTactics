@@ -266,6 +266,12 @@ namespace TinyTactics.Nucleo
     {
         public static int OrdenesAplicadas { get; private set; }
 
+        /// <summary>
+        /// Se dispara con cada orden que llega a alguien. Lo escucha el audio para que las
+        /// órdenes del jugador suenen sin tener que tocar cada sitio que las emite.
+        /// </summary>
+        public static event System.Action<Orden> AlEmitir;
+
         public static void Emitir(Orden orden, IReadOnlyList<Unidad> destinatarias)
         {
             if (orden == null || destinatarias == null) return;
@@ -287,6 +293,8 @@ namespace TinyTactics.Nucleo
             {
                 var libro = EstadisticasPartida.Actual;
                 if (libro != null) libro.Orden(orden.Faccion);
+
+                AlEmitir?.Invoke(orden);
             }
         }
 

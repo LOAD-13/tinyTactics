@@ -1,0 +1,258 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8eef73998e25c2f42b40b5485cebd79f, type: 3}
+  m_Name: CatalogoDeSonidos
+  m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Audio.CatalogoDeSonidos
+  entradas:
+  - sonido: 0
+    prefijo: golpe_cortante_
+    tomas:
+    - {fileID: 8300000, guid: 195cbc627ff447143a29418fe93ceda6, type: 3}
+    - {fileID: 8300000, guid: ac77d380984ed684084fec3710298504, type: 3}
+    - {fileID: 8300000, guid: b9d99e30636a74649a4dcf9ebf948718, type: 3}
+    - {fileID: 8300000, guid: ec0c0df56793efa4b885a7f6c1aa9754, type: 3}
+    - {fileID: 8300000, guid: b9f0593dbb1a36640a9fae0f3458e9bf, type: 3}
+    - {fileID: 8300000, guid: 4e3c1282cb4589942ab182a8402a14ef, type: 3}
+    - {fileID: 8300000, guid: 784925674f725544eb6e76bea5dd3703, type: 3}
+    - {fileID: 8300000, guid: f1568889c0465c146824fd2732500136, type: 3}
+    volumen: 0.55
+    variacionDeTono: 0.08
+    maximoSimultaneo: 4
+    separacion: 0.05
+    deInterfaz: 0
+  - sonido: 1
+    prefijo: golpe_perforante_
+    tomas:
+    - {fileID: 8300000, guid: 1ebe9b9a8a9223d4d966534f595973b7, type: 3}
+    - {fileID: 8300000, guid: e479ea091b7380d4497afb7a2f8e67df, type: 3}
+    - {fileID: 8300000, guid: 286896c0356db4a4fa684682a65f5355, type: 3}
+    - {fileID: 8300000, guid: 1ebfdeeb32cb0ba46b8cf3107a53aa62, type: 3}
+    volumen: 0.55
+    variacionDeTono: 0.08
+    maximoSimultaneo: 3
+    separacion: 0.05
+    deInterfaz: 0
+  - sonido: 2
+    prefijo: arco_disparo_
+    tomas:
+    - {fileID: 8300000, guid: c8c14c1f5bfbe0d488a55a58715e5702, type: 3}
+    - {fileID: 8300000, guid: c8dc1d18d39bc704eabd66552104d29e, type: 3}
+    volumen: 0.45
+    variacionDeTono: 0.07
+    maximoSimultaneo: 3
+    separacion: 0.05
+    deInterfaz: 0
+  - sonido: 3
+    prefijo: flecha_impacto_
+    tomas:
+    - {fileID: 8300000, guid: 9cd40931dc0acfb4189e141f204e2f04, type: 3}
+    - {fileID: 8300000, guid: cf9e52ab52fd81f4c8850df6e415bc33, type: 3}
+    volumen: 0.4
+    variacionDeTono: 0.08
+    maximoSimultaneo: 3
+    separacion: 0.05
+    deInterfaz: 0
+  - sonido: 4
+    prefijo: curacion_
+    tomas:
+    - {fileID: 8300000, guid: 938c48442ef15c949afab08bc19c36df, type: 3}
+    volumen: 0.5
+    variacionDeTono: 0.04
+    maximoSimultaneo: 2
+    separacion: 0.3
+    deInterfaz: 0
+  - sonido: 5
+    prefijo: muerte_unidad_
+    tomas:
+    - {fileID: 8300000, guid: 995ccaf8d29c7f24f87296a897f1f636, type: 3}
+    - {fileID: 8300000, guid: b8541a93373f1254e8a1cb055cb20281, type: 3}
+    volumen: 0.6
+    variacionDeTono: 0.08
+    maximoSimultaneo: 2
+    separacion: 0.12
+    deInterfaz: 0
+  - sonido: 6
+    prefijo: torre_flecha_
+    tomas:
+    - {fileID: 8300000, guid: 44f111fe995b2184e8459a3d4cffc803, type: 3}
+    - {fileID: 8300000, guid: 66d0f605947a62a43be2ceda00959345, type: 3}
+    volumen: 0.5
+    variacionDeTono: 0.06
+    maximoSimultaneo: 2
+    separacion: 0.1
+    deInterfaz: 0
+  - sonido: 7
+    prefijo: hacha_arbol_
+    tomas:
+    - {fileID: 8300000, guid: 556b55cb76c8cd945939c87711674ef3, type: 3}
+    - {fileID: 8300000, guid: 22f210ef2ab489648b80d643844e7581, type: 3}
+    - {fileID: 8300000, guid: d81599ef0abf1c840a7a3ee33cae95a5, type: 3}
+    - {fileID: 8300000, guid: 2ed96bbb99840ff4f87c982b1a39b079, type: 3}
+    volumen: 0.35
+    variacionDeTono: 0.07
+    maximoSimultaneo: 2
+    separacion: 0.15
+    deInterfaz: 0
+  - sonido: 8
+    prefijo: pico_oro_
+    tomas:
+    - {fileID: 8300000, guid: f183ad25afd35d5468258250d7e0d804, type: 3}
+    - {fileID: 8300000, guid: 32fda28ef9277274aaa567125186b8e1, type: 3}
+    - {fileID: 8300000, guid: 96991925f5c3e1d4cbe59d76b4f5e224, type: 3}
+    - {fileID: 8300000, guid: cbfb6ab8984e8464aac35d26bbed7ce5, type: 3}
+    - {fileID: 8300000, guid: 862037b0c46ad2440b9c8d43f8680250, type: 3}
+    - {fileID: 8300000, guid: ac09da40656eeee4dabb1acd00a4bae2, type: 3}
+    - {fileID: 8300000, guid: edf1aae794f756649a68938f8823cb27, type: 3}
+    volumen: 0.35
+    variacionDeTono: 0.07
+    maximoSimultaneo: 2
+    separacion: 0.15
+    deInterfaz: 0
+  - sonido: 9
+    prefijo: oveja_balido_
+    tomas:
+    - {fileID: 8300000, guid: cf7703514ff6c2547a1ba4f17af59b80, type: 3}
+    - {fileID: 8300000, guid: 2653a0baba66b914789013e6b9aee6f4, type: 3}
+    volumen: 0.45
+    variacionDeTono: 0.1
+    maximoSimultaneo: 1
+    separacion: 1.5
+    deInterfaz: 0
+  - sonido: 10
+    prefijo: deposito_recursos_
+    tomas:
+    - {fileID: 8300000, guid: 348221d956926b04799c5d2e8d77f998, type: 3}
+    - {fileID: 8300000, guid: 49eb6f035f5d5a0489db71fa5bbc9055, type: 3}
+    - {fileID: 8300000, guid: 4dc5029ccfe1d184492409ea930b205d, type: 3}
+    - {fileID: 8300000, guid: 5164b4d535aaaf64db5298aa5e67dff4, type: 3}
+    volumen: 0.35
+    variacionDeTono: 0.05
+    maximoSimultaneo: 1
+    separacion: 0.4
+    deInterfaz: 0
+  - sonido: 11
+    prefijo: martillo_obra_
+    tomas:
+    - {fileID: 8300000, guid: 1515585b481a5c941b3e9d5623f14e99, type: 3}
+    - {fileID: 8300000, guid: 069630c5406e52c42a5e5a77a9f2550f, type: 3}
+    - {fileID: 8300000, guid: f7ac2a2b605b3614ca6aa956defe1f64, type: 3}
+    volumen: 0.4
+    variacionDeTono: 0.07
+    maximoSimultaneo: 2
+    separacion: 0.12
+    deInterfaz: 0
+  - sonido: 12
+    prefijo: edificio_terminado_
+    tomas:
+    - {fileID: 8300000, guid: 8e69654453274534985da7876870fcac, type: 3}
+    volumen: 0.6
+    variacionDeTono: 0
+    maximoSimultaneo: 1
+    separacion: 0.5
+    deInterfaz: 1
+  - sonido: 13
+    prefijo: edificio_derrumbe_
+    tomas:
+    - {fileID: 8300000, guid: 1fb0c7ba5ac45eb48983b85f8bac9e32, type: 3}
+    - {fileID: 8300000, guid: 27adcbccc4178834aa16128f04d19a51, type: 3}
+    volumen: 0.75
+    variacionDeTono: 0.05
+    maximoSimultaneo: 2
+    separacion: 0.3
+    deInterfaz: 0
+  - sonido: 14
+    prefijo: explosion_escombros_
+    tomas:
+    - {fileID: 8300000, guid: aa226e385ce88e94ab8d9d8a171f5cf7, type: 3}
+    - {fileID: 8300000, guid: d206292342cdb014f9a794a811b0d1d8, type: 3}
+    volumen: 0.5
+    variacionDeTono: 0.1
+    maximoSimultaneo: 3
+    separacion: 0.08
+    deInterfaz: 0
+  - sonido: 15
+    prefijo: seleccionar_unidad_
+    tomas:
+    - {fileID: 8300000, guid: f6b6b7c99734cdd4f82942515d41f44e, type: 3}
+    - {fileID: 8300000, guid: d374dbbd60dd6694ca97f13fcfd8a611, type: 3}
+    volumen: 0.45
+    variacionDeTono: 0.03
+    maximoSimultaneo: 1
+    separacion: 0.12
+    deInterfaz: 1
+  - sonido: 16
+    prefijo: orden_mover_
+    tomas:
+    - {fileID: 8300000, guid: 825909d2b6a2d0343b307852a638adb3, type: 3}
+    - {fileID: 8300000, guid: 0db39b286af2c03448d1fc14c14be4ca, type: 3}
+    - {fileID: 8300000, guid: 4f2673b4588670b4ca18b712161a56b2, type: 3}
+    volumen: 0.45
+    variacionDeTono: 0.03
+    maximoSimultaneo: 1
+    separacion: 0.12
+    deInterfaz: 1
+  - sonido: 17
+    prefijo: orden_atacar_
+    tomas:
+    - {fileID: 8300000, guid: 61b27873bea92f6458a58c8d900ce49a, type: 3}
+    volumen: 0.5
+    variacionDeTono: 0.03
+    maximoSimultaneo: 1
+    separacion: 0.12
+    deInterfaz: 1
+  - sonido: 18
+    prefijo: boton_panel_
+    tomas:
+    - {fileID: 8300000, guid: acd091f8f9dea694d938f5dae0095edb, type: 3}
+    volumen: 0.45
+    variacionDeTono: 0.03
+    maximoSimultaneo: 1
+    separacion: 0.06
+    deInterfaz: 1
+  - sonido: 19
+    prefijo: accion_no_valida_
+    tomas:
+    - {fileID: 8300000, guid: cd7d4bfa6eab3db4ca348b982829b089, type: 3}
+    volumen: 0.55
+    variacionDeTono: 0
+    maximoSimultaneo: 1
+    separacion: 0.3
+    deInterfaz: 1
+  - sonido: 20
+    prefijo: entrenar_unidad_
+    tomas:
+    - {fileID: 8300000, guid: 580e2b398c26f1645a03319cee9c455e, type: 3}
+    - {fileID: 8300000, guid: f74d30cb9c26b7a4c9e9dc4adde07f2f, type: 3}
+    volumen: 0.4
+    variacionDeTono: 0.02
+    maximoSimultaneo: 1
+    separacion: 0.6
+    deInterfaz: 1
+  - sonido: 21
+    prefijo: victoria_
+    tomas:
+    - {fileID: 8300000, guid: b77df8e55e7de5e4fb55d25f3bcedc62, type: 3}
+    volumen: 0.8
+    variacionDeTono: 0
+    maximoSimultaneo: 1
+    separacion: 1
+    deInterfaz: 1
+  - sonido: 22
+    prefijo: derrota_
+    tomas:
+    - {fileID: 8300000, guid: e3f910f08d5d6de468f1fc8ac9b326a8, type: 3}
+    - {fileID: 8300000, guid: fb973f35d5f7d8c488b030f009110392, type: 3}
+    volumen: 0.8
+    variacionDeTono: 0
+    maximoSimultaneo: 1
+    separacion: 1
+    deInterfaz: 1

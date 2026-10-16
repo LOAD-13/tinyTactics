@@ -142,7 +142,14 @@ namespace TinyTactics.Unidades
             // Las DOS condiciones. Con solo el estado, el contador seguía sumando después
             // de cancelar: Cancelar apagaba la bandera pero el estado tardaba un fotograma
             // en cambiar, y en ese hueco cabía un golpe regalado.
-            if (_trabajando && Estado == EstadoUnidad.Trabajando) _vueltasDeTrabajo++;
+            if (!_trabajando || Estado != EstadoUnidad.Trabajando) return;
+
+            _vueltasDeTrabajo++;
+
+            // El sonido va con la MISMA vuelta que cuenta el golpe (ADR-13): lo que se oye y
+            // lo que se cobra son el mismo instante, y por eso nunca se desincronizan.
+            if (Audio.ReglasDeSonido.SonidoDeTrabajo(ConMartillo, Recurso, out var golpe))
+                Audio.SonidoJuego.Sonar(golpe, transform.position);
         }
 
         /// <summary>
@@ -1095,6 +1102,8 @@ namespace TinyTactics.Unidades
                 cuerpo.Curar(-_unidad.Dano);
                 _listoParaCurar = Time.time + esperaCura;
 
+                Audio.SonidoJuego.Sonar(Audio.Sonido.Curacion, objetivo.Posicion);
+
                 SoltarEfecto(_efectoCura, objetivo.Posicion, 14f, 1f);
 
                 // Una sola cura por orden: con espera de por medio, insistir no tendría
@@ -1105,8 +1114,22 @@ namespace TinyTactics.Unidades
 
             // El arquero manda una flecha en vez de tocar al objetivo. Es cosmética: el
             // daño ya está resuelto, la flecha solo lo explica.
-            if (_flecha != null && datos.alcance > 3f)
+            bool aDistancia = _flecha != null && datos.alcance > 3f;
+
+            if (aDistancia)
+            {
                 LanzarFlecha(objetivo.Posicion);
+                Audio.SonidoJuego.Sonar(Audio.Sonido.ArcoDisparo, transform.position);
+            }
+            else
+            {
+                // La lanza perfora y todo lo demas corta. Suena donde cae el golpe, no donde
+                // esta quien lo da: en una mele es casi lo mismo, contra un castillo no.
+                var golpe = datos.tipo == Datos.TipoUnidad.Lancero
+                    ? Audio.Sonido.GolpePerforante
+                    : Audio.Sonido.GolpeCortante;
+                Audio.SonidoJuego.Sonar(golpe, objetivo.Posicion);
+            }
 
             // El muñeco de pruebas devuelve su propio daño al atacante. Es lo único del
             // juego que hace eso, y solo puede ser una unidad.
@@ -1154,6 +1177,8 @@ namespace TinyTactics.Unidades
 
             Estado = EstadoUnidad.Muriendo;
             _relojMuerte = 0f;
+
+            Audio.SonidoJuego.Sonar(Audio.Sonido.MuerteUnidad, transform.position);
 
             if (_movimiento != null)
             {

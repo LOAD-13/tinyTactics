@@ -38,6 +38,62 @@ namespace TinyTactics.Nucleo
         readonly List<Edificio> _ruinas = new List<Edificio>();
 
         float _proximaRevision;
+        float _proximaFoto;
+
+        /// <summary>Cada cuánto el diario apunta cómo va cada bando.</summary>
+        const float segundosEntreFotos = 30f;
+
+        /// <summary>
+        /// Una línea por bando en el diario: recursos, tropa, pawns y edificios.
+        /// </summary>
+        /// <remarks>
+        /// Es lo que permite decir «el difícil iba primero en recursos al minuto cinco y aun
+        /// así cayó» con números, y no con la impresión de haberlo visto.
+        /// </remarks>
+        void Foto()
+        {
+            var eco = Economia.Actual;
+
+            for (int bando = 0; bando < bandos; bando++)
+            {
+                if (_eliminados.Contains(bando))
+                    continue;
+
+                int militares = 0, pawns = 0;
+                var registro = RegistroDeUnidades.Todas;
+
+                for (int i = 0; i < registro.Count; i++)
+                {
+                    var u = registro[i];
+                    if (u == null || !u.Viva || u.faccion != bando || u.datos == null) continue;
+
+                    if (u.datos.tipo == Datos.TipoUnidad.Pawn) pawns++;
+                    else militares++;
+                }
+
+                int edificios = 0;
+                bool castillo = false;
+                var casas = Edificio.Todos;
+
+                for (int i = 0; i < casas.Count; i++)
+                {
+                    var e = casas[i];
+                    if (e == null || e.faccion != bando) continue;
+
+                    edificios++;
+                    if (e.tipo == Datos.TipoEdificio.Castillo && e.Operativo) castillo = true;
+                }
+
+                string recursos = eco == null ? "" :
+                    $"oro {eco.Cantidad(bando, Datos.TipoRecurso.Oro)}, " +
+                    $"madera {eco.Cantidad(bando, Datos.TipoRecurso.Madera)}, " +
+                    $"carne {eco.Cantidad(bando, Datos.TipoRecurso.Carne)} | ";
+
+                DiarioDePartida.Anotar($"  foto bando {bando + 1}: {recursos}" +
+                                       $"ejercito {militares}, pawns {pawns}, " +
+                                       $"edificios {edificios}, castillo {(castillo ? "si" : "NO")}");
+            }
+        }
 
         /// <summary>Se dispara una vez, cuando la partida termina. Lo escucha la pantalla.</summary>
         public event System.Action<int> AlTerminar;
@@ -89,6 +145,12 @@ namespace TinyTactics.Nucleo
 
         void Update()
         {
+            if (!Terminada && Time.time >= _proximaFoto)
+            {
+                _proximaFoto = Time.time + segundosEntreFotos;
+                Foto();
+            }
+
             if (Terminada || Time.time < _proximaRevision) return;
             _proximaRevision = Time.time + intervalo;
 
@@ -170,6 +232,9 @@ namespace TinyTactics.Nucleo
         void Eliminar(int bando)
         {
             if (!_eliminados.Add(bando)) return;
+
+            DiarioDePartida.Anotar($"ELIMINADO el bando {bando + 1}");
+            Foto();
 
             _condenadas.Clear();
             var registro = RegistroDeUnidades.Todas;

@@ -194,6 +194,8 @@ namespace TinyTactics.Edificios
         {
             var datos = _edificio.datos;
 
+            Audio.SonidoJuego.Sonar(Audio.Sonido.TorreFlecha, transform.position);
+
             if (_animador != null && _disparo != null && _disparo.Length > 0)
             {
                 _disparando = true;
