@@ -41,8 +41,12 @@ namespace TinyTactics.IA
         [Tooltip("Su plan de juego. Es un dato editable, no codigo (ADR-21).")]
         public PlanDeIA plan;
 
-        [Tooltip("Su dificultad. En la semana 10 solo existe Normal.")]
+        [Tooltip("Su dificultad actual.")]
         public DatosIA dificultad;
+
+        [Tooltip("Los tres perfiles, en orden Facil, Normal, Dificil. Los asigna el " +
+                 "generador; el panel los recorre para cambiar la dificultad en caliente.")]
+        public DatosIA[] perfiles = new DatosIA[0];
 
         [Tooltip("Fichas de edificio que puede levantar. Las asigna el generador de escena.")]
         public DatosEdificio[] fichas = new DatosEdificio[0];
@@ -54,9 +58,13 @@ namespace TinyTactics.IA
         [Tooltip("Segundos entre decisiones de la capa tactica.")]
         [Range(0.1f, 2f)] public float pasoTactico = 0.35f;
 
-        [Header("Interruptor del panel")]
+        [Header("Interruptores del panel")]
         [Tooltip("Apagado, el bot deja de decidir. Sus unidades siguen defendiendose solas.")]
         public bool pensando = true;
+
+        [Tooltip("Trampa de pruebas: el bot ve el mapa entero. Ninguna dificultad la usa " +
+                 "(ADR-23).")]
+        public bool trampaVerTodo;
 
         /// <summary>Todos los cerebros vivos. Lo usa el panel de partida libre.</summary>
         public static readonly List<CerebroIA> Todos = new List<CerebroIA>();
@@ -70,7 +78,19 @@ namespace TinyTactics.IA
         int[] _inventario;
 
         /// <summary>Qué está haciendo, en una línea. Lo enseña el panel.</summary>
-        public string Estado { get; private set; } = "arrancando";
+        public string Estado
+        {
+            get => _estado;
+            private set
+            {
+                if (value != _estado)
+                    Nucleo.DiarioDePartida.Anotar($"Bando {faccion + 1} [{NombreDificultad}] " +
+                                                  $"economia: {value}");
+                _estado = value;
+            }
+        }
+
+        string _estado = "arrancando";
 
         /// <summary>El paso del plan en el que va.</summary>
         public string PasoVisible { get; private set; } = "—";
@@ -83,6 +103,50 @@ namespace TinyTactics.IA
 
         /// <summary>Segundos de partida cuando podrá atacar por primera vez.</summary>
         public float Espera => dificultad != null ? dificultad.esperaInicial : 60f;
+
+        /// <summary>Si este bot se salta la niebla. Solo con la trampa del panel.</summary>
+        public bool VeTodo => trampaVerTodo || (dificultad != null && dificultad.veTodoElMapa);
+
+        /// <summary>El nombre de su dificultad, para el panel.</summary>
+        public string NombreDificultad => dificultad != null ? dificultad.nombreVisible : "—";
+
+        /// <summary>El cerebro que lleva un bando, o null si lo juega una persona.</summary>
+        public static CerebroIA De(int faccion)
+        {
+            for (int i = 0; i < Todos.Count; i++)
+                if (Todos[i] != null && Todos[i].faccion == faccion) return Todos[i];
+
+            return null;
+        }
+
+        float _restoVentaja;
+
+        /// <summary>
+        /// Lo que de verdad entra al almacén de este bot por una carga de
+        /// <paramref name="cantidad"/>. Lo llama el pawn al depositar.
+        /// </summary>
+        public int ConVentaja(int cantidad)
+        {
+            float ventaja = dificultad != null ? dificultad.ventajaDeRecursos : 1f;
+            return ReglasDeDificultad.ConVentaja(cantidad, ventaja, ref _restoVentaja);
+        }
+
+        /// <summary>Pasa al siguiente perfil. Lo usa el panel.</summary>
+        public void CambiarDificultad()
+        {
+            if (perfiles == null || perfiles.Length == 0) return;
+
+            var actual = dificultad != null ? dificultad.nivel : NivelDeIA.Normal;
+            var siguiente = ReglasDeDificultad.Siguiente(actual);
+
+            for (int i = 0; i < perfiles.Length; i++)
+                if (perfiles[i] != null && perfiles[i].nivel == siguiente)
+                {
+                    dificultad = perfiles[i];
+                    _restoVentaja = 0f;
+                    return;
+                }
+        }
 
         void OnEnable() => Todos.Add(this);
 
@@ -118,7 +182,9 @@ namespace TinyTactics.IA
 
             if (Time.time >= _proximaEstrategica)
             {
-                _proximaEstrategica = Time.time + Mathf.Max(0.2f, pasoEstrategico);
+                float ritmo = dificultad != null ? dificultad.ritmo : 1f;
+                _proximaEstrategica = Time.time +
+                                      ReglasDeDificultad.PasoEstrategico(pasoEstrategico, ritmo);
                 Estrategia();
             }
 
@@ -251,6 +317,21 @@ namespace TinyTactics.IA
         }
 
         /// <summary>Su castillo, o null si ya no tiene. Es el centro de su mundo.</summary>
+        /// <summary>
+        /// La casa del bot: el castillo, y si no lo hay, cualquier cosa suya en pie.
+        /// </summary>
+        public Edificio Base()
+        {
+            var castillo = Castillo();
+            if (castillo != null) return castillo;
+
+            var casas = Edificio.Todos;
+            for (int i = 0; i < casas.Count; i++)
+                if (casas[i] != null && casas[i].faccion == faccion) return casas[i];
+
+            return null;
+        }
+
         public Edificio Castillo()
         {
             var casas = Edificio.Todos;

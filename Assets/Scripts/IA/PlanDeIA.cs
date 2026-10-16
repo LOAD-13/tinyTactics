@@ -161,6 +161,34 @@ namespace TinyTactics.IA
         /// atacar con lo que hay es peor jugada que atacar con quince, pero es infinitamente
         /// mejor que no atacar nunca.
         /// </remarks>
+        /// <summary>
+        /// ¿A cuál de los enemigos cercanos hay que responder antes de seguir?
+        /// </summary>
+        /// <remarks>
+        /// Devuelve el enemigo que esté más cerca de CUALQUIERA de las unidades propias, si
+        /// está dentro del radio; −1 si ninguno lo está. Se mide contra cada unidad y no
+        /// contra el centro del grupo porque una oleada en marcha va estirada: al que pegan
+        /// en la retaguardia le están pegando aunque el centro quede lejos.
+        /// </remarks>
+        public static int ElegirAmenaza(IReadOnlyList<Vector2> propias,
+                                        IReadOnlyList<Vector2> enemigas, float radio)
+        {
+            int mejor = -1;
+            float mejorDistancia = radio * radio;
+
+            for (int e = 0; e < enemigas.Count; e++)
+                for (int p = 0; p < propias.Count; p++)
+                {
+                    float d = (enemigas[e] - propias[p]).sqrMagnitude;
+                    if (d > mejorDistancia) continue;
+
+                    mejorDistancia = d;
+                    mejor = e;
+                }
+
+            return mejor;
+        }
+
         public static bool HoraDeAtacar(int tropa, int hacenFalta, int minimo,
                                         float esperando, float paciencia)
         {

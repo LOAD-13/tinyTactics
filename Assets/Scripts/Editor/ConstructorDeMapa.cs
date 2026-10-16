@@ -93,6 +93,7 @@ namespace TinyTactics.EditorHerramientas
 
                 CrearPercepcion(definicion);
                 CrearCerebros(definicion);
+                CrearSonido();
 
                 ConstructorDeInterfaz.CrearLienzo(_tema, definicion.bandos);
 
@@ -1663,6 +1664,9 @@ namespace TinyTactics.EditorHerramientas
         const string RutaPlanIA = CarpetaIA + "/PlanEstandar.asset";
         const string RutaDificultadIA = CarpetaIA + "/Normal.asset";
 
+        static string RutaPerfil(NivelDeIA nivel) =>
+            nivel == NivelDeIA.Normal ? RutaDificultadIA : $"{CarpetaIA}/{nivel}.asset";
+
         /// <summary>
         /// Un cerebro por bando rival. El bando 0 es el del jugador.
         /// </summary>
@@ -1675,7 +1679,13 @@ namespace TinyTactics.EditorHerramientas
         static void CrearCerebros(DefinicionMapa definicion)
         {
             var plan = ObtenerPlanDeIA();
-            var dificultad = ObtenerDificultadIA();
+            var perfiles = new[]
+            {
+                ObtenerPerfil(NivelDeIA.Facil),
+                ObtenerPerfil(NivelDeIA.Normal),
+                ObtenerPerfil(NivelDeIA.Dificil),
+            };
+            var dificultad = perfiles[1];
             var fichas = FichasDeEdificio.ObtenerTodas();
 
             var padre = new GameObject("Cerebros").transform;
@@ -1689,6 +1699,7 @@ namespace TinyTactics.EditorHerramientas
                 cerebro.faccion = faccion;
                 cerebro.plan = plan;
                 cerebro.dificultad = dificultad;
+                cerebro.perfiles = perfiles;
                 cerebro.fichas = fichas.ToArray();
             }
         }
@@ -1734,21 +1745,108 @@ namespace TinyTactics.EditorHerramientas
         static PasoDelPlan Renglon(Objetivo que, int cuantos) =>
             new PasoDelPlan { que = que, cantidad = cuantos };
 
-        static DatosIA ObtenerDificultadIA()
+        /// <summary>
+        /// Un perfil de dificultad. Si ya existe se respeta tal cual: es un dato que se
+        /// ajusta a mano desde el inspector, y regenerar la escena no puede pisar ese
+        /// ajuste. Solo se calibra con los valores de fabrica al crearlo.
+        /// </summary>
+        static DatosIA ObtenerPerfil(NivelDeIA nivel)
         {
-            var datos = AssetDatabase.LoadAssetAtPath<DatosIA>(RutaDificultadIA);
-            if (datos != null) return datos;
+            string ruta = RutaPerfil(nivel);
+
+            var datos = AssetDatabase.LoadAssetAtPath<DatosIA>(ruta);
+            if (datos != null)
+            {
+                // El campo «ritmo» es de la semana 11: los perfiles de antes lo traen a
+                // cero, que el rango del inspector no admite. Se completa una vez.
+                if (datos.ritmo <= 0f)
+                {
+                    datos.ritmo = ReglasDeDificultad.Valores(nivel).ritmo;
+                    EditorUtility.SetDirty(datos);
+                    AssetDatabase.SaveAssets();
+                }
+                return datos;
+            }
 
             AsegurarCarpeta(CarpetaIA);
 
             datos = ScriptableObject.CreateInstance<DatosIA>();
-            datos.nivel = NivelDeIA.Normal;
-            datos.nombreVisible = "Normal";
+            datos.Calibrar(nivel);
 
-            AssetDatabase.CreateAsset(datos, RutaDificultadIA);
+            AssetDatabase.CreateAsset(datos, ruta);
             AssetDatabase.SaveAssets();
 
             return datos;
+        }
+
+        // -----------------------------------------------------------------
+        // El sonido
+        // -----------------------------------------------------------------
+
+        const string CarpetaEfectos = "Assets/Audio/Efectos";
+        const string RutaCatalogoSonidos = "Assets/Datos/Audio/CatalogoDeSonidos.asset";
+
+        /// <summary>
+        /// El altavoz del juego, con su catalogo recien leido de la carpeta de efectos.
+        /// </summary>
+        static void CrearSonido()
+        {
+            var go = new GameObject("Sonido");
+            var sonido = go.AddComponent<TinyTactics.Audio.SonidoJuego>();
+            sonido.catalogo = ObtenerCatalogoDeSonidos();
+        }
+
+        /// <summary>
+        /// Lee los archivos de la carpeta de efectos y los reparte por prefijo.
+        /// </summary>
+        /// <remarks>
+        /// <b>Las tomas se releen SIEMPRE; el volumen y los limites, NUNCA.</b> Las tomas
+        /// salen de los archivos, y si alguien cambia uno o anade un <c>_04</c> tiene que
+        /// verse al regenerar. El volumen, el tono y la simultaneidad son ajustes que se
+        /// hacen a oido en el inspector, y regenerar la escena no puede deshacerlos.
+        /// </remarks>
+        static TinyTactics.Audio.CatalogoDeSonidos ObtenerCatalogoDeSonidos()
+        {
+            AsegurarCarpeta("Assets/Datos/Audio");
+
+            var catalogo = AssetDatabase.LoadAssetAtPath<TinyTactics.Audio.CatalogoDeSonidos>(
+                RutaCatalogoSonidos);
+
+            if (catalogo == null)
+            {
+                catalogo = ScriptableObject.CreateInstance<TinyTactics.Audio.CatalogoDeSonidos>();
+                AssetDatabase.CreateAsset(catalogo, RutaCatalogoSonidos);
+            }
+
+            var clips = new List<AudioClip>();
+            foreach (var guid in AssetDatabase.FindAssets("t:AudioClip", new[] { CarpetaEfectos }))
+            {
+                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(AssetDatabase.GUIDToAssetPath(guid));
+                if (clip != null) clips.Add(clip);
+            }
+
+            foreach (TinyTactics.Audio.Sonido s in System.Enum.GetValues(typeof(TinyTactics.Audio.Sonido)))
+            {
+                var entrada = catalogo.entradas.Find(e => e != null && e.sonido == s);
+                if (entrada == null)
+                {
+                    entrada = TinyTactics.Audio.CatalogoDeSonidos.Fabrica(s);
+                    catalogo.entradas.Add(entrada);
+                }
+
+                var tomas = clips.FindAll(c => c.name.StartsWith(entrada.prefijo));
+                tomas.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+                entrada.tomas = tomas.ToArray();
+
+                if (entrada.tomas.Length == 0)
+                    Debug.LogWarning($"[Tiny Tactics] No hay ningun archivo «{entrada.prefijo}*» " +
+                                     $"en {CarpetaEfectos}: el sonido {s} queda mudo.");
+            }
+
+            EditorUtility.SetDirty(catalogo);
+            AssetDatabase.SaveAssets();
+
+            return catalogo;
         }
 
         const string RutaShaderTinte = "Assets/Shaders/TinteMultiplicativo.shader";

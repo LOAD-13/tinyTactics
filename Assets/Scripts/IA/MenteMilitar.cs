@@ -43,7 +43,37 @@ namespace TinyTactics.IA
         public int Lanzadas { get; private set; }
 
         /// <summary>Qué está haciendo el ejército. Lo enseña el panel.</summary>
-        public string Estado { get; private set; } = "reuniendo";
+        /// <remarks>
+        /// Cada cambio de verdad —no cada vez que sube un contador— queda en el diario de
+        /// partida, que es lo que permite reconstruir una partida segundo a segundo.
+        /// </remarks>
+        public string Estado
+        {
+            get => _estado;
+            private set
+            {
+                if (SinNumeros(value) != SinNumeros(_estado))
+                    DiarioDePartida.Anotar($"Bando {Faccion + 1} [{_cerebro.NombreDificultad}] " +
+                                           $"ejercito de {_tropa.Count}: {value}");
+                _estado = value;
+            }
+        }
+
+        string _estado = "reuniendo";
+
+        static string SinNumeros(string texto)
+        {
+            if (string.IsNullOrEmpty(texto)) return "";
+
+            var sb = new System.Text.StringBuilder(texto.Length);
+            foreach (char c in texto)
+                if (!char.IsDigit(c)) sb.Append(c);
+
+            return sb.ToString();
+        }
+
+        static string Describir(Edificio e) =>
+            e == null ? "nada" : $"{e.tipo} del bando {e.faccion + 1}";
 
         public MenteMilitar(CerebroIA cerebro)
         {
@@ -69,12 +99,13 @@ namespace TinyTactics.IA
             // Defender gana siempre. Una oleada que sigue camino del enemigo mientras le
             // queman la base cambia un cuartel por una casa, y esa es una mala idea que
             // ningun jugador cometeria dos veces.
-            if (HayIntrusos(out var donde))
+            if (HayIntrusos(out var donde, out int intruso))
             {
-                Estado = "defendiendo la base";
+                Estado = $"defendiendo la base del bando {intruso + 1}";
 
                 // Defender corta la ofensiva: cuando se vuelva a atacar, sera una nueva.
                 _presa = null;
+                _dondePresa = null;
                 _enOfensiva = false;
                 _desdeQueEspera = Time.time;
 
@@ -151,11 +182,18 @@ namespace TinyTactics.IA
         {
             int retirada = Mathf.Max(1, _cerebro.plan.primeraOleada / 2);
 
+            // Primero, quien le esta pegando por el camino. Una oleada que sigue andando
+            // hacia el castillo mientras dos caballeros la desangran por detras llega sin
+            // nadie y no derriba nada: se pierde el ejercito entero a cambio de nada.
+            if (_tropa.Count >= retirada && ResponderAmenazas()) return;
+
             if (_tropa.Count < retirada)
             {
                 // La ofensiva se acabo. AHORA se cuenta, y la siguiente pedira mas gente.
                 _enOfensiva = false;
                 _presa = null;
+                _dondePresa = null;
+                _amenaza = null;
                 Lanzadas++;
 
                 _desdeQueEspera = Time.time;
@@ -168,7 +206,10 @@ namespace TinyTactics.IA
             // Si la presa cayo o no habia, se busca la siguiente sin pasar por la reunion.
             if (_presa == null || !((IObjetivo)_presa).Vivo)
             {
-                _presa = ObjetivoConocido();
+                // Se busca alrededor de donde estaba la presa: ahi esta el grueso del
+                // ejercito, y ahi esta lo que queda de esa base.
+                _presa = ObjetivoConocido(_dondePresa ?? CentroDeLaTropa());
+                if (_presa != null) _dondePresa = _presa.PosicionDePlanta;
 
                 if (_presa == null)
                 {
@@ -182,13 +223,13 @@ namespace TinyTactics.IA
                     return;
                 }
 
-                Estado = $"encadenando ({_tropa.Count})";
+                Estado = $"encadenando ({_tropa.Count}) contra {Describir(_presa)}";
                 Atacar(_presa);
                 _proximoEmpujon = Time.time + segundosEntreEmpujones;
                 return;
             }
 
-            Estado = $"atacando ({_tropa.Count})";
+            Estado = $"atacando ({_tropa.Count}) {Describir(_presa)}";
 
             // El empujon es para quien se haya quedado ocioso. A quien sigue con el objetivo
             // puesto, la orden repetida no le hace nada —la maquina de estados la ignora por
@@ -228,7 +269,7 @@ namespace TinyTactics.IA
                 return;
             }
 
-            var presa = ObjetivoConocido();
+            var presa = ObjetivoConocido(CentroDeLaTropa());
             if (presa == null)
             {
                 Estado = "buscando al rival";
@@ -238,17 +279,108 @@ namespace TinyTactics.IA
 
             _enOfensiva = true;
             _presa = presa;
+            _dondePresa = presa.PosicionDePlanta;
             _proximoEmpujon = Time.time + segundosEntreEmpujones;
 
             Estado = !bastante
-                ? $"atacando igual ({_tropa.Count})"
-                : $"atacando ({_tropa.Count})";
+                ? $"atacando igual ({_tropa.Count}) {Describir(presa)}"
+                : $"atacando ({_tropa.Count}) {Describir(presa)}";
 
             Atacar(presa);
         }
 
+        // -----------------------------------------------------------------
+        // Peleas por el camino
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Si hay tropas enemigas encima de la oleada, se pelea con ellas antes de seguir.
+        /// </summary>
+        /// <remarks>
+        /// <b>Las unidades primero, el edificio despues</b>, que es lo que haria cualquier
+        /// jugador con el «atacar moviendo» de un RTS clasico. Toda la oleada va a por la
+        /// misma amenaza —la mas cercana a cualquiera de los suyos—, porque cinco contra uno
+        /// lo mata en un momento y cinco repartidos contra dos lo alargan.
+        ///
+        /// Solo cuentan tropas: los pawns no, porque perseguir pawns por el mapa es la
+        /// forma de no llegar nunca al objetivo. Y solo las que este bando ve (ADR-23).
+        ///
+        /// La orden solo se emite cuando la amenaza cambia. Repetirla cada pensamiento seria
+        /// reiniciar el ataque de cada unidad tres veces por segundo.
+        /// </remarks>
+        bool ResponderAmenazas()
+        {
+            _posPropias.Clear();
+            _enemigas.Clear();
+            _posEnemigas.Clear();
+
+            for (int i = 0; i < _tropa.Count; i++)
+            {
+                var propia = _tropa[i];
+                _posPropias.Add(propia.transform.position);
+
+                RegistroDeUnidades.VecinasEnRadio(propia.transform.position, radioDeAmenaza, _cerca);
+
+                for (int j = 0; j < _cerca.Count; j++)
+                {
+                    var u = _cerca[j];
+                    if (u == null || !u.Viva || u.faccion == Faccion || u.datos == null) continue;
+                    if (u.datos.tipo == TipoUnidad.Pawn) continue;
+                    if (_enemigas.Contains(u)) continue;
+                    if (!_cerebro.VeTodo && !NieblaDeGuerra.Ve(Faccion, u.transform.position))
+                        continue;
+
+                    _enemigas.Add(u);
+                    _posEnemigas.Add(u.transform.position);
+                }
+            }
+
+            int k = PlanDeIA.ElegirAmenaza(_posPropias, _posEnemigas, radioDeAmenaza);
+
+            if (k < 0)
+            {
+                // Se acabo la pelea: vuelta al objetivo sin esperar al proximo empujon.
+                if (_amenaza != null)
+                {
+                    _amenaza = null;
+                    if (_presa != null && ((IObjetivo)_presa).Vivo) Atacar(_presa);
+                    _proximoEmpujon = Time.time + segundosEntreEmpujones;
+                }
+
+                return false;
+            }
+
+            var amenaza = _enemigas[k];
+            Estado = $"peleando por el camino ({_tropa.Count}) con " +
+                     $"{amenaza.datos.tipo} del bando {amenaza.faccion + 1}";
+
+            if (amenaza != _amenaza)
+            {
+                _amenaza = amenaza;
+                Autoridad.Emitir(new OrdenAtacar { Faccion = Faccion, Objetivo = amenaza }, _tropa);
+            }
+
+            return true;
+        }
+
+        Unidad _amenaza;
+        readonly List<Unidad> _enemigas = new List<Unidad>();
+        readonly List<Vector2> _posPropias = new List<Vector2>();
+        readonly List<Vector2> _posEnemigas = new List<Vector2>();
+
+        /// <summary>A cuantos tiles de alguno de los suyos un enemigo cuenta como amenaza.</summary>
+        /// <remarks>
+        /// Algo menos que el radio de vigilancia de las unidades (7,5): lo bastante para ver
+        /// venir a quien les va a pegar, y no tanto como para desviarse a por cualquiera que
+        /// pase a lo lejos.
+        /// </remarks>
+        const float radioDeAmenaza = 6f;
+
         bool _enOfensiva;
         int _mejorTropa;
+
+        /// <summary>Donde estaba la ultima presa. Desde ahi se busca la siguiente.</summary>
+        Vector3? _dondePresa;
         float _desdeQueEspera;
 
         /// <summary>Segundos que espera a que crezca la tropa antes de atacar igualmente.</summary>
@@ -297,14 +429,18 @@ namespace TinyTactics.IA
         /// regla del proyecto desde la semana 04. Y se filtra por la niebla del PROPIO bando:
         /// el bot no puede reaccionar a un ataque que no ve, igual que tú tampoco.
         /// </remarks>
-        bool HayIntrusos(out Vector3 donde)
+        bool HayIntrusos(out Vector3 donde, out int intruso)
         {
             donde = default;
+            intruso = -1;
 
-            var castillo = _cerebro.Castillo();
-            if (castillo == null) return false;
+            // La casa es el castillo, y si ya no hay castillo, lo que quede en pie. Antes
+            // exigia castillo: un bando al que se lo derribaban dejaba de defender lo que le
+            // quedaba, justo cuando mas falta le hacia.
+            var ancla = _cerebro.Base();
+            if (ancla == null) return false;
 
-            var casa = castillo.PosicionDePlanta;
+            var casa = ancla.PosicionDePlanta;
 
             RegistroDeUnidades.VecinasEnRadio(casa, radioDeAlarma, _cerca);
 
@@ -314,9 +450,11 @@ namespace TinyTactics.IA
                 if (u == null || !u.Viva || u.faccion == Faccion) continue;
                 if (u.datos == null) continue;
 
-                if (!NieblaDeGuerra.Ve(Faccion, u.transform.position)) continue;
+                if (!_cerebro.VeTodo && !NieblaDeGuerra.Ve(Faccion, u.transform.position))
+                    continue;
 
                 donde = u.transform.position;
+                intruso = u.faccion;
                 return true;
             }
 
@@ -342,11 +480,15 @@ namespace TinyTactics.IA
         /// El más cercano y no el castillo: ir directo al castillo pasando por delante de un
         /// cuartel y dos torres es como pierde el ejército entero sin llevarse nada. Y el
         /// castillo cae solo al final, porque cuando no quede otra cosa será el más cercano.
+        ///
+        /// <b>Cercano a qué importa tanto como cercano.</b> Antes se medía desde la primera
+        /// unidad de la lista, y esa podía ser un recluta recién salido del cuartel en casa:
+        /// el ejército derribaba un castillo y se marchaba entero hacia el edificio más
+        /// cercano A SU PROPIA BASE, dejando al rival tiempo de reconstruir. Ahora se mide
+        /// desde donde cayó la presa anterior, o desde el centro de la tropa.
         /// </remarks>
-        Edificio ObjetivoConocido()
+        Edificio ObjetivoConocido(Vector3 tropa)
         {
-            var tropa = _tropa.Count > 0 ? _tropa[0].transform.position : Vector3.zero;
-
             Edificio mejor = null;
             float mejorDistancia = float.MaxValue;
 
@@ -356,7 +498,7 @@ namespace TinyTactics.IA
             {
                 var e = casas[i];
                 if (e == null || e.faccion == Faccion) continue;
-                if (!NieblaDeGuerra.Descubierto(Faccion, e)) continue;
+                if (!_cerebro.VeTodo && !NieblaDeGuerra.Descubierto(Faccion, e)) continue;
 
                 float d = e.DistanciaA(tropa);
                 if (d >= mejorDistancia) continue;
@@ -411,14 +553,33 @@ namespace TinyTactics.IA
                 _ => new Vector3(ancho * 0.5f, alto * 0.5f, 0f),
             };
 
+            if (destino != _ultimaRonda)
+            {
+                _ultimaRonda = destino;
+                DiarioDePartida.Anotar($"Bando {Faccion + 1} explora hacia la celda " +
+                                       $"({destino.x:0}, {destino.y:0})");
+            }
+
             MandarA(destino);
         }
 
+        Vector3 _ultimaRonda;
         int _rincon;
         float _proximaRonda;
 
         /// <summary>Segundos antes de probar en otra esquina del mapa.</summary>
         const float segundosPorRonda = 25f;
+
+        /// <summary>El punto medio del ejercito.</summary>
+        Vector3 CentroDeLaTropa()
+        {
+            if (_tropa.Count == 0) return Vector3.zero;
+
+            var suma = Vector3.zero;
+            for (int i = 0; i < _tropa.Count; i++) suma += _tropa[i].transform.position;
+
+            return suma / _tropa.Count;
+        }
 
         void Atacar(Edificio presa)
         {

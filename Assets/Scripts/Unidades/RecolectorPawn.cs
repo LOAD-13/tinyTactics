@@ -345,8 +345,16 @@ namespace TinyTactics.Unidades
 
         void Depositar()
         {
+            // La ventaja de la dificultad se aplica aqui, al entrar al almacen, y solo a los
+            // bandos que lleva un bot. Las estadisticas, mas abajo, apuntan lo recolectado
+            // de verdad: el regalo de la dificultad no es trabajo de nadie.
+            var cerebro = IA.CerebroIA.De(_unidad.faccion);
+            int entra = cerebro != null ? cerebro.ConVentaja(_cantidad) : _cantidad;
+
             var eco = Economia.Actual;
-            if (eco != null) eco.Depositar(_unidad.faccion, _carga, _cantidad);
+            if (eco != null) eco.Depositar(_unidad.faccion, _carga, entra);
+
+            Audio.SonidoJuego.Sonar(Audio.Sonido.DepositoRecursos, transform.position);
 
             // Se apunta aqui y no dentro de Economia.Depositar porque ese metodo tambien lo
             // usa el panel de pruebas para regalar recursos, y el oro regalado no es oro

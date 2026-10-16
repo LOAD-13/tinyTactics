@@ -128,6 +128,11 @@ namespace TinyTactics.Edificios
             var libro = Nucleo.EstadisticasPartida.Actual;
             if (libro != null) libro.EdificioConstruido(_edificio.faccion);
 
+            Nucleo.DiarioDePartida.Anotar($"Terminado: {_edificio.tipo} del bando {_edificio.faccion + 1}");
+
+            Audio.SonidoJuego.SonarSiEsMio(Audio.Sonido.EdificioTerminado, _edificio.faccion,
+                                           _edificio.transform.position);
+
             _edificio.Inaugurar();
             Destroy(this);
         }
