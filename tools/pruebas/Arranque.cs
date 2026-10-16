@@ -79,6 +79,8 @@ namespace TinyTactics.Pruebas
         {
             PruebasDeVisibilidad.Registrar();
             PruebasDeIA.Registrar();
+            PruebasDeDificultad.Registrar();
+            PruebasDeSonido.Registrar();
 
             var v = new Verificador();
             int rotas = 0;
