@@ -68,7 +68,20 @@ namespace TinyTactics.Edificios
             if (!_fichas.Contains(datos)) _fichas.Add(datos);
         }
 
-        Entrada Buscar(DatosEdificio datos, int faccion, int variante)
+        /// <remarks>
+        /// Las entradas se guardan por color (el generador las registra con el número de
+        /// color), y aquí se traduce el bando a su color de esta partida.
+        /// </remarks>
+        Entrada Buscar(DatosEdificio datos, int faccion, int variante) =>
+            BuscarDeColor(datos, Nucleo.Bandos.ColorDe(faccion), variante);
+
+        public GameObject PlantillaDeColor(DatosEdificio datos, int color, int variante = 0)
+        {
+            var e = BuscarDeColor(datos, color, variante);
+            return e != null ? e.plantilla : null;
+        }
+
+        Entrada BuscarDeColor(DatosEdificio datos, int faccion, int variante)
         {
             if (datos != null) variante = datos.Ajustar(variante);
 

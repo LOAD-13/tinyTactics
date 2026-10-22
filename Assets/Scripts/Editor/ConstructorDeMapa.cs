@@ -90,6 +90,7 @@ namespace TinyTactics.EditorHerramientas
 
                 EditorUtility.DisplayProgressBar("Tiny Tactics", "Poblando el mapa…", 0.85f);
                 PoblarMapa(definicion, mapa);
+                PrepararColoresRestantes();
 
                 CrearPercepcion(definicion);
                 CrearCerebros(definicion);
@@ -97,9 +98,17 @@ namespace TinyTactics.EditorHerramientas
 
                 ConstructorDeInterfaz.CrearLienzo(_tema, definicion.bandos);
 
+                // El flujo de partida: arranque, menu principal y pausa. Va al final porque
+                // el menu necesita el tema y el arranque necesita a todos los demas.
+                string nombreEscena = System.IO.Path.GetFileNameWithoutExtension(RutaEscena);
+                ConstructorDeMenus.CrearFlujo(_tema, definicion, nombreEscena, mapa);
+
                 EditorSceneManager.MarkSceneDirty(escena);
                 EditorSceneManager.SaveScene(escena, RutaEscena);
-                RegistrarEnBuildSettings();
+
+                ConstructorDeMenus.CrearEscenaDeInicio(nombreEscena);
+                ConstructorDeMenus.RegistrarEscenas(RutaEscena);
+                ConstructorDeMenus.AjustarProyecto();
             }
             finally
             {
@@ -1486,6 +1495,52 @@ namespace TinyTactics.EditorHerramientas
         /// saldría sin un solo dibujo. Apagada no se registra, no se puede seleccionar y no
         /// consume carne — para el juego, no está.
         /// </remarks>
+        /// <summary>
+        /// Plantillas de unidad y de edificio en los colores que no tiene ninguna base.
+        /// </summary>
+        /// <remarks>
+        /// <b>Desde la semana 12 el jugador elige el color de cada base</b>, y el color ya no
+        /// tiene por qué coincidir con el número del bando (ver <c>Bandos</c>). En partida no
+        /// hay <c>AssetDatabase</c> para cargar el dibujo morado de un guerrero, así que tiene
+        /// que estar preparado aquí: una plantilla apagada por tipo y color, igual que las de
+        /// cada base. Las de los colores que ya usa alguna base se reutilizan.
+        /// </remarks>
+        static void PrepararColoresRestantes()
+        {
+            var catalogo = Object.FindFirstObjectByType<CatalogoDePlantillas>();
+            if (catalogo == null) return;
+
+            Transform raiz = null;
+
+            for (int color = 0; color < Bandos.Colores; color++)
+            {
+                if (catalogo.ObtenerDeColor(TipoUnidad.Pawn, color) != null) continue;
+
+                if (raiz == null) raiz = new GameObject("Moldes de color").transform;
+
+                var grupo = new GameObject($"Color_{Bandos.NombreDeColor(color)}").transform;
+                grupo.SetParent(raiz, false);
+
+                var plantillas = new GameObject($"Plantillas_{color}").transform;
+                plantillas.SetParent(grupo, false);
+
+                foreach (TipoUnidad tipo in System.Enum.GetValues(typeof(TipoUnidad)))
+                {
+                    var datos = CatalogoDeUnidades.Obtener(tipo);
+                    var tiras = CatalogoDeUnidades.CargarTiras(datos, color, CargarSpritesOrdenados);
+                    if (tiras == null) continue;
+
+                    var plantilla = CrearUnidad(plantillas, datos, color, tiras,
+                                                new Vector3(-60f, -60f, 0f), 0, $"Plantilla{tipo}");
+
+                    plantilla.SetActive(false);
+                    catalogo.Registrar(tipo, color, plantilla);
+                }
+
+                PrepararEdificios(grupo, color, plantillas);
+            }
+        }
+
         static void PrepararProduccion(Transform grupo, int faccion, int orden)
         {
             var edificio = grupo.GetComponentInChildren<Edificio>();
@@ -2034,17 +2089,6 @@ namespace TinyTactics.EditorHerramientas
 
             AsegurarCarpeta(padre);
             AssetDatabase.CreateFolder(padre, nombre);
-        }
-
-        static void RegistrarEnBuildSettings()
-        {
-            var escenas = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
-
-            foreach (var escena in escenas)
-                if (escena.path == RutaEscena) return;
-
-            escenas.Insert(0, new EditorBuildSettingsScene(RutaEscena, true));
-            EditorBuildSettings.scenes = escenas.ToArray();
         }
     }
 }
