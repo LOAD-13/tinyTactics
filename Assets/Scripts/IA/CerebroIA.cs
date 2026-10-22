@@ -66,6 +66,9 @@ namespace TinyTactics.IA
                  "(ADR-23).")]
         public bool trampaVerTodo;
 
+        [Tooltip("Regla del sandbox: el bot crece y se defiende, pero no sale a atacar.")]
+        public bool soloDefender;
+
         /// <summary>Todos los cerebros vivos. Lo usa el panel de partida libre.</summary>
         public static readonly List<CerebroIA> Todos = new List<CerebroIA>();
 
@@ -132,6 +135,50 @@ namespace TinyTactics.IA
         }
 
         /// <summary>Pasa al siguiente perfil. Lo usa el panel.</summary>
+        /// <summary>Pone el perfil de un nivel concreto. Lo usa el arranque de partida.</summary>
+        public void PonerDificultad(NivelDeIA nivel)
+        {
+            if (perfiles == null) return;
+
+            for (int i = 0; i < perfiles.Length; i++)
+                if (perfiles[i] != null && perfiles[i].nivel == nivel)
+                {
+                    dificultad = perfiles[i];
+                    _restoVentaja = 0f;
+                    return;
+                }
+        }
+
+        /// <summary>
+        /// Un cerebro nuevo para un bando, copiado de uno que ya exista.
+        /// </summary>
+        /// <remarks>
+        /// Se copia en vez de configurarse a mano por el mismo motivo que en el panel de
+        /// pruebas: así juega con el mismo plan y los mismos perfiles, y no hay una segunda
+        /// copia de la configuración que se quede vieja.
+        /// </remarks>
+        public static CerebroIA Crear(int faccion)
+        {
+            CerebroIA modelo = null;
+            for (int i = 0; i < Todos.Count; i++)
+                if (Todos[i] != null) { modelo = Todos[i]; break; }
+
+            if (modelo == null) return null;
+
+            var go = new GameObject($"CerebroIA_{faccion}");
+            go.transform.SetParent(modelo.transform.parent, false);
+
+            var nuevo = go.AddComponent<CerebroIA>();
+            nuevo.faccion = faccion;
+            nuevo.plan = modelo.plan;
+            nuevo.dificultad = modelo.dificultad;
+            nuevo.perfiles = modelo.perfiles;
+            nuevo.fichas = modelo.fichas;
+            nuevo.pasoEstrategico = modelo.pasoEstrategico;
+            nuevo.pasoTactico = modelo.pasoTactico;
+            return nuevo;
+        }
+
         public void CambiarDificultad()
         {
             if (perfiles == null || perfiles.Length == 0) return;
@@ -172,6 +219,11 @@ namespace TinyTactics.IA
 
         void Update()
         {
+            // Terminada la partida, nadie sigue jugando: ni el ganador sale a explorar un
+            // mapa vacío ni el diario se llena de decisiones que ya no importan.
+            var arbitro = Nucleo.ArbitroDePartida.Actual;
+            if (arbitro != null && arbitro.Terminada) return;
+
             if (!pensando)
             {
                 Estado = "en pausa";

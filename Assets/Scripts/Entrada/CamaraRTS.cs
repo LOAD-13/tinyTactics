@@ -22,6 +22,9 @@ namespace TinyTactics.Entrada
         [Tooltip("Mover la cámara al acercar el cursor al borde de la pantalla.")]
         public bool paneoPorBorde = true;
 
+        [Tooltip("Lo fija el jugador en Opciones. Multiplica la velocidad de paneo.")]
+        [Range(0.25f, 3f)] public float multiplicadorPaneo = 1f;
+
         [Tooltip("Distancia en píxeles al borde que activa el paneo.")]
         [Range(4f, 80f)] public float margenBorde = 20f;
 
@@ -161,7 +164,7 @@ namespace TinyTactics.Entrada
 
             // Alejado se recorre más terreno por segundo: el desplazamiento se siente
             // constante en pantalla en vez de constante en unidades de mundo.
-            float velocidad = velocidadPaneo * (_camara.orthographicSize / zoomMinimo);
+            float velocidad = velocidadPaneo * multiplicadorPaneo * (_camara.orthographicSize / zoomMinimo);
 
             _posicionObjetivo += (Vector3)(direccion * velocidad * Time.unscaledDeltaTime);
         }
