@@ -13,6 +13,8 @@ namespace TinyTactics.Nucleo
         Partida,
         /// <summary>Una partida con el panel de partida libre a la vista.</summary>
         Sandbox,
+        /// <summary>El editor de mapas: sin bandos, sin IA, solo el mapa y los pinceles.</summary>
+        Editor,
     }
 
     /// <summary>Quién se sienta en cada base del mapa.</summary>
@@ -43,6 +45,11 @@ namespace TinyTactics.Nucleo
 
         /// <summary>Reglas que solo existen en el sandbox. En partida normal, las de fábrica.</summary>
         public ReglasDeSandbox sandbox = new ReglasDeSandbox();
+
+        /// <summary>
+        /// El mapa de un archivo (semana 13). Null es el mapa de la escena: Tres Coronas.
+        /// </summary>
+        public Mundo.MapaGuardado mapa;
 
         /// <summary>La que se va a jugar o se está jugando. Null si nadie la eligió.</summary>
         public static ConfiguracionDePartida Actual;
@@ -92,6 +99,7 @@ namespace TinyTactics.Nucleo
             bases = (Ocupante[])bases.Clone(),
             colores = (int[])colores.Clone(),
             sandbox = sandbox.Copia(),
+            mapa = mapa,
         };
     }
 
@@ -309,6 +317,20 @@ namespace TinyTactics.Nucleo
         {
             TituloVisto = true;
             Cargar(configuracion);
+        }
+
+        /// <summary>Abre un mapa en el editor (semana 13).</summary>
+        public static void Editar(Mundo.MapaGuardado mapa)
+        {
+            TituloVisto = true;
+            Cargar(new ConfiguracionDePartida
+            {
+                modo = ModoDePartida.Editor,
+                escena = EscenaDelMenu,
+                bases = new Ocupante[0],
+                colores = new int[0],
+                mapa = mapa,
+            });
         }
 
         /// <summary>La misma partida otra vez, con la misma configuración.</summary>

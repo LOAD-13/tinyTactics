@@ -31,9 +31,23 @@ namespace TinyTactics.EditorHerramientas
         {
             var raiz = new GameObject("Flujo de partida").transform;
 
+            var paleta = ConstructorDePaleta.Obtener();
+
             var arranque = new GameObject("Arranque").AddComponent<ArranqueDePartida>();
             arranque.transform.SetParent(raiz, false);
             arranque.escena = escena;
+            arranque.paleta = paleta;
+
+            // El editor de mapas vive apagado en la escena; el arranque lo enciende en su modo.
+            var editor = new GameObject("Editor de mapas").AddComponent<EditorDeMapas>();
+            editor.transform.SetParent(raiz, false);
+            editor.tema = tema;
+            editor.paleta = paleta;
+            editor.iconoBorrar = DelPack($"{DirUI}/Icons/Icon_09.png");
+            editor.mesa = DelPack($"{DirUI}/Wood Table/WoodTable.png");
+            editor.iconoSubir = SpriteDe(paleta, 1, GeneradorTerreno.Centro + GeneradorTerreno.DesplazamientoElevado);
+            editor.iconoBajar = SpriteDe(paleta, 1, GeneradorTerreno.IndicesCaraEnTierra[1]);
+            editor.gameObject.SetActive(false);
 
             var menu = new GameObject("Menu principal").AddComponent<MenuPrincipal>();
             menu.transform.SetParent(raiz, false);
@@ -116,6 +130,9 @@ namespace TinyTactics.EditorHerramientas
             if (icono != null)
                 PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { icono }, IconKind.Any);
         }
+
+        static Sprite SpriteDe(PaletaDeTerreno p, int color, int indice) =>
+            p != null && p.Pieza(color, indice) is UnityEngine.Tilemaps.Tile t ? t.sprite : null;
 
         static Sprite DelPack(string ruta)
         {
