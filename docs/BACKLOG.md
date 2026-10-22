@@ -23,7 +23,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🔵 Empezada *(efectos de sonido adelantados a la 11)* |
 | `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
 | `E12` | PvP LAN *(condicional — compuerta S11)* | — | ⛔ NO-GO en la semana 11 · [ADR-24](ARQUITECTURA.md#adr-24) |
-| `E13` | Editor de mapas | 12-13 | 🔵 Empezada *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
+| `E13` | Editor de mapas | 13 | 🔵 En curso *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
 
 Leyenda: 🔵 en curso · 🟢 cerrada · ⚪ pendiente · ⚫ condicional · ⛔ descartada con decisión documentada
 
@@ -1672,6 +1672,89 @@ carrera a ver quién derriba antes.
 **Nota de alcance.** Estaba en la semana 11 y se adelanta. Una vez que existe la capa táctica,
 defender es la misma decisión —a dónde mando el ejército— con otra respuesta; dejarlo para la
 semana siguiente significaba volver a abrir el mismo archivo.
+
+---
+
+# Semana 13 — Editor de mapas y el mapa como dato (E13)
+
+**Meta de la semana:** que cualquiera pueda dibujar un mapa dentro del juego, guardarlo y
+jugarlo; y que el segundo mapa oficial (4 jugadores) salga de ese editor.
+
+> **Una sola rama:** `feat/E13-editor-de-mapas`.
+
+**Decidido el 22/10/2026:** editor **completo** y dentro del juego, en sandbox. El FFA y el
+rendimiento pasan a la semana 14 (ver la nota del cronograma).
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-107 | El mapa como dato: un archivo que el juego construye al arrancar | alto |
+| HU-108 | Pintar el terreno en partida, en los cinco colores del pack | alto |
+| HU-109 | Relieve de varios niveles y escaleras | alto |
+| HU-110 | Naturaleza, criaderos y puntos de inicio con su dibujo | medio |
+| HU-111 | Ambiente: el filtro de color de cada mapa | bajo |
+| HU-112 | Guardar, cargar, deshacer y probar; mapa en blanco o a partir de uno existente | medio |
+| HU-113 | Los mapas de archivo en la lista de partida, con su miniatura | medio |
+| HU-114 | Segundo mapa oficial, de 4 jugadores, dibujado con el editor | medio |
+| HU-115 | Pruebas del mapa como dato y la oleada que ya no se queda quieta | bajo |
+
+---
+
+### HU-107 · El mapa como dato
+**Épica:** E13 · ver [ADR-28](ARQUITECTURA.md#adr-28)
+
+**Criterios de aceptación**
+- [ ] Un mapa se guarda como JSON: terreno y altura por celda, escaleras, objetos, criaderos,
+      puntos de inicio y ambiente.
+- [ ] La escena de juego construye un mapa de archivo al arrancar, conservando las plantillas
+      y sin que Tres Coronas cambie en nada.
+- [ ] Un mapa de archivo se convierte en el mismo `MapaGenerado` que usan grilla, niebla,
+      minimapa e IA: el juego no distingue de dónde salió.
+
+### HU-108 · Pintar el terreno en partida
+**Criterios de aceptación**
+- [ ] Tierra en los cinco tilesets del pack y agua, con pincel de tamaño variable.
+- [ ] Se repinta solo la zona tocada y su borde, con el autotiling de siempre.
+
+### HU-109 · Relieve de varios niveles y escaleras
+**Criterios de aceptación**
+- [ ] Tres alturas en total (llano, altura 2 y altura 3). Se pinta la altura elegida, no «una
+      más»: arrastrar no sigue subiendo. La altura 3 solo se apoya sobre la 2.
+- [ ] Escaleras en los dos sentidos, solo donde hay un escalón de una altura.
+
+### HU-110 · Naturaleza, criaderos y puntos de inicio
+**Criterios de aceptación**
+- [ ] Árboles, menas, piedras y arbustos con sus variantes; criaderos de ovejas con su ritmo.
+- [ ] De dos a cinco puntos de inicio, marcados con el castillo, donde quepa su planta: sin
+      distancia mínima, solo sin pisar nada.
+- [ ] Edificios de salida (casas, torres, cuartel, campo de tiro, monasterio): son de la base
+      más cercana y se ven en su color.
+- [ ] La ficha enseña la variante elegida; la rueda la cambia sobre los paneles o con Mayús.
+- [ ] La cámara se aleja hasta ver el mapa entero con mar alrededor, sin bordes vacíos.
+- [ ] Cada herramienta se enseña con su propio dibujo, y una silueta verde o roja dice si cabe.
+
+### HU-111 · Ambiente
+**Criterios de aceptación**
+- [ ] Tono, saturación y brillo por mapa, en vivo en el editor y aplicados al jugarlo.
+
+### HU-112 · Guardar, cargar, deshacer y probar
+**Criterios de aceptación**
+- [ ] Mapa nuevo en blanco (solo mar, de 96 a 224) o a partir de uno existente, incluido Tres Coronas.
+- [ ] Deshacer con Ctrl+Z. Guardar con nombre. «Probar» lo juega al momento en sandbox.
+- [ ] Al guardar se valida: de dos a cinco bases, en tierra y conectadas entre sí.
+
+### HU-113 · Los mapas de archivo en la lista de partida
+**Criterios de aceptación**
+- [ ] Oficiales (viajan con el juego) y tuyos (carpeta del usuario), con su miniatura y sus bases.
+- [ ] En partida normal solo los jugables; en sandbox todos, para editarlos.
+
+### HU-114 · Segundo mapa oficial, de 4 jugadores
+**Criterios de aceptación**
+- [ ] Dibujado por el equipo con el editor y guardado como mapa oficial.
+
+### HU-115 · Pruebas y la oleada quieta
+**Criterios de aceptación**
+- [ ] Conversión del mapa y reglas de «se puede jugar» como funciones puras en el arnés.
+- [ ] Tras ganar una pelea por el camino, la oleada sigue al momento (pendiente de la 11).
 
 ---
 

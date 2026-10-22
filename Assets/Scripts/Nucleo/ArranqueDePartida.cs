@@ -46,18 +46,45 @@ namespace TinyTactics.Nucleo
         readonly List<Unidad> _condenadas = new List<Unidad>();
         float _reinicioDeFondo = -1f;
 
+        [Tooltip("Los tiles del terreno en los cinco colores, para construir mapas de archivo.")]
+        public PaletaDeTerreno paleta;
+
+        /// <summary>¿Se juega o edita un mapa de archivo en vez del de la escena?</summary>
+        public static bool MapaDeArchivo => Configuracion != null && Configuracion.mapa != null;
+
         void Awake()
         {
             var arbitro = Object.FindFirstObjectByType<ArbitroDePartida>();
             int bandos = arbitro != null ? arbitro.bandos : 3;
 
             Navegacion.EscenaDelMenu = escena;
-            Navegacion.BandosDelMenu = bandos;
+            if (ConfiguracionDePartida.Actual == null || ConfiguracionDePartida.Actual.mapa == null)
+                Navegacion.BandosDelMenu = bandos;
+
+            // Un mapa de archivo manda sobre el de la escena: su número de bases, su grilla y
+            // su contenido. Todo eso se decide aquí, antes de que nadie más despierte.
+            MundoJuego.MapaForzado = null;
+            var pedida = ConfiguracionDePartida.Actual;
+            if (pedida != null && pedida.mapa != null && pedida.escena == escena)
+            {
+                bandos = Mathf.Clamp(pedida.mapa.bases.Count, 1, 5);
+                if (arbitro != null) arbitro.bandos = bandos;
+
+                var eco = Object.FindFirstObjectByType<Economia>();
+                if (eco != null) eco.bandos = bandos;
+
+                MundoJuego.MapaForzado = pedida.mapa.AMapaGenerado();
+                ConstructorEnPartida.Vaciar();
+            }
 
             var c = ConfiguracionDePartida.Actual;
             if (c != null && c.modo == ModoDePartida.Menu && c.bases.Length != bandos)
                 c = ConfiguracionDePartida.DeMenu(bandos, escena);
-            if (c == null || c.escena != escena || c.bases.Length != bandos)
+            if (c != null && c.modo == ModoDePartida.Editor && c.mapa != null)
+            {
+                // El editor no tiene bandos que validar: se queda con su mapa tal cual.
+            }
+            else if (c == null || c.escena != escena || c.bases.Length != bandos)
                 c = ConfiguracionDePartida.PorDefecto(bandos, escena);
 
             Configuracion = c;
@@ -73,6 +100,15 @@ namespace TinyTactics.Nucleo
         {
             var c = Configuracion;
 
+            if (c.mapa != null) ConstructorEnPartida.Construir(c.mapa, paleta, conBases: c.modo != ModoDePartida.Editor);
+
+            if (c.modo == ModoDePartida.Editor)
+            {
+                PrepararEditor();
+                Opciones.Aplicar();
+                return;
+            }
+
             for (int bando = 0; bando < c.bases.Length; bando++)
             {
                 var ocupante = c.bases[bando];
@@ -82,9 +118,11 @@ namespace TinyTactics.Nucleo
                 else QuitarBot(bando);
             }
 
-            // El color de cada base, antes de que nadie lea un dibujo.
-            for (int bando = 0; bando < c.bases.Length; bando++)
-                if (c.bases[bando] != Ocupante.Cerrada) PreparacionDeBandos.Vestir(bando);
+            // El color de cada base, antes de que nadie lea un dibujo. Un mapa de archivo ya
+            // construye sus bases con las plantillas de su color: no hay nada que vestir.
+            if (c.mapa == null)
+                for (int bando = 0; bando < c.bases.Length; bando++)
+                    if (c.bases[bando] != Ocupante.Cerrada) PreparacionDeBandos.Vestir(bando);
 
             int jugador = c.Jugador;
             if (jugador >= 0) SentarJugador(jugador);
@@ -95,6 +133,57 @@ namespace TinyTactics.Nucleo
             if (c.modo == ModoDePartida.Sandbox) AplicarSandbox(c);
 
             Opciones.Aplicar();
+        }
+
+        /// <summary>
+        /// El editor de mapas: ni bandos, ni IA, ni niebla, ni final de partida.
+        /// </summary>
+        void PrepararEditor()
+        {
+            var cerebros = CerebroIA.Todos;
+            for (int i = cerebros.Count - 1; i >= 0; i--)
+                if (cerebros[i] != null) Destroy(cerebros[i].gameObject);
+
+            var arbitro = Object.FindFirstObjectByType<ArbitroDePartida>();
+            if (arbitro != null) arbitro.enabled = false;
+
+            var niebla = NieblaDeGuerra.Actual ?? Object.FindFirstObjectByType<NieblaDeGuerra>();
+            if (niebla != null) niebla.ignorarNiebla = true;
+
+            var selector = Object.FindFirstObjectByType<SelectorDeUnidades>();
+            if (selector != null) selector.soloObservar = true;
+
+            var panel = Object.FindFirstObjectByType<Pruebas.PanelDePruebas>(FindObjectsInactive.Include);
+            if (panel != null) panel.enabled = false;
+
+            var menu = Object.FindFirstObjectByType<MenuPrincipal>(FindObjectsInactive.Include);
+            if (menu != null) menu.gameObject.SetActive(false);
+
+            var editor = Object.FindFirstObjectByType<EditorDeMapas>(FindObjectsInactive.Include);
+
+            foreach (var lienzo in Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+                if (editor == null || !lienzo.transform.IsChildOf(editor.transform))
+                    lienzo.enabled = false;
+
+            Apagar<CartelDeFinal>();
+            Apagar<Minimapa>();
+            Apagar<ResaltadoDeNodo>();
+            Apagar<GruposDeControl>();
+            Apagar<MenuDePausa>();
+            Apagar<CriaderoOvejas>();
+
+            // El ciclo del día y las nubes solo cubren el mapa: al alejarse en el editor se
+            // les veía el borde sobre la mesa. Mientras se dibuja, siempre es de día.
+            Apagar<CicloDelDia>();
+            foreach (var n in Object.FindObjectsByType<MantoDeNubes>(FindObjectsSortMode.None)) n.gameObject.SetActive(false);
+
+            if (editor != null)
+            {
+                editor.gameObject.SetActive(true);
+                editor.Abrir(Configuracion.mapa);
+            }
+
+            Time.timeScale = 1f;
         }
 
         /// <summary>
@@ -281,6 +370,9 @@ namespace TinyTactics.Nucleo
         /// </remarks>
         void PrepararInterfaz(ModoDePartida modo)
         {
+            var editor = Object.FindFirstObjectByType<EditorDeMapas>(FindObjectsInactive.Include);
+            if (editor != null) editor.gameObject.SetActive(false);
+
             var panel = Object.FindFirstObjectByType<Pruebas.PanelDePruebas>(FindObjectsInactive.Include);
             if (panel != null) panel.enabled = modo == ModoDePartida.Sandbox;
 

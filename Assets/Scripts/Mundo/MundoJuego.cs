@@ -48,6 +48,13 @@ namespace TinyTactics.Mundo
         /// <summary>Instancia activa. Hay un único mundo por escena.</summary>
         public static MundoJuego Actual { get; private set; }
 
+        /// <summary>
+        /// Un mapa que sustituye al de la definición: el de un archivo (semana 13, ADR-28).
+        /// Lo pone el arranque antes de que el mundo despierte; si es null, se genera el
+        /// mapa de la definición como siempre.
+        /// </summary>
+        public static MapaGenerado MapaForzado;
+
         [Header("Balance")]
         [Tooltip("Tabla de contadores entre tipos de ataque y de armadura. La asigna el " +
                  "generador de la escena.")]
@@ -63,7 +70,7 @@ namespace TinyTactics.Mundo
 
             Actual = this;
 
-            if (definicion == null)
+            if (definicion == null && MapaForzado == null)
             {
                 Debug.LogError("[Tiny Tactics] MundoJuego no tiene DefinicionMapa asignada.", this);
                 enabled = false;
@@ -87,7 +94,7 @@ namespace TinyTactics.Mundo
 
         public void Construir()
         {
-            if (definicion == null)
+            if (definicion == null && MapaForzado == null)
             {
                 Debug.LogError("[Tiny Tactics] MundoJuego no tiene DefinicionMapa asignada.", this);
                 return;
@@ -95,7 +102,7 @@ namespace TinyTactics.Mundo
 
             float inicio = Time.realtimeSinceStartup;
 
-            Mapa = GeneradorTerreno.Generar(definicion);
+            Mapa = MapaForzado ?? GeneradorTerreno.Generar(definicion);
             Grilla = new GrillaMapa(Mapa.Ancho, Mapa.Alto);
 
             for (int x = 0; x < Mapa.Ancho; x++)
@@ -166,7 +173,10 @@ namespace TinyTactics.Mundo
         bool EsParedDeAcantilado(int x, int y)
         {
             if (Mapa.Nivel == null || y + 1 >= Mapa.Alto) return false;
-            if (Mapa.Nivel[x, y] != 0 || Mapa.Nivel[x, y + 1] == 0) return false;
+
+            // Desde la semana 13 hay mesetas sobre mesetas: hay pared siempre que la celda de
+            // arriba esté más alta, no solo cuando esta es llano.
+            if (Mapa.Nivel[x, y] >= Mapa.Nivel[x, y + 1]) return false;
 
             return Mapa.Escalera == null || !Mapa.Escalera[x, y];
         }

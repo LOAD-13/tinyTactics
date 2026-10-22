@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using TinyTactics.Datos;
+using TinyTactics.Mundo;
 using TinyTactics.Nucleo;
 
 namespace TinyTactics.Interfaz
@@ -35,7 +36,17 @@ namespace TinyTactics.Interfaz
             public Sprite miniatura;
             [Tooltip("Posición de cada base en el mapa, de 0 a 1. Para marcarlas en la miniatura.")]
             public Vector2[] bases;
+
+            /// <summary>Si el mapa viene de un archivo (semana 13). Null es la escena: Tres Coronas.</summary>
+            [System.NonSerialized] public MapaGuardado archivo;
+            [System.NonSerialized] public bool oficial;
         }
+
+        /// <summary>La lista que se enseña: los mapas de la escena y los de archivo.</summary>
+        readonly List<FichaDeMapa> _lista = new List<FichaDeMapa>();
+        GameObject _botonesEditor, _dialogoNuevo;
+        Text _valorTamanoNuevo;
+        int _tamanoNuevo = 160;
 
         public TemaInterfaz tema;
         public Sprite logo;
@@ -347,11 +358,11 @@ namespace TinyTactics.Interfaz
 
             var papel = KitInterfaz.Imagen(izquierda, "Pergamino",
                                            KitInterfaz.ConBorde(pergamino, new Vector4(28, 28, 28, 28)), Color.white);
-            KitInterfaz.Colocar(papel.rectTransform, new Vector2(0.5f, 1f), new Vector2(560f, 470f), new Vector2(0f, -265f));
+            KitInterfaz.Colocar(papel.rectTransform, new Vector2(0.5f, 1f), new Vector2(560f, 420f), new Vector2(0f, -240f));
 
             _miniatura = KitInterfaz.Imagen(papel.transform, "Miniatura", null, Color.white);
             _miniatura.preserveAspect = true;
-            KitInterfaz.Colocar(_miniatura.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(400f, 400f));
+            KitInterfaz.Colocar(_miniatura.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(360f, 360f));
 
             for (int i = 0; i < Bandos.Colores; i++)
             {
@@ -364,13 +375,24 @@ namespace TinyTactics.Interfaz
             }
 
             var nombreMapa = KitInterfaz.Ciclador(izquierda, "Mapa", _fuente, Caja(Azul), Boton(Azul), CambiarMapa,
-                                                  new Vector2(0.5f, 1f), new Vector2(560f, 66f), new Vector2(0f, -545f), 34);
+                                                  new Vector2(0.5f, 1f), new Vector2(560f, 66f), new Vector2(0f, -490f), 34);
             _nombreMapa = nombreMapa;
 
             _descripcion = KitInterfaz.TextoQueCabe(izquierda, "Descripcion", _fuente, 24, 14, KitInterfaz.Crema,
                                                     TextAnchor.UpperCenter);
-            KitInterfaz.Colocar(_descripcion.rectTransform, new Vector2(0.5f, 0f), new Vector2(580f, 100f),
-                                new Vector2(0f, 70f));
+            KitInterfaz.Colocar(_descripcion.rectTransform, new Vector2(0.5f, 0f), new Vector2(580f, 74f),
+                                new Vector2(0f, 128f));
+
+            // Solo en sandbox: llevar el mapa elegido al editor, o empezar uno desde el mar.
+            var editar = KitInterfaz.Hijo(izquierda, "BotonesEditor");
+            KitInterfaz.Colocar(editar, new Vector2(0.5f, 0f), new Vector2(600f, 60f), new Vector2(0f, 48f));
+            BotonDeAccion(editar, "Editar este mapa", Morado, EditarElegido, new Vector2(0f, 0.5f),
+                          new Vector2(290f, 60f), new Vector2(150f, 0f), 26);
+            BotonDeAccion(editar, "Mapa nuevo", Morado, () => _dialogoNuevo.SetActive(true), new Vector2(1f, 0.5f),
+                          new Vector2(290f, 60f), new Vector2(-150f, 0f), 26);
+            _botonesEditor = editar.gameObject;
+
+            ConstruirDialogoNuevo(p);
 
             // Derecha: los bandos y, en sandbox, sus reglas.
             var derecha = Contenedor(mesa, "Derecha", Azul, new Vector2(1f, 0.5f), new Vector2(860f, 700f),
@@ -486,27 +508,31 @@ namespace TinyTactics.Interfaz
         void Preparar(ModoDePartida modo)
         {
             _modoAPreparar = modo;
-            _mapa = Mathf.Clamp(_mapa, 0, Mathf.Max(0, mapas.Length - 1));
+            ListarMapas();
+            _mapa = Mathf.Clamp(_mapa, 0, Mathf.Max(0, _lista.Count - 1));
             _preparada = NuevaConfiguracion();
             Ir(Pantalla.Partida);
         }
 
         ConfiguracionDePartida NuevaConfiguracion()
         {
-            var ficha = mapas.Length > 0
-                ? mapas[_mapa]
+            var ficha = _lista.Count > 0
+                ? _lista[_mapa]
                 : new FichaDeMapa { escena = Navegacion.EscenaDelMenu, bandos = Navegacion.BandosDelMenu };
 
-            var c = ConfiguracionDePartida.PorDefecto(ficha.bandos, ficha.escena);
+            var c = ConfiguracionDePartida.PorDefecto(Mathf.Max(1, ficha.bandos), ficha.escena);
             c.modo = _modoAPreparar;
+
+            // Una copia: la partida no debe poder cambiar el mapa que se queda en la lista.
+            if (ficha.archivo != null) c.mapa = MapaGuardado.DeJson(ficha.archivo.AJson());
             return c;
         }
 
         void CambiarMapa(int paso)
         {
-            if (mapas.Length <= 1) return;
+            if (_lista.Count <= 1) return;
 
-            _mapa = (_mapa + paso + mapas.Length) % mapas.Length;
+            _mapa = (_mapa + paso + _lista.Count) % _lista.Count;
             _preparada = NuevaConfiguracion();
             PintarPartida();
         }
@@ -539,7 +565,8 @@ namespace TinyTactics.Interfaz
             _titulo.text = sandbox ? "Sandbox" : "Nueva partida";
             if (tema != null) _cintaPartida.sprite = tema.ListonPanelDeColor(sandbox ? Amarillo : Azul);
 
-            var ficha = mapas.Length > 0 ? mapas[_mapa] : default;
+            var ficha = _lista.Count > 0 ? _lista[_mapa] : default;
+            if (_botonesEditor != null) _botonesEditor.SetActive(sandbox);
             _nombreMapa.text = string.IsNullOrEmpty(ficha.nombre) ? "Mapa" : ficha.nombre;
             _descripcion.text = $"{_preparada.bases.Length} bases. {ficha.descripcion}";
             _miniatura.sprite = ficha.miniatura;
@@ -602,8 +629,98 @@ namespace TinyTactics.Interfaz
             }
 
             bool valida = ReglasDeConfiguracion.EsValida(_preparada.bases, out var motivo);
+            if (valida && ficha.archivo != null && !ReglasDeMapa.EsJugable(ficha.archivo, out var queFalta))
+            {
+                valida = false;
+                motivo = $"Este mapa aún no se puede jugar: {queFalta}";
+            }
             _motivo.text = motivo;
             _empezar.interactable = valida;
+        }
+
+        /// <summary>
+        /// Los mapas de la escena (Tres Coronas) y, detrás, los de archivo: primero los
+        /// oficiales y luego los tuyos. En partida normal solo los que se pueden jugar; en
+        /// sandbox todos, porque desde ahí se abren en el editor para terminarlos.
+        /// </summary>
+        void ListarMapas()
+        {
+            _lista.Clear();
+            _lista.AddRange(mapas);
+
+            foreach (var e in ArchivoDeMapas.Listar())
+            {
+                if (_modoAPreparar != ModoDePartida.Sandbox && !ReglasDeMapa.EsJugable(e.mapa, out _)) continue;
+
+                _lista.Add(new FichaDeMapa
+                {
+                    nombre = e.oficial ? e.mapa.nombre : $"{e.mapa.nombre} (tuyo)",
+                    descripcion = e.mapa.descripcion,
+                    escena = Navegacion.EscenaDelMenu,
+                    bandos = Mathf.Max(1, e.mapa.bases.Count),
+                    miniatura = MiniaturaDeMapa.Crear(e.mapa),
+                    bases = MiniaturaDeMapa.Bases(e.mapa),
+                    archivo = e.mapa,
+                    oficial = e.oficial,
+                });
+            }
+        }
+
+        void EditarElegido()
+        {
+            var ficha = _lista.Count > 0 ? _lista[_mapa] : default;
+
+            MapaGuardado mapa;
+            if (ficha.archivo != null)
+            {
+                mapa = MapaGuardado.DeJson(ficha.archivo.AJson());
+                // Un mapa oficial se edita como copia tuya: el oficial no se toca.
+                if (ficha.oficial) mapa.nombre += " (copia)";
+            }
+            else
+            {
+                // Tres Coronas no es un archivo: se pasa a archivo desde el mapa que ya corre
+                // detrás del menú, que es exactamente ese.
+                var mundo = MundoJuego.Actual;
+                if (mundo == null || mundo.Mapa == null) return;
+                mapa = MapaGuardado.DeMapaGenerado(mundo.Mapa, $"{ficha.nombre} (copia)", ficha.descripcion);
+            }
+
+            Navegacion.Editar(mapa);
+        }
+
+        void ConstruirDialogoNuevo(RectTransform raiz)
+        {
+            var velo = KitInterfaz.Velo(raiz, 0.5f);
+            _dialogoNuevo = velo.gameObject;
+
+            var caja = KitInterfaz.Imagen(velo.transform, "Caja", tema != null ? tema.panelFondo : null, Color.white);
+            caja.raycastTarget = true;
+            KitInterfaz.Colocar(caja.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(620f, 380f));
+
+            var t = KitInterfaz.Texto(caja.transform, "Titulo", "Mapa nuevo", _fuente, 44, KitInterfaz.Crema, TextAnchor.MiddleCenter);
+            KitInterfaz.Colocar(t.rectTransform, new Vector2(0.5f, 1f), new Vector2(560f, 70f), new Vector2(0f, -60f));
+
+            var d = KitInterfaz.Texto(caja.transform, "Texto", "Empieza como mar abierto. Elige su tamaño:", _fuente, 24,
+                                      KitInterfaz.Crema, TextAnchor.MiddleCenter);
+            KitInterfaz.Colocar(d.rectTransform, new Vector2(0.5f, 1f), new Vector2(560f, 40f), new Vector2(0f, -120f));
+
+            int[] tamanos = { 96, 128, 160, 192, 224 };
+            _valorTamanoNuevo = KitInterfaz.Ciclador(caja.transform, "Tamano", _fuente, CajaChica(Morado), Boton(Morado), paso =>
+            {
+                int i = System.Array.IndexOf(tamanos, _tamanoNuevo);
+                _tamanoNuevo = tamanos[(i + paso + tamanos.Length) % tamanos.Length];
+                _valorTamanoNuevo.text = $"{_tamanoNuevo} × {_tamanoNuevo}";
+            }, new Vector2(0.5f, 0.5f), new Vector2(360f, 60f), new Vector2(0f, -10f), 28);
+            _valorTamanoNuevo.text = $"{_tamanoNuevo} × {_tamanoNuevo}";
+
+            BotonDeAccion((RectTransform)caja.transform, "Cancelar", Rojo, () => _dialogoNuevo.SetActive(false),
+                          new Vector2(0.5f, 0f), new Vector2(220f, 70f), new Vector2(-125f, 60f), 30);
+            BotonDeAccion((RectTransform)caja.transform, "Crear", Azul,
+                          () => Navegacion.Editar(MapaGuardado.EnBlanco(_tamanoNuevo, _tamanoNuevo, "Mapa nuevo")),
+                          new Vector2(0.5f, 0f), new Vector2(220f, 70f), new Vector2(125f, 60f), 30);
+
+            _dialogoNuevo.SetActive(false);
         }
 
         void Empezar()
