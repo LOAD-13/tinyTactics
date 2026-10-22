@@ -18,8 +18,8 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E05` | Construcción y producción | 06 | 🟢 Cerrada |
 | `E06` | Combate | 07-08 | 🟢 Cerrada |
 | `E07` | Percepción — niebla, minimapa y hora | 09 | 🟢 Cerrada |
-| `E08` | IA rival | 10-11 | 🔵 En curso |
-| `E09` | Flujo de partida y FFA | 12-13 | ⚪ Pendiente |
+| `E08` | IA rival | 10-11 | 🟢 Cerrada |
+| `E09` | Flujo de partida y FFA | 12-13 | 🔵 En curso |
 | `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🔵 Empezada *(efectos de sonido adelantados a la 11)* |
 | `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
 | `E12` | PvP LAN *(condicional — compuerta S11)* | — | ⛔ NO-GO en la semana 11 · [ADR-24](ARQUITECTURA.md#adr-24) |
@@ -1675,6 +1675,128 @@ semana siguiente significaba volver a abrir el mismo archivo.
 
 ---
 
+# Semana 12 — Flujo de partida y empieza la UI (E09)
+
+**Meta de la semana:** que el juego se abra en un menú y no en una partida. Pantalla de
+título, menú principal, preparar partida eligiendo quién ocupa cada base, sandbox como modo
+aparte, pausa y vuelta al menú.
+
+> **Una sola rama:** `feat/E09-flujo-de-partida`.
+
+**Decidido el 21/10/2026:** de fondo del menú, **una partida de bots de verdad**. Primero se
+decidió que el jugador eligiera base y heredara su color; tras probar la primera versión,
+Joaquín pidió **color libre entre los cinco del pack**, y se hizo esta misma semana porque los
+catálogos ya buscaban por número de bando (ver [ADR-27](ARQUITECTURA.md#adr-27)).
+
+**Segunda vuelta de diseño (21/10/2026), «la mesa de guerra»:** marcos de madera con
+contenedores de color, el logo a la izquierda y las entradas del menú como las espadas del
+pack a la derecha, minimapa del mapa elegido con sus bases marcadas, retrato del pawn en el
+color de cada bando, reglas propias del sandbox y opciones ampliadas.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-097 | Pantalla de título con el logo y una partida de bots de fondo | bajo |
+| HU-098 | Menú principal: jugar, sandbox, opciones, créditos y salir | bajo |
+| HU-099 | Preparar partida: mapa y quién ocupa cada base | medio |
+| HU-100 | La escena de juego se configura al arrancar | medio |
+| HU-101 | El sandbox es un modo aparte; en partida normal el panel no se ve | bajo |
+| HU-102 | Revancha y vuelta al menú desde el cartel de final | bajo |
+| HU-103 | Pausa mínima con Escape | bajo |
+| HU-104 | Pruebas de la configuración y los bots se detienen al terminar | bajo |
+| HU-105 | Color libre: cada base elige entre los cinco colores del pack | medio |
+| HU-106 | El fondo del menú arranca en plena batalla | bajo |
+
+---
+
+### HU-097 · Pantalla de título con el logo y una partida de bots de fondo
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] La build arranca en una escena de inicio que abre el menú.
+- [ ] El logo del juego con un brillo que lo cruza cada pocos segundos, recortado con su forma.
+- [ ] De fondo, una partida de bots en el mismo mapa, sin niebla, con la cámara siguiendo la acción.
+- [ ] «Pulsa cualquier tecla»; el título se ve una vez por sesión.
+
+### HU-098 · Menú principal
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] Jugar, Sandbox, Opciones, Créditos y Salir, con botones del pack.
+- [ ] Opciones, **guardadas entre sesiones**: volumen, sonido, pantalla completa, sincronía
+      vertical, límite de FPS, velocidad de la cámara y mover con el borde; y la lista de
+      controles.
+- [ ] Logo a la izquierda y las entradas como espadas del pack a la derecha, que entran en
+      cascada y se adelantan al pasar el ratón.
+- [ ] Créditos con el equipo y las licencias (Tiny Swords, MedievalSharp, sonidos CC0).
+
+### HU-099 · Preparar partida
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] Elegir mapa de una lista (uno esta semana; el segundo llega en la 13), con su
+      **miniatura** y las bases marcadas en su color.
+- [ ] Cada base enseña el **retrato del pawn** en su color.
+- [ ] Un botón por base que recorre: Tú → Bot Fácil → Normal → Difícil → Cerrada.
+- [ ] Nunca dos jugadores; «Empezar» apagado y con el motivo escrito si falta jugador o rival.
+
+### HU-100 · La escena de juego se configura al arrancar
+**Épica:** E09 · **Semana:** 12 · ver [ADR-26](ARQUITECTURA.md#adr-26)
+
+**Criterios de aceptación**
+- [ ] Las bases cerradas desaparecen antes del primer fotograma y no cuentan para el árbitro.
+- [ ] El jugador aparece en su base, con su HUD y la cámara encima.
+- [ ] Cada base de bot tiene un cerebro con su dificultad, aunque sea la primera base.
+- [ ] Abrir la escena de juego directamente desde Unity juega como hasta la semana 11.
+
+### HU-101 · El sandbox es un modo aparte
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] En Sandbox se ve el panel de partida libre; en una partida normal, no.
+- [ ] En partida normal, **Ctrl + Mayús + F12** lo enciende para probar.
+- [ ] El sandbox tiene reglas propias: niebla sí/no, recursos normales/abundantes/infinitos,
+      velocidad de inicio, bots que atacan o solo defienden, y ejército de salida.
+
+### HU-102 · Revancha y vuelta al menú
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] El cartel de final ofrece «Revancha» (misma configuración) y «Menú principal».
+
+### HU-103 · Pausa mínima con Escape
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] Escape primero cancela lo que haya a medias; si no había nada, pausa.
+- [ ] Reanudar devuelve la velocidad que había (x1, x2, x4).
+- [ ] Reanudar, Revancha, Menú principal y Salir.
+
+### HU-105 · Color libre
+**Épica:** E09 · **Semana:** 12 · ver [ADR-27](ARQUITECTURA.md#adr-27)
+
+**Criterios de aceptación**
+- [ ] Cada base abierta elige su color entre azul, rojo, amarillo, morado y negro.
+- [ ] Nunca dos bases abiertas con el mismo color: el botón salta los ocupados.
+- [ ] Castillo, pawns de salida, lo que se construye, lo que se entrena, retratos, listones y
+      minimapa salen del color elegido.
+
+### HU-106 · El fondo del menú arranca en plena batalla
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] Cada bot del fondo empieza con ejército, recursos y la espera del perfil Difícil: la
+      primera pelea llega en menos de un minuto y se oye.
+
+### HU-104 · Pruebas de la configuración y bots que se detienen al terminar
+**Épica:** E09 · **Semana:** 12
+
+**Criterios de aceptación**
+- [ ] Las reglas de la configuración son funciones puras y pasan por el arnés.
+- [ ] Con la partida terminada, los bots dejan de pensar (pendiente de la semana 11).
+- [ ] El diario de partida empieza de cero en cada partida y no apunta el fondo del menú.
+
+---
+
 # Semana 11 — IA v2, compuerta del PvP y primer audio (E08 · E10)
 
 **Meta de la semana:** cerrar la IA rival con sus tres dificultades, decidir el PvP con el
@@ -1843,8 +1965,7 @@ Detallada arriba, en su propia sección.
 Detallada arriba, en su propia sección.
 
 ### Semana 12 — Flujo de partida (E09)
-Condición de victoria y derrota · pantalla de resultado · menú principal · selección de mapa ·
-selección de número de bandos y dificultad.
+Detallada arriba, en su propia sección.
 
 ### Semana 13 — FFA y rendimiento (E09)
 Spawns múltiples · IA multi-bando · perfilado con 250 unidades · optimización de los cuellos detectados ·

@@ -45,7 +45,11 @@ namespace TinyTactics.Unidades
             _entradas.Add(new Entrada { tipo = tipo, faccion = faccion, plantilla = plantilla });
         }
 
-        public GameObject Obtener(TipoUnidad tipo, int faccion)
+        /// <summary>La plantilla de un tipo en el COLOR del bando (ver <see cref="Nucleo.Bandos"/>).</summary>
+        public GameObject Obtener(TipoUnidad tipo, int faccion) =>
+            ObtenerDeColor(tipo, Nucleo.Bandos.ColorDe(faccion));
+
+        public GameObject ObtenerDeColor(TipoUnidad tipo, int faccion)
         {
             for (int i = 0; i < _entradas.Count; i++)
             {

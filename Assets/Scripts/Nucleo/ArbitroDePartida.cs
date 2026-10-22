@@ -56,7 +56,7 @@ namespace TinyTactics.Nucleo
 
             for (int bando = 0; bando < bandos; bando++)
             {
-                if (_eliminados.Contains(bando))
+                if (_eliminados.Contains(bando) || _excluidos.Contains(bando))
                     continue;
 
                 int militares = 0, pawns = 0;
@@ -140,8 +140,21 @@ namespace TinyTactics.Nucleo
         void Start()
         {
             for (int bando = 0; bando < bandos; bando++)
-                if (SigueEnPie(bando)) _enJuego.Add(bando);
+                if (!_excluidos.Contains(bando) && SigueEnPie(bando)) _enJuego.Add(bando);
         }
+
+        readonly HashSet<int> _excluidos = new HashSet<int>();
+
+        /// <summary>
+        /// Saca un bando de la partida antes de empezar: una base que nadie ocupa.
+        /// </summary>
+        /// <remarks>
+        /// Hace falta decirlo y no basta con borrar sus edificios: <c>Destroy</c> no surte
+        /// efecto hasta el final del fotograma, y el <c>Start</c> del árbitro los vería
+        /// todavía en pie. Sin esto, una partida 1v1 en un mapa de tres empezaría con un
+        /// tercer bando fantasma que caería medio segundo después con su cartel de eliminado.
+        /// </remarks>
+        public void Excluir(int bando) => _excluidos.Add(bando);
 
         void Update()
         {

@@ -270,6 +270,12 @@ namespace TinyTactics.Edificios
 
             var copia = Instantiate(plantilla, salida, Quaternion.identity, transform.parent);
             copia.name = $"{datos.tipo}_p{_producidas}";
+
+            // El bando se pone ANTES de encenderla: la plantilla es del color del bando y
+            // lleva dentro el numero del color, no el del bando (semana 12).
+            var unidad = copia.GetComponent<Unidad>();
+            if (unidad != null) unidad.Configurar(datos, _edificio.faccion);
+
             copia.SetActive(true);
 
             var libro = Nucleo.EstadisticasPartida.Actual;
@@ -278,9 +284,6 @@ namespace TinyTactics.Edificios
             if (_edificio != null)
                 Audio.SonidoJuego.SonarSiEsMio(Audio.Sonido.EntrenarUnidad, _edificio.faccion,
                                                salida);
-
-            var unidad = copia.GetComponent<Unidad>();
-            if (unidad != null) unidad.Configurar(datos, _edificio.faccion);
 
             if (!tienePuntoDeReunion || unidad == null) return;
 

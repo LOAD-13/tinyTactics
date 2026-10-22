@@ -101,7 +101,9 @@ namespace TinyTactics.Interfaz
         public Sprite iconoConstruir;
         public Sprite iconoEntrenar;
 
-        public Sprite BotonDe(int faccion) => Elegir(botones, faccion);
+        public Sprite BotonDe(int faccion) => Elegir(botones, Nucleo.Bandos.ColorDe(faccion));
+
+        public Sprite BotonDeColor(int color) => Elegir(botones, color);
 
         [Header("Retratos")]
         [Tooltip("Las 25 caras del pack: 5 tipos de unidad × 5 colores de facción.")]
@@ -139,11 +141,18 @@ namespace TinyTactics.Interfaz
             }
         }
 
-        public Sprite RetratoDe(TipoUnidad tipo, int faccion)
+        public Sprite RetratoDe(TipoUnidad tipo, int faccion) =>
+            RetratoDeColor(tipo, Nucleo.Bandos.ColorDe(faccion));
+
+        /// <summary>
+        /// Por color y no por bando: lo usa el menú, que enseña colores antes de que haya
+        /// bandos. Todo lo que es <c>…De(faccion)</c> pasa por el color del bando primero.
+        /// </summary>
+        public Sprite RetratoDeColor(TipoUnidad tipo, int color)
         {
             if (retratos == null || retratos.Length < 25) return null;
 
-            int fila = Mathf.Clamp(faccion, 0, 4);
+            int fila = Mathf.Clamp(color, 0, 4);
             return retratos[fila * 5 + ColumnaDe(tipo)];
         }
 
@@ -152,13 +161,21 @@ namespace TinyTactics.Interfaz
         /// que las facciones, así que no hay que teñir nada: teñir un sprite verdeazulado
         /// para sacar un rojo da un marrón sucio, nunca el rojo del pack.
         /// </summary>
-        public Sprite ListonPanelDe(int faccion) => Elegir(listonesPanel, faccion);
+        public Sprite ListonPanelDe(int faccion) => Elegir(listonesPanel, Nucleo.Bandos.ColorDe(faccion));
 
-        public Sprite ListonNombreDe(int faccion) => Elegir(listonesNombre, faccion);
+        public Sprite ListonPanelDeColor(int color) => Elegir(listonesPanel, color);
 
-        public Sprite CajaDe(int faccion) => Elegir(cajas, faccion);
+        public Sprite ListonNombreDe(int faccion) => Elegir(listonesNombre, Nucleo.Bandos.ColorDe(faccion));
 
-        public Sprite CajaChicaDe(int faccion) => Elegir(cajasChicas, faccion);
+        public Sprite ListonNombreDeColor(int color) => Elegir(listonesNombre, color);
+
+        public Sprite CajaDe(int faccion) => Elegir(cajas, Nucleo.Bandos.ColorDe(faccion));
+
+        public Sprite CajaDeColor(int color) => Elegir(cajas, color);
+
+        public Sprite CajaChicaDe(int faccion) => Elegir(cajasChicas, Nucleo.Bandos.ColorDe(faccion));
+
+        public Sprite CajaChicaDeColor(int color) => Elegir(cajasChicas, color);
 
         static Sprite Elegir(Sprite[] lista, int indice)
         {
@@ -166,10 +183,12 @@ namespace TinyTactics.Interfaz
             return lista[Mathf.Clamp(indice, 0, lista.Length - 1)];
         }
 
-        public Color ColorDe(int faccion)
+        public Color ColorDe(int faccion) => TonoDeColor(Nucleo.Bandos.ColorDe(faccion));
+
+        public Color TonoDeColor(int color)
         {
             if (coloresFaccion == null || coloresFaccion.Length == 0) return Color.white;
-            return coloresFaccion[Mathf.Clamp(faccion, 0, coloresFaccion.Length - 1)];
+            return coloresFaccion[Mathf.Clamp(color, 0, coloresFaccion.Length - 1)];
         }
     }
 }

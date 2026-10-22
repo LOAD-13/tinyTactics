@@ -132,6 +132,8 @@ namespace TinyTactics.Audio
         float[] _ultimo;
         int[] _tomaAnterior;
 
+        void Start() => Nucleo.Opciones.Aplicar();
+
         void Awake()
         {
             Actual = this;

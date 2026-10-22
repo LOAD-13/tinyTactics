@@ -317,6 +317,12 @@ namespace TinyTactics.Pruebas
             var copia = Object.Instantiate(plantilla, punto, Quaternion.identity,
                                            plantilla.transform.parent);
             copia.name = $"{tipo}_pruebas";
+
+            // La plantilla es del COLOR del bando, y lleva ese número dentro. Se le pone el
+            // bando de verdad, igual que hace el cuartel al entrenar.
+            var unidad = copia.GetComponent<Unidad>();
+            if (unidad != null) unidad.Configurar(unidad.datos, selector.faccionJugador);
+
             copia.SetActive(true);
         }
 
