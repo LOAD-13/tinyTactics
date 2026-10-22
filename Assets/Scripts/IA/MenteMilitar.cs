@@ -201,6 +201,7 @@ namespace TinyTactics.IA
                 _presa = null;
                 _dondePresa = null;
                 _amenaza = null;
+                _peleando = false;
                 Lanzadas++;
 
                 _desdeQueEspera = Time.time;
@@ -347,8 +348,14 @@ namespace TinyTactics.IA
             if (k < 0)
             {
                 // Se acabo la pelea: vuelta al objetivo sin esperar al proximo empujon.
-                if (_amenaza != null)
+                // OJO: no se pregunta «_amenaza != null». Cuando la amenaza muere, Unity
+                // destruye su objeto y la comparacion con null da verdadero aunque la
+                // referencia siga ahi: la oleada se quedaba quieta hasta el siguiente
+                // empujon, unos cuatro segundos (pendiente de la semana 11). Un booleano
+                // propio no depende de si el objeto sigue vivo.
+                if (_peleando)
                 {
+                    _peleando = false;
                     _amenaza = null;
                     if (_presa != null && ((IObjetivo)_presa).Vivo) Atacar(_presa);
                     _proximoEmpujon = Time.time + segundosEntreEmpujones;
@@ -361,9 +368,10 @@ namespace TinyTactics.IA
             Estado = $"peleando por el camino ({_tropa.Count}) con " +
                      $"{amenaza.datos.tipo} del bando {amenaza.faccion + 1}";
 
-            if (amenaza != _amenaza)
+            if (amenaza != _amenaza || !_peleando)
             {
                 _amenaza = amenaza;
+                _peleando = true;
                 Autoridad.Emitir(new OrdenAtacar { Faccion = Faccion, Objetivo = amenaza }, _tropa);
             }
 
@@ -371,6 +379,7 @@ namespace TinyTactics.IA
         }
 
         Unidad _amenaza;
+        bool _peleando;
         readonly List<Unidad> _enemigas = new List<Unidad>();
         readonly List<Vector2> _posPropias = new List<Vector2>();
         readonly List<Vector2> _posEnemigas = new List<Vector2>();
