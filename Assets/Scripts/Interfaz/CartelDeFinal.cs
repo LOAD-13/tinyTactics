@@ -743,8 +743,8 @@ namespace TinyTactics.Interfaz
 
             var derecha = new Rect(caja.center.x + 6f, izquierda.y, ancho, alto);
 
-            if (Boton(izquierda, "Volver a jugar")) VolverAJugar();
-            if (Boton(derecha, "Cerrar")) Ocultar();
+            if (Boton(izquierda, "Revancha")) VolverAJugar();
+            if (Boton(derecha, "Menú principal")) { Ocultar(); Navegacion.IrAlMenu(); }
 
             var teclado = UnityEngine.InputSystem.Keyboard.current;
             if (teclado != null && teclado.spaceKey.wasPressedThisFrame) Ocultar();
@@ -782,8 +782,7 @@ namespace TinyTactics.Interfaz
             // forma de saber por qué.
             Time.timeScale = 1f;
 
-            var escena = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            UnityEngine.SceneManagement.SceneManager.LoadScene(escena.buildIndex);
+            Navegacion.Revancha();
         }
 
         void PrepararEstilos()

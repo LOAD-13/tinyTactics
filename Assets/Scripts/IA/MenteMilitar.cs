@@ -113,6 +113,13 @@ namespace TinyTactics.IA
                 return;
             }
 
+            // Regla del sandbox: crece y defiende, pero nunca sale de casa.
+            if (_cerebro.soloDefender)
+            {
+                Estado = "solo defiende";
+                return;
+            }
+
             float espera = _cerebro.dificultad != null ? _cerebro.dificultad.esperaInicial : 60f;
             if (Time.time - _nacimiento < espera)
             {

@@ -22,6 +22,9 @@ namespace TinyTactics.Entrada
         [Tooltip("Facción que controla este jugador.")]
         public int faccionJugador;
 
+        [Tooltip("Solo mantiene el indice espacial; no lee raton ni teclado. Lo usa el fondo del menu.")]
+        public bool soloObservar;
+
         [Header("Selección")]
         [Tooltip("Píxeles que hay que arrastrar para que cuente como caja y no como clic.")]
         public float umbralArrastre = 8f;
@@ -99,6 +102,19 @@ namespace TinyTactics.Entrada
             // cualquiera lo consulte para separarse o para seleccionar.
             RegistroDeUnidades.Reconstruir();
             PurgarSeleccion();
+
+            // En el fondo del menu y con la pausa abierta el selector sigue vivo —el indice
+            // espacial de arriba lo necesitan la IA y el combate cada fotograma—, pero no
+            // lee al jugador. Apagar el componente entero dejaria a todo el mapa ciego.
+            if (soloObservar) return;
+
+            var pausa = Interfaz.MenuDePausa.Actual;
+            if (pausa != null && pausa.Abierta)
+            {
+                var tecla = Keyboard.current;
+                if (tecla != null && tecla.escapeKey.wasPressedThisFrame) pausa.Alternar();
+                return;
+            }
 
             var raton = Mouse.current;
             if (raton == null || _camara == null)
@@ -353,6 +369,10 @@ namespace TinyTactics.Entrada
                 if (enCurso != null && enCurso.Activo) { CancelarColocacion(); return; }
 
                 if (EligiendoEdificio) { AbrirConstruccion(false); return; }
+
+                // Si no habia nada que deshacer, Escape abre la pausa. Asi una sola tecla
+                // hace lo que el jugador espera: primero cancela, y solo despues pausa.
+                if (_apuntando == null) Interfaz.MenuDePausa.Actual?.Alternar();
 
                 _apuntando = null;
                 return;

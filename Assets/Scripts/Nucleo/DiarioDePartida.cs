@@ -30,6 +30,19 @@ namespace TinyTactics.Nucleo
             Application.quitting += Cerrar;
         }
 
+        /// <summary>
+        /// Empieza un diario nuevo. Lo llama el arranque en cada partida que no sea el fondo
+        /// del menu, para que el archivo cuente una sola partida y no la del menu mezclada.
+        /// </summary>
+        public static void NuevaPartida()
+        {
+            Cerrar();
+            _fallo = false;
+        }
+
+        /// <summary>Si es false, Anotar no escribe. El fondo del menu no se apunta.</summary>
+        public static bool Activo = true;
+
         /// <summary>Ruta del archivo. La enseña el panel para saber dónde mirar.</summary>
         public static string Ruta =>
             Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "partida_ia.log"));
@@ -38,7 +51,7 @@ namespace TinyTactics.Nucleo
          System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
         public static void Anotar(string texto)
         {
-            if (_fallo) return;
+            if (_fallo || !Activo) return;
 
             try
             {
