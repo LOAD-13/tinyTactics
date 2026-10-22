@@ -179,6 +179,49 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-26 · El menú y la partida son la misma escena
+
+**Decisión.** No hay escena de menú propia. La escena de juego de cada mapa se abre en tres
+modos —menú, partida y sandbox— según una configuración que viaja en un campo estático, y un
+componente de arranque la aplica antes del primer fotograma: cierra las bases vacías, sienta
+al jugador, pone los cerebros con su dificultad y decide qué interfaz se ve. La build arranca
+en una escena de inicio vacía que abre el menú.
+
+**Por qué.** Los mapas se generan en el editor como escenas terminadas; el juego no puede
+crear un mapa en caliente (eso es trabajo del editor de mapas, E13). Lo que sí puede es
+*configurar* uno ya hecho. Usar la misma escena para el menú regala el fondo —una partida de
+bots de verdad en el mapa en el que luego se juega— y elimina una segunda escena que habría
+que mantener sincronizada con cada cambio del mapa.
+
+**Por qué un campo estático.** Es lo único que sobrevive a un `LoadScene` sin
+`DontDestroyOnLoad`, y no puede duplicarse al volver al menú, que es el fallo clásico de un
+objeto persistente.
+
+**Y lo de antes sigue vivo.** Abrir la escena de juego desde Unity sin pasar por el menú juega
+como hasta la semana 11: tú en la primera base, bots en Normal y el panel a la vista.
+
+---
+
+### ADR-27 · El bando no es el color
+
+**Decisión.** Desde la semana 12 cada bando tiene un color propio en cada partida, y todo lo
+que dibuja algo de un bando pregunta primero por su color (`Bandos.ColorDe`). El generador deja
+preparadas plantillas de unidad y de edificio en los cinco colores del pack.
+
+**Por qué era barato.** Plantillas, sprites de edificio, retratos, listones y color del
+minimapa ya se buscaban por número de bando, y funcionaba porque el número coincidía con el
+color. Bastó con traducir el número en esas búsquedas: el resto del juego —árbitro, IA,
+economía, niebla— sigue hablando de bandos y no se enteró del cambio.
+
+**Lo que ya estaba en el mapa** —el castillo y los pawns de salida— se viste al arrancar: a los
+edificios se les copian los dibujos del molde de su color, porque ocupan celdas y los conocen
+árbitro, IA y niebla; a las unidades se las sustituye por una copia del molde.
+
+**La regla que no se negocia:** dos bases abiertas no pueden llevar el mismo color. El botón
+salta los colores ocupados en vez de dejar elegirlos y avisar después.
+
+---
+
 ### ADR-25 · Solo suena lo que ves, y cada sonido es un archivo con nombre
 
 **Decisión.** Un único componente, `SonidoJuego`, hace sonar el juego. Cada sonido del mapa
