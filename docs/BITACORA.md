@@ -11,6 +11,56 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 11 — IA v2, compuerta del PvP y primer audio (E08 · E10)
+**Entrega:** domingo 18/10/2026 · **Expo:** lunes 19/10/2026 · **Expone:** Raúl
+**Tag:** [`v0.11.0-s11`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.11.0-s11) · **Rama:** `feat/E08-dificultades-y-audio`
+
+### Lo prometido
+Tres dificultades, decidir si la IA respeta la niebla y la decisión go/no-go del PvP. Y,
+decidido el lunes, adelantar los efectos de sonido de la semana 14: HU-086 a HU-094.
+
+### Lo entregado
+Las nueve, y dos más que salieron de jugar: HU-095 (la oleada termina lo que empieza y pelea
+con quien le sale al paso) y HU-096 (diario de partida). **E08 cerrada. E12 PvP: NO-GO**
+([ADR-24](ARQUITECTURA.md#adr-24)).
+
+### Lo que costó de verdad
+
+**La oleada que se marchaba.** Tiraba un castillo y el ejército entero se iba, y el rival
+reconstruía. Parecía estrategia rara y era una distancia mal medida: la siguiente presa se
+buscaba desde la primera unidad de la lista, que podía ser un recluta en casa. Ahora se busca
+desde donde cayó la anterior.
+
+**La oleada que se dejaba desangrar.** Cinco atacantes caminaban hacia un castillo mientras dos
+defensores los mataban por detrás. Se resolvió en la capa táctica, sin tocar la máquina de
+estados: si hay tropas enemigas a seis casillas de cualquiera de los suyos, la oleada entera
+va a por la más cercana y luego retoma el objetivo.
+
+**El sonido se oía desde demasiado lejos**, y los avisos de unidad entrenada y edificio
+terminado sonaban estuvieras donde estuvieras. Lo que está en pantalla suena entero, el margen
+de fuera es corto, y los avisos suenan donde ocurren.
+
+**La primera tanda de sonidos no encajaba con el pixel art.** Se reunieron siete paquetes CC0 y
+una página de audición con diez candidatos por sonido; se cambió casi la mitad. **No se tocó una
+línea de código**, que era justo lo que el catálogo por prefijo (ADR-25) prometía.
+
+### Lo que dijo el diario de partida
+Dos partidas con el rojo en Difícil, y las dos lo perdió. En la primera el diario lo explicó:
+al minuto 10:30 tenía cero soldados con 946 de madera, 1 101 de carne y **159 de oro**. La
+ventaja de recursos no sirve si sobra lo que no se gasta. **Para la semana 16:** el reparto de
+pawns del bot debe mirar qué recurso le falta para lo que quiere entrenar.
+
+### Pendiente
+- Tras ganar una pelea en mitad del camino, la oleada se queda quieta unos cuatro segundos
+  antes de seguir. Menor; anotado.
+- Al terminar la partida los bots siguen pensando (el ganador sale a explorar). No afecta.
+
+### Cifras
+5 commits · 1 522 líneas de C# · 43 bloques de prueba y 47 911 comprobaciones (antes 25 y
+11 213) · 59 efectos de sonido CC0 · ADR-23, ADR-24 y ADR-25.
+
+---
+
 ## Semana 10 — El rival (E08, parte A) · 🏁 HITO 2 · PC2
 **Entrega:** domingo 11/10/2026 · **Expo:** lunes 12/10/2026 · **Expone:** Joaquín
 **Tag:** [`v0.10.0-s10`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.10.0-s10) · **Rama:** `feat/E08-ia-rival`
