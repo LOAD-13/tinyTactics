@@ -141,6 +141,13 @@ namespace TinyTactics.Entrada
             var colocador = Edificios.ColocadorEdificios.Actual;
             if (colocador != null && colocador.Activo) return;
 
+            // La rueda es del mapa, no de la interfaz: sobre un panel no hace zoom. Y con
+            // Mayús pulsada es del editor de mapas, que la usa para cambiar de variante.
+            var eventos = UnityEngine.EventSystems.EventSystem.current;
+            if (eventos != null && eventos.IsPointerOverGameObject()) return;
+            var tecladoRueda = UnityEngine.InputSystem.Keyboard.current;
+            if (tecladoRueda != null && tecladoRueda.shiftKey.isPressed) return;
+
             float rueda = mouse.scroll.ReadValue().y;
 
             // El valor bruto de la rueda varía mucho entre plataformas (120 en Windows,
