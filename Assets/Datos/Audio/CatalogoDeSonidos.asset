@@ -256,3 +256,13 @@ MonoBehaviour:
     maximoSimultaneo: 1
     separacion: 1
     deInterfaz: 1
+  - sonido: 22
+    prefijo: derrota_
+    tomas:
+    - {fileID: 8300000, guid: e3f910f08d5d6de468f1fc8ac9b326a8, type: 3}
+    - {fileID: 8300000, guid: fb973f35d5f7d8c488b030f009110392, type: 3}
+    volumen: 0.8
+    variacionDeTono: 0
+    maximoSimultaneo: 1
+    separacion: 1
+    deInterfaz: 1
