@@ -82,6 +82,7 @@ namespace TinyTactics.Pruebas
             PruebasDeDificultad.Registrar();
             PruebasDeSonido.Registrar();
             PruebasDeConfiguracion.Registrar();
+            PruebasDeMapas.Registrar();
 
             var v = new Verificador();
             int rotas = 0;

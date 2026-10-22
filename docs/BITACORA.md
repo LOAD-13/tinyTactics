@@ -11,6 +11,48 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 12 — Flujo de partida y empieza la UI (E09)
+**Entrega:** domingo 25/10/2026 · **Expo:** lunes 26/10/2026 · **Expone:** Kiara
+**Tag:** [`v0.12.0-s12`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.12.0-s12) · **Rama:** `feat/E09-flujo-de-partida`
+
+### Lo prometido
+Pantalla de título, menú principal, preparar partida, sandbox como modo aparte, pausa y vuelta
+al menú: HU-097 a HU-104.
+
+### Lo entregado
+Las ocho, y dos más que salieron de probar la primera versión: HU-105 (color libre entre los
+cinco del pack) y HU-106 (el fondo del menú arranca en plena batalla). Y el primer ejecutable
+de Windows con nombre e icono propios. ADR-26 y ADR-27.
+
+### Lo que costó de verdad
+
+**El menú y la partida son la misma escena.** No se puede generar un mapa en partida, pero sí
+configurar uno hecho. Usar la escena de juego también como menú regaló el fondo: una partida
+de bots real. Cosa que nadie había pedido y que fue lo que más gustó.
+
+**Apagar el selector en el menú habría dejado ciego al mapa entero**: reconstruye cada
+fotograma el índice espacial que usan la IA y el combate. Se quedó encendido en modo «solo
+observar». Y una base cerrada contaba como bando fantasma porque `Destroy` no surte efecto
+hasta el final del fotograma: el árbitro ahora recibe la lista de excluidos.
+
+**La primera versión del menú no convenció.** Funcionaba, pero era el menú de siempre. La
+segunda vuelta partió de una sola idea, la mesa de guerra —madera, contenedores de color,
+espadas del pack como entradas, logo a la izquierda—, y esa sí.
+
+**El color libre era barato y no lo parecía.** Todo lo que dibuja algo de un bando ya buscaba
+por número de bando; bastó traducir ese número a un color. El resto del juego no se enteró.
+
+### Pendiente
+- La oleada que se queda quieta unos cuatro segundos tras ganar una pelea por el camino.
+- Balance del reparto de pawns del bot (semana 16).
+- Volumen por canales con el mezclador (semana 14); pausa completa (semana 15).
+
+### Cifras
+6 commits · 3 063 líneas de C# · 88 scripts · 53 bloques de prueba y 48 009 comprobaciones ·
+ADR-26 y ADR-27.
+
+---
+
 ## Semana 11 — IA v2, compuerta del PvP y primer audio (E08 · E10)
 **Entrega:** domingo 18/10/2026 · **Expo:** lunes 19/10/2026 · **Expone:** Raúl
 **Tag:** [`v0.11.0-s11`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.11.0-s11) · **Rama:** `feat/E08-dificultades-y-audio`

@@ -202,6 +202,36 @@ como hasta la semana 11: tú en la primera base, bots en Normal y el panel a la 
 
 ---
 
+### ADR-28 · Un mapa es un dato, no una escena
+
+**Decisión.** Un mapa se guarda como archivo JSON —terreno y altura por celda, escaleras,
+objetos, criaderos, puntos de inicio y ambiente— y la escena de juego lo construye al
+arrancar. Tres Coronas sigue siendo la escena generada de siempre; los demás mapas son
+archivos que la misma escena construye encima.
+
+**Por qué.** Un editor dentro del juego solo tiene sentido si lo que dibuja se puede jugar, y
+hasta la semana 12 solo el generador del editor de Unity sabía fabricar un mapa. Ahora el
+mapa es un dato: el editor lo cambia, el juego lo construye, y entre los dos solo está el
+archivo.
+
+**Cómo, sin romper nada.** La grilla ya se construía en partida a partir de un `MapaGenerado`,
+así que un archivo se convierte en ese mismo objeto y el resto del juego —niebla, minimapa,
+IA, rutas— no se entera. Lo que no existía en partida era el **dibujo**: el terreno se pintaba
+con herramientas del editor de Unity. El generador deja ahora una paleta con los tiles en los
+cinco colores, y un pintor de partida repinta la zona tocada con el mismo autotiling. Para
+construir un mapa de archivo, el arranque vacía el contenido de Tres Coronas **antes de que
+despierte** y conserva todas las plantillas.
+
+**Varios niveles.** La grilla ya admitía alturas y escalones de uno en uno; faltaba el dibujo.
+El pintor usa una capa de meseta por altura, y cada capa se pinta con las mismas piezas: una
+meseta sobre otra se ve igual que una sobre el llano.
+
+**Dónde viven.** Oficiales en `StreamingAssets/Mapas` (viajan con el juego); los del jugador,
+en su carpeta de datos. Al guardar se valida que se pueda jugar: de dos a cinco bases, en
+tierra y conectadas andando, con la misma regla de escaleras que la grilla.
+
+---
+
 ### ADR-27 · El bando no es el color
 
 **Decisión.** Desde la semana 12 cada bando tiene un color propio en cada partida, y todo lo

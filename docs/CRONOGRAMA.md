@@ -30,14 +30,22 @@ Entrega **domingo**, exposición **lunes**. Expone un solo integrante, rotando.
 | **10** | 11/10 | 12/10 | **🏁 HITO 2 · PC2 — IA rival v1.** Capa estratégica + táctica. El bot recolecta, construye, entrena, ataca **y defiende su base**. Primera partida completa vs bot. Grupos de control. | Joaquín |
 | **11** | 18/10 | 19/10 | **IA v2 + ⚖️ COMPUERTA PvP + primer audio.** 3 dificultades, la IA respeta la niebla en las tres, decisión go/no-go del PvP documentada (**NO-GO**). Efectos de sonido de combate, economía, construcción e interfaz. | Raúl |
 | **12** | 25/10 | 26/10 | **Partida completa + empieza la UI.** Pantalla de inicio, menú principal y pantalla de partida libre (mapa, nº de bandos, dificultad de cada rival). El panel de pruebas deja de verse en partida normal: solo vive en el modo sandbox o tras un atajo oculto. | Kiara |
-| **13** | 01/11 | 02/11 | **Escalado a FFA.** Spawns múltiples, IA multi-bando, tuning de rendimiento a ~250 unidades. Segundo mapa. | Joaquín |
-| **14** | 08/11 | 09/11 | **Audio y feedback.** Música con transición a combate, ambiente por hora del día, AudioMixer con volumen por canal, partículas de impacto y construcción, feedback de daño. | Raúl |
+| **13** | 01/11 | 02/11 | **Editor de mapas y el mapa como dato.** Editor completo dentro del juego (terreno en cinco colores, relieve de varios niveles, escaleras, naturaleza, criaderos, puntos de inicio, ambiente), guardar y cargar, y segundo mapa (4 jugadores) dibujado con él. | Joaquín |
+| **14** | 08/11 | 09/11 | **Audio, feedback y FFA.** Música con transición a combate, ambiente por hora del día, AudioMixer con volumen por canal, partículas, feedback de daño. **Más el FFA que pasa de la 13:** IA contra varios rivales y prueba de carga con ~250 unidades. | Raúl |
 | **15** | 15/11 | 16/11 | **🏁 HITO 3 · PC3 — UI/UX.** HUD final, panel de selección, tooltips, menús, pausa. Tercer mapa, FFA de 5 corriendo. | Kiara |
 | **16** | 22/11 | 23/11 | **Balance y QA.** Sesiones de prueba reales, ajuste de números (incluida la carne), plan de pruebas, corrección de bugs. VFX. | Joaquín |
 | **17** | 29/11 | 30/11 | **📦 Entrega final.** Build jugable + documentación técnica consolidada desde la bitácora. | Raúl |
 | **18** | — | 07/12 | **Examen final.** Preparación individual: los tres dominan el proyecto completo. | — |
 
 ---
+
+### Nota · semana 13: el editor de mapas primero, el FFA a la 14
+
+> **Decidido el 22/10/2026.** Los mapas 2 y 3 se dibujan con el editor de mapas en vez de
+> generarse, así que el editor tenía que existir antes que ellos. Es la tarea más grande del
+> proyecto —convertir el mapa en un dato que el juego construye al arrancar— y no cabía junto
+> al FFA y el rendimiento. El FFA pasa a la semana 14, que tiene hueco porque la mitad de su
+> audio se adelantó a la 11. **Ninguna semana se queda sin algo que enseñar.**
 
 ### Nota · semana 11: el audio se parte en dos y la UI empieza en la 12
 
