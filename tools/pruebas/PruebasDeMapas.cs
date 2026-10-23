@@ -3,6 +3,7 @@
 // Lo que se comprueba es lo que decide si un mapa dibujado a mano se juega bien: que se
 // convierte sin perder nada en el mapa que ya entiende el juego, y que las reglas de
 // «se puede jugar» detectan lo que dejaria una partida rota.
+using System.Text.RegularExpressions;
 using UnityEngine;
 using TinyTactics.Mundo;
 
@@ -118,6 +119,69 @@ namespace TinyTactics.Pruebas
                 v.Igual(ArchivoDeMapas.NombreDeArchivo("  "), "mapa", "vacio");
                 v.Cierto(!ArchivoDeMapas.NombreDeArchivo("a/b:c").Contains("/"), "sin barras");
             });
+
+            // Semana 14: la isla central de Cuatro Vientos se publico sin escalera.
+            Arranque.Registrar("mapa: avisa de las zonas altas sin escalera", v =>
+            {
+                var m = Isla(64, 5, 5, 58, 58);
+                for (int x = 30; x <= 50; x++) for (int y = 30; y <= 50; y++) m.PonerNivel(x, y, 1);
+                m.bases.Add(new Vector2Int(10, 10));
+                m.bases.Add(new Vector2Int(12, 50));
+                v.Cierto(ReglasDeMapa.EsJugable(m, out _), "se puede jugar igual");
+                v.Igual(ReglasDeMapa.ZonasAltasSinAcceso(m), 1, "pero la meseta no tiene subida");
+
+                m.PonerNivel(8, 40, 1);
+                v.Igual(ReglasDeMapa.ZonasAltasSinAcceso(m), 1, "un resto de pincel no cuenta");
+
+                m.rampas.Add(new Rampa(35, 29, true));
+                v.Igual(ReglasDeMapa.ZonasAltasSinAcceso(m), 0, "con escalera, ninguna");
+            });
+
+            Arranque.Registrar("mapa: en los mapas oficiales se sube a todas partes", v =>
+            {
+                var carpeta = CarpetaOficial();
+                v.Cierto(carpeta != null, "se encuentra la carpeta de mapas oficiales");
+                if (carpeta == null) return;
+                foreach (var ruta in System.IO.Directory.GetFiles(carpeta, "*.json"))
+                {
+                    var m = LeerSinUnity(System.IO.File.ReadAllText(ruta));
+                    var nombre = System.IO.Path.GetFileNameWithoutExtension(ruta);
+                    v.Cierto(ReglasDeMapa.EsJugable(m, out var motivo), nombre + " se puede jugar " + motivo);
+                    v.Igual(ReglasDeMapa.ZonasAltasSinAcceso(m), 0, nombre + " sin zonas altas aisladas");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Lo justo del JSON para las reglas de alturas. <c>JsonUtility</c> es codigo nativo de
+        /// Unity y fuera del motor no existe.
+        /// </summary>
+        static MapaGuardado LeerSinUnity(string json)
+        {
+            string Texto(string clave) =>
+                Regex.Match(json, "\"" + clave + @"""\s*:\s*""([^""]*)""").Groups[1].Value;
+            int Numero(string clave) =>
+                int.Parse(Regex.Match(json, "\"" + clave + @"""\s*:\s*(\d+)").Groups[1].Value);
+            string Lista(string clave) =>
+                Regex.Match(json, "\"" + clave + @"""\s*:\s*\[(.*?)\]", RegexOptions.Singleline).Groups[1].Value;
+
+            var m = new MapaGuardado { ancho = Numero("ancho"), alto = Numero("alto"), terreno = Texto("terreno"), nivel = Texto("nivel") };
+            foreach (Match r in Regex.Matches(Lista("rampas"), @"""x""\s*:\s*(\d+)\s*,\s*""y""\s*:\s*(\d+)\s*,\s*""derecha""\s*:\s*(true|false)"))
+                m.rampas.Add(new Rampa(int.Parse(r.Groups[1].Value), int.Parse(r.Groups[2].Value), r.Groups[3].Value == "true"));
+            foreach (Match b in Regex.Matches(Lista("bases"), @"""x""\s*:\s*(\d+)\s*,\s*""y""\s*:\s*(\d+)"))
+                m.bases.Add(new Vector2Int(int.Parse(b.Groups[1].Value), int.Parse(b.Groups[2].Value)));
+            return m;
+        }
+
+        static string CarpetaOficial()
+        {
+            var d = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());
+            for (; d != null; d = d.Parent)
+            {
+                var c = System.IO.Path.Combine(d.FullName, "Assets", "StreamingAssets", "Mapas");
+                if (System.IO.Directory.Exists(c)) return c;
+            }
+            return null;
         }
     }
 }

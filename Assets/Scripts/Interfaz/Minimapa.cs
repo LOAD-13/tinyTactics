@@ -322,6 +322,7 @@ namespace TinyTactics.Interfaz
 
             DibujarEdificios(conNiebla);
             DibujarUnidades(conNiebla);
+            DibujarAvisos();
             DibujarEncuadre();
 
             _textura.SetPixels32(_pixeles);
@@ -467,6 +468,42 @@ namespace TinyTactics.Interfaz
         /// barrer el mapa buscando algo, y obligar a soltar y volver a pulsar para cada paso
         /// convierte un gesto en veinte clics.
         /// </remarks>
+        /// <summary>
+        /// Los anillos de «te atacan»: crecen y laten en rojo y blanco donde golpean algo
+        /// tuyo fuera de la pantalla (semana 14).
+        /// </summary>
+        void DibujarAvisos()
+        {
+            var anillos = Combate.AvisoDeAtaque.Anillos;
+            if (anillos.Count == 0) return;
+
+            float ahora = Time.unscaledTime;
+            var rojo = new Color32(230, 40, 30, 255);
+            var blanco = new Color32(255, 245, 230, 255);
+
+            foreach (var a in anillos)
+            {
+                float t = (ahora - a.desde) / Combate.AvisoDeAtaque.DuracionDelAnillo;
+                int cx = Mathf.RoundToInt(a.donde.x), cy = Mathf.RoundToInt(a.donde.y);
+                // Tres pulsos que se abren de 2 a 9 casillas.
+                float pulso = (t * 3f) % 1f;
+                int radio = Mathf.RoundToInt(Mathf.Lerp(2f, 9f, pulso));   // el minimapa va a un píxel por casilla
+                var color = ((int)(ahora * 6f) & 1) == 0 ? rojo : blanco;
+                Aro(cx, cy, Mathf.Max(2, radio), color);
+                Punto(cx, cy, 1, rojo);
+            }
+        }
+
+        void Aro(int cx, int cy, int radio, Color32 color)
+        {
+            int pasos = Mathf.Max(16, radio * 8);
+            for (int i = 0; i < pasos; i++)
+            {
+                float ang = i * Mathf.PI * 2f / pasos;
+                Pintar(cx + Mathf.RoundToInt(Mathf.Cos(ang) * radio), cy + Mathf.RoundToInt(Mathf.Sin(ang) * radio), color);
+            }
+        }
+
         public void LlevarCamaraA(Vector2 normalizado)
         {
             var camara = CamaraRTS.Actual;

@@ -133,6 +133,10 @@ namespace TinyTactics.Edificios
             Audio.SonidoJuego.SonarSiEsMio(Audio.Sonido.EdificioTerminado, _edificio.faccion,
                                            _edificio.transform.position);
 
+            // Una nube de polvo al quitar los andamios: el edificio «aparece».
+            var dibujo = _edificio.GetComponent<SpriteRenderer>();
+            Combate.EfectosVisuales.Polvo(_edificio.transform.position, dibujo != null ? dibujo.sortingOrder + 1 : 0, true, 1.4f);
+
             _edificio.Inaugurar();
             Destroy(this);
         }

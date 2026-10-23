@@ -51,6 +51,28 @@ namespace TinyTactics.Mundo
             }
         }
 
+        /// <summary>
+        /// Borra un mapa tuyo. Solo de la carpeta propia: un oficial no se puede borrar
+        /// desde el juego, aunque alguien pase su ruta.
+        /// </summary>
+        public static bool Borrar(string ruta)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ruta)) return false;
+                var carpeta = Path.GetFullPath(CarpetaPropia);
+                var completa = Path.GetFullPath(ruta);
+                if (!completa.StartsWith(carpeta, System.StringComparison.OrdinalIgnoreCase) || !File.Exists(completa)) return false;
+                File.Delete(completa);
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Tiny Tactics] No pude borrar el mapa {ruta}: {e.Message}");
+                return false;
+            }
+        }
+
         /// <summary>Guarda en la carpeta propia. Devuelve la ruta, o null si falló.</summary>
         public static string Guardar(MapaGuardado m)
         {
@@ -142,6 +164,51 @@ namespace TinyTactics.Mundo
             }
 
             return vistas;
+        }
+
+        /// <summary>
+        /// Zonas altas a las que nadie puede subir: mesetas sin escalera desde la base 1.
+        /// </summary>
+        /// <remarks>
+        /// No impiden jugar —el mapa se juega igual—, pero casi nunca son a propósito: la isla
+        /// central de Cuatro Vientos se publicó así en la semana 13. Por eso se avisa al
+        /// guardar en vez de bloquear. Se ignoran las de menos de <paramref name="tamanoMinimo"/>
+        /// celdas, que son restos de pincel.
+        /// </remarks>
+        public static int ZonasAltasSinAcceso(MapaGuardado m, int tamanoMinimo = 6)
+        {
+            if (m.bases.Count == 0) return 0;
+            var alcanzadas = Alcanzables(m, m.bases[0]);
+            var vistas = new HashSet<Vector2Int>();
+            var cola = new Queue<Vector2Int>();
+            var pasos = new[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+            int zonas = 0;
+
+            for (int x = 0; x < m.ancho; x++)
+            for (int y = 0; y < m.alto; y++)
+            {
+                var c = new Vector2Int(x, y);
+                if (m.TerrenoEn(x, y) == 0 || m.NivelEn(x, y) == 0 || alcanzadas.Contains(c) || !vistas.Add(c)) continue;
+
+                // Una zona: celdas altas, sin alcanzar, del mismo nivel y pegadas.
+                int nivel = m.NivelEn(x, y), tamano = 0;
+                cola.Enqueue(c);
+                while (cola.Count > 0)
+                {
+                    var a = cola.Dequeue();
+                    tamano++;
+                    foreach (var p in pasos)
+                    {
+                        var n = a + p;
+                        if (vistas.Contains(n) || m.TerrenoEn(n.x, n.y) == 0 || m.NivelEn(n.x, n.y) != nivel || alcanzadas.Contains(n)) continue;
+                        vistas.Add(n);
+                        cola.Enqueue(n);
+                    }
+                }
+                if (tamano >= tamanoMinimo) zonas++;
+            }
+
+            return zonas;
         }
 
         /// <summary>¿Se puede poner una escalera con el pie en esta celda?</summary>

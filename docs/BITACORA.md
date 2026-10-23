@@ -11,6 +11,46 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 13 — Editor de mapas y el mapa como dato (E13)
+**Entrega:** domingo 01/11/2026 · **Expo:** lunes 02/11/2026 · **Expone:** Joaquín
+**Tag:** [`v0.13.0-s13`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.13.0-s13) · **Rama:** `feat/E13-editor-de-mapas`
+
+### Lo prometido, y el cambio de plan
+El cronograma ponía FFA y rendimiento. Al empezar la semana se decidió que los mapas 2 y 3 se
+dibujarían con el editor, así que el editor iba primero; el FFA pasó a la 14. HU-107 a HU-115.
+
+### Lo entregado
+Las nueve. El mapa como dato (ADR-28), el editor completo en sandbox, Cuatro Vientos como
+segundo mapa oficial y el fallo de la oleada quieta, pendiente desde la 11.
+
+### Lo que costó de verdad
+
+**El mapa como dato fue abordable por una decisión vieja.** La grilla ya se construía en partida
+desde un `MapaGenerado`; bastó con que el archivo se convirtiera en ese objeto. Lo que no existía
+en partida era el dibujo: paleta en cinco colores generada en el editor y un pintor por zonas.
+
+**Vaciar Tres Coronas sin que despertara.** `Destroy` llega al final del fotograma; el castillo
+viejo se habría registrado en el árbitro. Se apaga antes de destruir, en el `Awake` del arranque.
+Y las plantillas, que colgaban de las bases, se trasladan antes.
+
+**El primer relieve apilaba mesetas al arrastrar.** Se pasó de «una altura más» a «pinta esta
+altura». La primera versión de la mesa enseñaba el borde de la capa del ciclo día/noche.
+
+**La oleada quieta** era la comparación con null de Unity: un objeto destruido es «null»
+aunque la referencia exista. Un booleano propio.
+
+**Cuatro Vientos** salió de una referencia de mapa clásico, con simetría de giro de 90°, y se
+ajustó jugándolo dos veces: más oro (de 12 a 224 minas, en vetas), más ovejas, centro sin madera.
+
+### Pendiente
+- El `.meta` de `Cuatro_Vientos.json` lo crea Unity al abrir: entra con el primer commit de la 14.
+- FFA (IA contra varios rivales) y prueba de carga: semana 14.
+
+### Cifras
+8 commits · 2 485 líneas de C# · 97 scripts · 60 bloques y 48 037 comprobaciones · ADR-28.
+
+---
+
 ## Semana 12 — Flujo de partida y empieza la UI (E09)
 **Entrega:** domingo 25/10/2026 · **Expo:** lunes 26/10/2026 · **Expone:** Kiara
 **Tag:** [`v0.12.0-s12`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.12.0-s12) · **Rama:** `feat/E09-flujo-de-partida`

@@ -104,6 +104,9 @@ namespace TinyTactics.IA
         /// <summary>Qué está haciendo su ejército. Lo enseña el panel.</summary>
         public string EstadoMilitar => _militar != null ? _militar.Estado : "—";
 
+        /// <summary>El bando contra el que va su ofensiva, o −1 si aún no ha elegido.</summary>
+        public int Rival => _militar != null ? _militar.Rival : -1;
+
         /// <summary>Segundos de partida cuando podrá atacar por primera vez.</summary>
         public float Espera => dificultad != null ? dificultad.esperaInicial : 60f;
 

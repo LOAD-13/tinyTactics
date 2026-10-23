@@ -60,6 +60,11 @@ namespace TinyTactics.Audio
         }
 
         /// <summary>El tono de una toma, con su variación.</summary>
+        /// <summary>Los sonidos que cuentan como pelea para la música de combate.</summary>
+        public static bool EsDeCombate(Sonido s) =>
+            s == Sonido.GolpeCortante || s == Sonido.GolpePerforante || s == Sonido.FlechaImpacto ||
+            s == Sonido.MuerteUnidad || s == Sonido.TorreFlecha || s == Sonido.EdificioDerrumbe;
+
         public static float Tono(float variacion, float azar01) =>
             1f + (Mathf.Clamp01(azar01) * 2f - 1f) * Mathf.Max(0f, variacion);
 
@@ -110,6 +115,10 @@ namespace TinyTactics.Audio
 
         [Tooltip("Lo cambia el panel de partida libre.")]
         public bool silenciado;
+
+        [Tooltip("Canales del mezclador (semana 14). Los pone Opciones.Aplicar.")]
+        [Range(0f, 1f)] public float canalEfectos = 1f;
+        [Range(0f, 1f)] public float canalInterfaz = 1f;
 
         [Header("Distancia a la camara")]
         [Tooltip("Hasta aqui suena entero. 1 es el borde de la pantalla: todo lo que se " +
@@ -233,11 +242,14 @@ namespace TinyTactics.Audio
             var entrada = catalogo.De(sonido);
             if (entrada == null || entrada.tomas == null || entrada.tomas.Length == 0) return;
 
-            float volumen = entrada.volumen * volumenGeneral;
+            float volumen = entrada.volumen * volumenGeneral * (entrada.deInterfaz ? canalInterfaz : canalEfectos);
             float pan = 0f;
 
             if (enElMapa && !entrada.deInterfaz && !Escuchable(donde, ref volumen, ref pan))
                 return;
+
+            // Lo que pasa el filtro es pelea vista: la música de combate cuenta con esto.
+            if (enElMapa && ReglasDeSonido.EsDeCombate(sonido)) MusicaDeJuego.GolpeVisto();
 
             if (volumen <= 0.01f) return;
 

@@ -266,3 +266,13 @@ MonoBehaviour:
     maximoSimultaneo: 1
     separacion: 1
     deInterfaz: 1
+  - sonido: 23
+    prefijo: alerta_ataque_
+    tomas:
+    - {fileID: 8300000, guid: 9884063a2c7ba3f46b7dc8acefa50099, type: 3}
+    - {fileID: 8300000, guid: 01c34994c9f70ea40985716cba159f4a, type: 3}
+    volumen: 0.5
+    variacionDeTono: 0
+    maximoSimultaneo: 1
+    separacion: 2
+    deInterfaz: 1

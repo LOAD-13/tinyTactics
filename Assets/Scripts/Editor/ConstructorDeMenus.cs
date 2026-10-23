@@ -58,6 +58,8 @@ namespace TinyTactics.EditorHerramientas
             for (int i = 0; i < 5; i++) menu.espadas[i] = DelPack($"{DirUI}/Swords/Swords {i + 1}.png");
             menu.pergamino = DelPack($"{DirUI}/Papers/RegularPaper.png");
             menu.perilla = DelPack($"{DirUI}/Buttons/TinyRoundBlueButton.png");
+            menu.teclado = CargarSprite("Assets/Arte/Controles/Teclado.png", 512, FilterMode.Point);
+            menu.raton = CargarSprite("Assets/Arte/Controles/Raton.png", 128, FilterMode.Point);
 
             var bases = new Vector2[mapa.Bases.Count];
             for (int i = 0; i < bases.Length; i++)
@@ -125,6 +127,9 @@ namespace TinyTactics.EditorHerramientas
         {
             PlayerSettings.productName = "Tiny Tactics";
             PlayerSettings.companyName = "Grupo 01 UTP";
+            // La ventana se puede estirar: el juego recoloca la interfaz al tamaño que tenga.
+            PlayerSettings.resizableWindow = true;
+            PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
 
             var icono = CargarTextura(RutaIcono);
             if (icono != null)
