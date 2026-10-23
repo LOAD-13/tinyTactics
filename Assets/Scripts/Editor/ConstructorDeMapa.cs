@@ -1849,6 +1849,86 @@ namespace TinyTactics.EditorHerramientas
             var go = new GameObject("Sonido");
             var sonido = go.AddComponent<TinyTactics.Audio.SonidoJuego>();
             sonido.catalogo = ObtenerCatalogoDeSonidos();
+
+            // Los efectos de partículas del pack (semana 14), en el mismo objeto.
+            var fx = go.AddComponent<TinyTactics.Combate.EfectosVisuales>();
+            fx.polvo = ObtenerPolvo();
+            fx.polvoGrande = CargarSpritesOrdenados("Assets/Tiny Swords/Particle FX/Dust_02.png").ToArray();
+            fx.fuegoChico = CargarSpritesOrdenados("Assets/Tiny Swords/Particle FX/Fire_01.png").ToArray();
+            fx.fuegoMediano = CargarSpritesOrdenados("Assets/Tiny Swords/Particle FX/Fire_02.png").ToArray();
+            fx.fuegoGrande = CargarSpritesOrdenados("Assets/Tiny Swords/Particle FX/Fire_03.png").ToArray();
+
+            var musica = ObtenerCatalogoDeMusica();
+            go.AddComponent<TinyTactics.Audio.MusicaDeJuego>().catalogo = musica;
+            go.AddComponent<TinyTactics.Audio.AmbienteSonoro>().catalogo = musica;
+        }
+
+        /// <summary>
+        /// Una pista de varios minutos descomprimida en memoria son decenas de megas; se lee
+        /// del disco a medida que suena, como hace cualquier reproductor.
+        /// </summary>
+        static void TransmitirDesdeDisco(string ruta)
+        {
+            if (!(AssetImporter.GetAtPath(ruta) is AudioImporter importador)) return;
+            var ajuste = importador.defaultSampleSettings;
+            if (ajuste.loadType == AudioClipLoadType.Streaming) return;
+            ajuste.loadType = AudioClipLoadType.Streaming;
+            importador.defaultSampleSettings = ajuste;
+            importador.SaveAndReimport();
+        }
+
+        const string CarpetaMusica = "Assets/Audio/Musica";
+        const string CarpetaAmbiente = "Assets/Audio/Ambiente";
+        const string RutaCatalogoMusica = "Assets/Datos/Audio/CatalogoDeMusica.asset";
+
+        /// <summary>
+        /// La música y el ambiente, por prefijo, con la misma regla que los efectos: las
+        /// pistas se releen siempre y los volúmenes no se tocan.
+        /// </summary>
+        static TinyTactics.Audio.CatalogoDeMusica ObtenerCatalogoDeMusica()
+        {
+            AsegurarCarpeta("Assets/Datos/Audio");
+            var catalogo = AssetDatabase.LoadAssetAtPath<TinyTactics.Audio.CatalogoDeMusica>(RutaCatalogoMusica);
+            if (catalogo == null)
+            {
+                catalogo = ScriptableObject.CreateInstance<TinyTactics.Audio.CatalogoDeMusica>();
+                AssetDatabase.CreateAsset(catalogo, RutaCatalogoMusica);
+            }
+
+            var clips = new List<AudioClip>();
+            var carpetas = new List<string>();
+            if (AssetDatabase.IsValidFolder(CarpetaMusica)) carpetas.Add(CarpetaMusica);
+            if (AssetDatabase.IsValidFolder(CarpetaAmbiente)) carpetas.Add(CarpetaAmbiente);
+            if (carpetas.Count > 0)
+                foreach (var guid in AssetDatabase.FindAssets("t:AudioClip", carpetas.ToArray()))
+                {
+                    var ruta = AssetDatabase.GUIDToAssetPath(guid);
+                    TransmitirDesdeDisco(ruta);
+                    var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(ruta);
+                    if (clip != null) clips.Add(clip);
+                }
+
+            AudioClip[] De(string prefijo)
+            {
+                var l = clips.FindAll(c => c.name.StartsWith(prefijo));
+                l.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+                if (l.Count == 0)
+                    Debug.LogWarning($"[Tiny Tactics] No hay ningun archivo «{prefijo}*» de musica o ambiente.");
+                return l.ToArray();
+            }
+
+            catalogo.menu = De(TinyTactics.Audio.CatalogoDeMusica.Menu);
+            catalogo.partida = De(TinyTactics.Audio.CatalogoDeMusica.Partida);
+            catalogo.combate = De(TinyTactics.Audio.CatalogoDeMusica.Combate);
+            catalogo.victoria = De(TinyTactics.Audio.CatalogoDeMusica.Victoria);
+            catalogo.derrota = De(TinyTactics.Audio.CatalogoDeMusica.Derrota);
+            catalogo.dia = De(TinyTactics.Audio.CatalogoDeMusica.Dia);
+            catalogo.noche = De(TinyTactics.Audio.CatalogoDeMusica.Noche);
+            catalogo.viento = De(TinyTactics.Audio.CatalogoDeMusica.Viento);
+
+            EditorUtility.SetDirty(catalogo);
+            AssetDatabase.SaveAssets();
+            return catalogo;
         }
 
         /// <summary>

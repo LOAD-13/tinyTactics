@@ -157,10 +157,13 @@ namespace TinyTactics.Nucleo
                 var datos = molde != null ? molde.GetComponent<Unidad>()?.datos : null;
                 if (molde == null || datos == null) continue;
 
-                // En corro alrededor del castillo, cada una en una celda libre.
-                float angulo = i * Mathf.PI * 2f / Mathf.Max(1, cuantos);
-                var deseada = centro + new Vector2Int(Mathf.RoundToInt(Mathf.Cos(angulo) * 5f),
-                                                      Mathf.RoundToInt(Mathf.Sin(angulo) * 5f));
+                // En corros alrededor del castillo, de 24 en 24 y cada vez más abiertos: con
+                // los 50 de la prueba de carga, un solo corro las amontonaba en la misma celda.
+                int porVuelta = Mathf.Min(Mathf.Max(1, cuantos), 24);
+                float angulo = (i % porVuelta) * Mathf.PI * 2f / porVuelta;
+                float radio = 5f + (i / porVuelta) * 2f;
+                var deseada = centro + new Vector2Int(Mathf.RoundToInt(Mathf.Cos(angulo) * radio),
+                                                      Mathf.RoundToInt(Mathf.Sin(angulo) * radio));
 
                 if (!mundo.Grilla.CeldaTransitableCercana(deseada, 6, out var celda)) continue;
 

@@ -24,7 +24,7 @@ namespace TinyTactics.Interfaz
     /// Vive dentro de la escena de juego y solo se enciende en modo menú (ADR-26).
     /// </remarks>
     [AddComponentMenu("Tiny Tactics/Menú principal")]
-    public class MenuPrincipal : MonoBehaviour
+    public partial class MenuPrincipal : MonoBehaviour
     {
         [System.Serializable]
         public struct FichaDeMapa
@@ -40,6 +40,7 @@ namespace TinyTactics.Interfaz
             /// <summary>Si el mapa viene de un archivo (semana 13). Null es la escena: Tres Coronas.</summary>
             [System.NonSerialized] public MapaGuardado archivo;
             [System.NonSerialized] public bool oficial;
+            [System.NonSerialized] public string ruta;
         }
 
         /// <summary>La lista que se enseña: los mapas de la escena y los de archivo.</summary>
@@ -377,6 +378,12 @@ namespace TinyTactics.Interfaz
             var nombreMapa = KitInterfaz.Ciclador(izquierda, "Mapa", _fuente, Caja(Azul), Boton(Azul), CambiarMapa,
                                                   new Vector2(0.5f, 1f), new Vector2(560f, 66f), new Vector2(0f, -490f), 34);
             _nombreMapa = nombreMapa;
+            // «Cuatro Vientos (copia) (tuyo)» no cabe a 34: la letra se encoge antes que salirse.
+            _nombreMapa.resizeTextForBestFit = true;
+            _nombreMapa.resizeTextMinSize = 16;
+            _nombreMapa.resizeTextMaxSize = 34;
+            _nombreMapa.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _nombreMapa.verticalOverflow = VerticalWrapMode.Truncate;
 
             _descripcion = KitInterfaz.TextoQueCabe(izquierda, "Descripcion", _fuente, 24, 14, KitInterfaz.Crema,
                                                     TextAnchor.UpperCenter);
@@ -386,13 +393,17 @@ namespace TinyTactics.Interfaz
             // Solo en sandbox: llevar el mapa elegido al editor, o empezar uno desde el mar.
             var editar = KitInterfaz.Hijo(izquierda, "BotonesEditor");
             KitInterfaz.Colocar(editar, new Vector2(0.5f, 0f), new Vector2(600f, 60f), new Vector2(0f, 48f));
-            BotonDeAccion(editar, "Editar este mapa", Morado, EditarElegido, new Vector2(0f, 0.5f),
-                          new Vector2(290f, 60f), new Vector2(150f, 0f), 26);
-            BotonDeAccion(editar, "Mapa nuevo", Morado, () => _dialogoNuevo.SetActive(true), new Vector2(1f, 0.5f),
-                          new Vector2(290f, 60f), new Vector2(-150f, 0f), 26);
+            // Tres botones del mismo ancho; «Borrar» solo funciona con los mapas tuyos.
+            BotonDeAccion(editar, "Editar", Morado, EditarElegido, new Vector2(0.5f, 0.5f),
+                          new Vector2(190f, 60f), new Vector2(-200f, 0f), 26);
+            BotonDeAccion(editar, "Mapa nuevo", Morado, () => _dialogoNuevo.SetActive(true), new Vector2(0.5f, 0.5f),
+                          new Vector2(190f, 60f), new Vector2(0f, 0f), 26);
+            _botonBorrar = BotonDeAccion(editar, "Borrar", Rojo, PreguntarBorrar, new Vector2(0.5f, 0.5f),
+                                         new Vector2(190f, 60f), new Vector2(200f, 0f), 26);
             _botonesEditor = editar.gameObject;
 
             ConstruirDialogoNuevo(p);
+            ConstruirDialogoBorrar(p);
 
             // Derecha: los bandos y, en sandbox, sus reglas.
             var derecha = Contenedor(mesa, "Derecha", Azul, new Vector2(1f, 0.5f), new Vector2(860f, 700f),
@@ -567,6 +578,13 @@ namespace TinyTactics.Interfaz
 
             var ficha = _lista.Count > 0 ? _lista[_mapa] : default;
             if (_botonesEditor != null) _botonesEditor.SetActive(sandbox);
+            if (_botonBorrar != null)
+            {
+                bool tuyo = !ficha.oficial && !string.IsNullOrEmpty(ficha.ruta);
+                _botonBorrar.interactable = tuyo;
+                // Apagado se ve apagado: con el mismo rojo parecería que no responde.
+                ((Image)_botonBorrar.targetGraphic).color = tuyo ? Color.white : new Color(1f, 1f, 1f, 0.35f);
+            }
             _nombreMapa.text = string.IsNullOrEmpty(ficha.nombre) ? "Mapa" : ficha.nombre;
             _descripcion.text = $"{_preparada.bases.Length} bases. {ficha.descripcion}";
             _miniatura.sprite = ficha.miniatura;
@@ -662,8 +680,58 @@ namespace TinyTactics.Interfaz
                     bases = MiniaturaDeMapa.Bases(e.mapa),
                     archivo = e.mapa,
                     oficial = e.oficial,
+                    ruta = e.ruta,
                 });
             }
+        }
+
+        Button _botonBorrar;
+        GameObject _dialogoBorrar;
+        Text _textoBorrar;
+
+        void PreguntarBorrar()
+        {
+            var ficha = _lista.Count > 0 ? _lista[_mapa] : default;
+            if (ficha.oficial || string.IsNullOrEmpty(ficha.ruta)) return;
+            _textoBorrar.text = $"«{ficha.archivo.nombre}» se borrará de tu carpeta de mapas.\nNo se puede deshacer.";
+            _dialogoBorrar.SetActive(true);
+            _dialogoBorrar.transform.SetAsLastSibling();
+        }
+
+        void BorrarElegido()
+        {
+            _dialogoBorrar.SetActive(false);
+            var ficha = _lista.Count > 0 ? _lista[_mapa] : default;
+            if (!ArchivoDeMapas.Borrar(ficha.ruta)) return;
+
+            ListarMapas();
+            _mapa = Mathf.Clamp(_mapa - 1, 0, Mathf.Max(0, _lista.Count - 1));
+            _preparada = NuevaConfiguracion();
+            PintarPartida();
+        }
+
+        /// <summary>La misma caja que «Mapa nuevo», con la pregunta de sí o no.</summary>
+        void ConstruirDialogoBorrar(RectTransform raiz)
+        {
+            var velo = KitInterfaz.Velo(raiz, 0.5f);
+            _dialogoBorrar = velo.gameObject;
+
+            var caja = KitInterfaz.Imagen(velo.transform, "Caja", tema != null ? tema.panelFondo : null, Color.white);
+            caja.raycastTarget = true;
+            KitInterfaz.Colocar(caja.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(660f, 360f));
+
+            var t = KitInterfaz.Texto(caja.transform, "Titulo", "¿Borrar el mapa?", _fuente, 44, KitInterfaz.Crema, TextAnchor.MiddleCenter);
+            KitInterfaz.Colocar(t.rectTransform, new Vector2(0.5f, 1f), new Vector2(600f, 70f), new Vector2(0f, -60f));
+
+            _textoBorrar = KitInterfaz.TextoQueCabe(caja.transform, "Texto", _fuente, 26, 16, KitInterfaz.Crema, TextAnchor.MiddleCenter);
+            KitInterfaz.Colocar(_textoBorrar.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(580f, 110f), new Vector2(0f, 10f));
+
+            BotonDeAccion((RectTransform)caja.transform, "No", Azul, () => _dialogoBorrar.SetActive(false),
+                          new Vector2(0.5f, 0f), new Vector2(220f, 70f), new Vector2(-125f, 60f), 30);
+            BotonDeAccion((RectTransform)caja.transform, "Borrar", Rojo, BorrarElegido,
+                          new Vector2(0.5f, 0f), new Vector2(220f, 70f), new Vector2(125f, 60f), 30);
+
+            _dialogoBorrar.SetActive(false);
         }
 
         void EditarElegido()
@@ -738,29 +806,32 @@ namespace TinyTactics.Interfaz
             var p = KitInterfaz.Llenar(KitInterfaz.Hijo(raiz, "Opciones"));
             var mesa = Mesa(p, new Vector2(1500f, 880f), "Opciones", Morado, out _, out _);
 
-            // Izquierda: sonido y pantalla. Derecha: cámara y controles.
-            var sonido = Contenedor(mesa, "Sonido", Azul, new Vector2(0f, 1f), new Vector2(660f, 300f),
-                                    new Vector2(390f, -250f), "Sonido");
-            var pantalla = Contenedor(mesa, "Pantalla", Azul, new Vector2(0f, 1f), new Vector2(660f, 340f),
-                                      new Vector2(390f, -600f), "Pantalla");
-            var camara = Contenedor(mesa, "Camara", Morado, new Vector2(1f, 1f), new Vector2(660f, 300f),
-                                    new Vector2(-390f, -250f), "Cámara");
-            var controles = Contenedor(mesa, "Controles", Negro, new Vector2(1f, 1f), new Vector2(660f, 340f),
-                                       new Vector2(-390f, -600f), "Controles");
+            // Izquierda: el sonido entero, un deslizador por canal (semana 14). Derecha:
+            // pantalla y cámara. Los controles pasan a su propio cartel, con un botón.
+            var sonido = Contenedor(mesa, "Sonido", Azul, new Vector2(0f, 1f), new Vector2(660f, 670f),
+                                    new Vector2(390f, -435f), "Sonido");
+            var pantalla = Contenedor(mesa, "Pantalla", Azul, new Vector2(1f, 1f), new Vector2(660f, 330f),
+                                      new Vector2(-390f, -265f), "Pantalla");
+            var camara = Contenedor(mesa, "Camara", Morado, new Vector2(1f, 1f), new Vector2(660f, 310f),
+                                    new Vector2(-390f, -615f), "Cámara");
 
             // Sonido
-            Fila(sonido, "Volumen", 0);
-            var volumen = KitInterfaz.Deslizador(sonido, "Volumen",
-                KitInterfaz.ConBorde(tema != null ? tema.barraGrandeMarco : null, new Vector4(16, 0, 16, 0)),
-                KitInterfaz.ConBorde(tema != null ? tema.barraGrandeRellenoAzul : null, new Vector4(6, 0, 6, 0)),
-                perilla, Opciones.Volumen, v => { Opciones.Volumen = v; PintarOpciones(); });
-            KitInterfaz.Colocar((RectTransform)volumen.transform, new Vector2(0f, 1f), new Vector2(280f, 50f),
-                                new Vector2(380f, -115f));
-            _valorVolumen = KitInterfaz.Texto(sonido, "ValorVolumen", "", _fuente, 26, KitInterfaz.Crema, TextAnchor.MiddleRight);
-            KitInterfaz.Colocar(_valorVolumen.rectTransform, new Vector2(1f, 1f), new Vector2(90f, 50f), new Vector2(-60f, -115f));
+            _valorVolumen = DeslizadorDeVolumen(sonido, "General", 0, () => Opciones.Volumen, v => Opciones.Volumen = v);
+            var canales = new (Audio.Canal, string)[]
+            {
+                (Audio.Canal.Musica, "Música"), (Audio.Canal.Efectos, "Efectos"),
+                (Audio.Canal.Ambiente, "Ambiente"), (Audio.Canal.Interfaz, "Interfaz"),
+            };
+            _valoresCanal = new Text[canales.Length];
+            for (int i = 0; i < canales.Length; i++)
+            {
+                var canal = canales[i].Item1;
+                _valoresCanal[i] = DeslizadorDeVolumen(sonido, canales[i].Item2, i + 1,
+                    () => Opciones.VolumenDe(canal), v => Opciones.PonerVolumen(canal, v));
+            }
 
-            Fila(sonido, "Sonido", 1);
-            _valorSonido = Valor(sonido, 1, _ => Opciones.Silencio = !Opciones.Silencio, Azul);
+            Fila(sonido, "Sonido", 5);
+            _valorSonido = Valor(sonido, 5, _ => Opciones.Silencio = !Opciones.Silencio, Azul);
 
             // Pantalla
             Fila(pantalla, "Pantalla completa", 0);
@@ -778,21 +849,34 @@ namespace TinyTactics.Interfaz
             Fila(camara, "Mover con el borde", 1);
             _valorBorde = Valor(camara, 1, _ => Opciones.DesplazarConElBorde = !Opciones.DesplazarConElBorde, Morado);
 
-            // Controles: solo lectura. Lo que más se pregunta la primera vez.
-            var lista = KitInterfaz.TextoQueCabe(controles, "Lista", _fuente, 22, 14, KitInterfaz.Crema, TextAnchor.UpperLeft);
-            lista.text =
-                "Clic izquierdo · seleccionar        Arrastrar · selección en caja\n" +
-                "Clic derecho · mover, atacar, recolectar\n" +
-                "Ctrl + 1…9 · guardar grupo        1…9 · recuperarlo\n" +
-                "Espacio · volver al castillo        Rueda · zoom\n" +
-                "Flechas o borde · mover la cámara\n" +
-                "Esc · cancelar, y si no hay nada, pausa";
-            KitInterfaz.Colocar(lista.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(600f, 230f), new Vector2(0f, -30f));
+            // Controles: su propio cartel, con el teclado y el ratón dibujados.
+            _cartelControles = ConstruirControles(p);
 
-            BotonDeAccion(mesa, "Volver", Rojo, () => Ir(Pantalla.Principal), new Vector2(0.5f, 0f),
-                          new Vector2(300f, 84f), new Vector2(0f, 20f));
+            BotonDeAccion(mesa, "Controles", Negro, () => { _cartelControles.SetActive(true); _cartelControles.transform.SetAsLastSibling(); },
+                          new Vector2(0.5f, 0f), new Vector2(300f, 84f), new Vector2(-170f, 20f));
+            BotonDeAccion(mesa, "Volver", Rojo, () => { _cartelControles.SetActive(false); Ir(Pantalla.Principal); },
+                          new Vector2(0.5f, 0f), new Vector2(300f, 84f), new Vector2(170f, 20f));
 
             return p.gameObject;
+        }
+
+        Text[] _valoresCanal;
+        GameObject _cartelControles;
+
+        /// <summary>Una fila de volumen: etiqueta, deslizador y el porcentaje a la derecha.</summary>
+        Text DeslizadorDeVolumen(RectTransform padre, string etiqueta, int fila,
+                                 System.Func<float> leer, System.Action<float> poner)
+        {
+            Fila(padre, etiqueta, fila);
+            var d = KitInterfaz.Deslizador(padre, etiqueta,
+                KitInterfaz.ConBorde(tema != null ? tema.barraGrandeMarco : null, new Vector4(16, 0, 16, 0)),
+                KitInterfaz.ConBorde(tema != null ? tema.barraGrandeRellenoAzul : null, new Vector4(6, 0, 6, 0)),
+                perilla, leer(), v => { poner(v); PintarOpciones(); });
+            float y = -115f - fila * 72f;
+            KitInterfaz.Colocar((RectTransform)d.transform, new Vector2(0f, 1f), new Vector2(280f, 50f), new Vector2(380f, y));
+            var valor = KitInterfaz.Texto(padre, "Valor" + etiqueta, "", _fuente, 26, KitInterfaz.Crema, TextAnchor.MiddleRight);
+            KitInterfaz.Colocar(valor.rectTransform, new Vector2(1f, 1f), new Vector2(90f, 50f), new Vector2(-60f, y));
+            return valor;
         }
 
         void Fila(RectTransform padre, string etiqueta, int fila) =>
@@ -809,6 +893,9 @@ namespace TinyTactics.Interfaz
             if (_valorVolumen == null) return;
 
             _valorVolumen.text = $"{Mathf.RoundToInt(Opciones.Volumen * 100f)} %";
+            var canales = new[] { Audio.Canal.Musica, Audio.Canal.Efectos, Audio.Canal.Ambiente, Audio.Canal.Interfaz };
+            for (int i = 0; i < _valoresCanal.Length; i++)
+                _valoresCanal[i].text = $"{Mathf.RoundToInt(Opciones.VolumenDe(canales[i]) * 100f)} %";
             _valorSonido.text = Opciones.Silencio ? "Apagado" : "Encendido";
             _valorCompleta.text = Opciones.PantallaCompleta ? "Sí" : "No";
             _valorVsync.text = Opciones.SincronizacionVertical ? "Sí" : "No";
@@ -824,28 +911,59 @@ namespace TinyTactics.Interfaz
         GameObject ConstruirCreditos(RectTransform raiz)
         {
             var p = KitInterfaz.Llenar(KitInterfaz.Hijo(raiz, "Creditos"));
-            var mesa = Mesa(p, new Vector2(1240f, 860f), "Créditos", Negro, out _, out _);
+            var mesa = Mesa(p, new Vector2(1500f, 900f), "Créditos", Negro, out _, out _);
+
+            // El equipo, en fichas como las del informe semanal: la cara de una unidad del
+            // pack por persona (semana 14). Solo la cara, sin el cuerpo.
+            var equipo = new (string nombre, string codigo, string rol, Datos.TipoUnidad cara, int color)[]
+            {
+                ("Joaquín Alfonso Loa Denegri", "U22234069", "Desarrollo y arquitectura", Datos.TipoUnidad.Guerrero, Azul),
+                ("Kiara Mishell Santti Saavedra", "U22201636", "Diseño de juego, arte y documentación", Datos.TipoUnidad.Pawn, Amarillo),
+                ("Gerardo Raúl Socualaya Mandamiento", "U22229068", "QA, balance y pruebas", Datos.TipoUnidad.Monje, Morado),
+            };
+            for (int i = 0; i < equipo.Length; i++)
+            {
+                var (nombre, codigo, rol, cara, color) = equipo[i];
+                var ficha = KitInterfaz.Imagen(mesa, "Ficha" + i, KitInterfaz.ConBorde(pergamino, new Vector4(28, 28, 28, 28)), Color.white);
+                KitInterfaz.Colocar(ficha.rectTransform, new Vector2(0.5f, 1f), new Vector2(420f, 420f),
+                                    new Vector2((i - 1) * 450f, -330f));
+
+                var marco = KitInterfaz.Imagen(ficha.transform, "Marco", Caja(color), Color.white);
+                KitInterfaz.Colocar(marco.rectTransform, new Vector2(0.5f, 1f), new Vector2(340f, 190f), new Vector2(0f, -120f));
+                var retrato = KitInterfaz.Imagen(marco.transform, "Cara", tema != null ? tema.RetratoDeColor(cara, color) : null, Color.white);
+                retrato.preserveAspect = true;
+                KitInterfaz.Colocar(retrato.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(150f, 150f));
+
+                var n = KitInterfaz.TextoQueCabe(ficha.transform, "Nombre", _fuente, 28, 16, KitInterfaz.Tinta, TextAnchor.MiddleCenter);
+                n.GetComponent<Outline>().enabled = false;
+                n.text = nombre;
+                KitInterfaz.Colocar(n.rectTransform, new Vector2(0.5f, 1f), new Vector2(370f, 44f), new Vector2(0f, -258f));
+
+                var c = KitInterfaz.Texto(ficha.transform, "Codigo", "Cód. " + codigo, _fuente, 22, new Color(0.62f, 0.16f, 0.12f), TextAnchor.MiddleCenter);
+                c.GetComponent<Outline>().enabled = false;
+                KitInterfaz.Colocar(c.rectTransform, new Vector2(0.5f, 1f), new Vector2(370f, 32f), new Vector2(0f, -298f));
+
+                var r = KitInterfaz.TextoQueCabe(ficha.transform, "Rol", _fuente, 22, 14, KitInterfaz.Tinta, TextAnchor.MiddleCenter);
+                r.GetComponent<Outline>().enabled = false;
+                r.text = rol;
+                KitInterfaz.Colocar(r.rectTransform, new Vector2(0.5f, 1f), new Vector2(370f, 50f), new Vector2(0f, -345f));
+            }
 
             var papel = KitInterfaz.Imagen(mesa, "Pergamino",
                                            KitInterfaz.ConBorde(pergamino, new Vector4(28, 28, 28, 28)), Color.white);
-            KitInterfaz.Colocar(papel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(1060f, 600f), new Vector2(0f, 10f));
+            KitInterfaz.Colocar(papel.rectTransform, new Vector2(0.5f, 0f), new Vector2(1320f, 230f), new Vector2(0f, 235f));
 
-            var texto = KitInterfaz.TextoQueCabe(papel.transform, "Texto", _fuente, 30, 16, KitInterfaz.Tinta,
+            var texto = KitInterfaz.TextoQueCabe(papel.transform, "Texto", _fuente, 24, 14, KitInterfaz.Tinta,
                                                  TextAnchor.MiddleCenter);
             texto.GetComponent<Outline>().enabled = false;
             texto.text =
-                "TINY TACTICS\n" +
-                "Diseño y Desarrollo de Juegos Interactivos II · UTP · Grupo 01\n\n" +
-                "Joaquín Alfonso Loa Denegri — desarrollo y arquitectura\n" +
-                "Kiara Mishell Santti Saavedra — diseño, arte y documentación\n" +
-                "Gerardo Raúl Socualaya Mandamiento — QA y balance\n" +
-                "Docente: Omar David Machuca Ñuflo\n\n" +
-                "Gráficos: Tiny Swords, de Pixel Frog\n" +
-                "Fuente: MedievalSharp (SIL Open Font License)\n" +
-                "Sonidos CC0: Kenney, Juhani Junkala, artisticdude,\n" +
-                "OpenGameArt y BigSoundBank";
-            KitInterfaz.Llenar(texto.rectTransform).offsetMin = new Vector2(70f, 50f);
-            texto.rectTransform.offsetMax = new Vector2(-70f, -50f);
+                "TINY TACTICS · Diseño y Desarrollo de Juegos Interactivos II · UTP · Grupo 01\n" +
+                "Docente: Omar David Machuca Ñuflo\n" +
+                "Gráficos: Tiny Swords, de Pixel Frog · Fuente: MedievalSharp (SIL Open Font License)\n" +
+                "Música y sonidos CC0: RandomMind, Spring Spring, Wolfgang_, Kenney, Juhani Junkala,\n" +
+                "artisticdude, OpenGameArt y BigSoundBank";
+            KitInterfaz.Llenar(texto.rectTransform).offsetMin = new Vector2(50f, 30f);
+            texto.rectTransform.offsetMax = new Vector2(-50f, -30f);
 
             BotonDeAccion(mesa, "Volver", Rojo, () => Ir(Pantalla.Principal), new Vector2(0.5f, 0f),
                           new Vector2(300f, 84f), new Vector2(0f, 20f));

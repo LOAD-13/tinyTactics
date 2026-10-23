@@ -372,8 +372,8 @@ namespace TinyTactics.Nucleo
     /// </summary>
     /// <remarks>
     /// En <c>PlayerPrefs</c> y no en un archivo propio: son tres números, y es lo que el
-    /// motor ofrece para exactamente esto. Las opciones completas —volumen por canal— llegan
-    /// con el mezclador de la semana 14.
+    /// motor ofrece para exactamente esto. El volumen por canal llegó con el mezclador de la
+    /// semana 14 (ver <see cref="Audio.Mezclador"/>).
     /// </remarks>
     public static class Opciones
     {
@@ -395,6 +395,28 @@ namespace TinyTactics.Nucleo
             get => PlayerPrefs.GetFloat(ClaveVolumen, VolumenDeFabrica);
             set { PlayerPrefs.SetFloat(ClaveVolumen, Mathf.Clamp01(value)); Aplicar(); }
         }
+
+        /// <summary>
+        /// El volumen de un canal, de 0 a 1, que se multiplica por el general. De fábrica la
+        /// música y el ambiente van por debajo de los efectos: acompañan, no tapan.
+        /// </summary>
+        public static float VolumenDe(Audio.Canal canal) =>
+            PlayerPrefs.GetFloat(ClaveCanal + (int)canal, CanalDeFabrica(canal));
+
+        public static void PonerVolumen(Audio.Canal canal, float valor)
+        {
+            PlayerPrefs.SetFloat(ClaveCanal + (int)canal, Mathf.Clamp01(valor));
+            Aplicar();
+        }
+
+        public static float CanalDeFabrica(Audio.Canal canal) => canal switch
+        {
+            Audio.Canal.Musica => 0.6f,
+            Audio.Canal.Ambiente => 0.5f,
+            _ => 1f,
+        };
+
+        const string ClaveCanal = "tt.canal.";
 
         public static bool Silencio
         {
@@ -435,10 +457,47 @@ namespace TinyTactics.Nucleo
             return f == 0 ? "Sin límite" : $"{f} FPS";
         }
 
+        /// <summary>
+        /// Pantalla completa o ventana. La ventana es <b>maximizada</b>: ocupa el escritorio
+        /// respetando la barra de tareas, con su barra de título, como cualquier aplicación.
+        /// </summary>
+        /// <remarks>
+        /// <c>Screen.fullScreen = false</c> a secas dejaba la ventana a 1920×1080 en un monitor
+        /// de 1920×1080: con la barra de título y la de tareas no cabía y se salía por abajo
+        /// (visto en la build de la semana 13). <c>MaximizedWindow</c> le pide a Windows su
+        /// tamaño de ventana maximizada, que ya descuenta la barra de tareas.
+        /// El cambio, además, no se ve en <c>Screen</c> hasta el fotograma siguiente; por eso
+        /// lo pedido se recuerda ese fotograma, para que el botón de opciones no mienta.
+        /// </remarks>
         public static bool PantallaCompleta
         {
-            get => Screen.fullScreen;
-            set => Screen.fullScreen = value;
+            get => Time.frameCount <= _fotogramaPedido + 1 ? _completaPedida : EsPantallaCompleta(Screen.fullScreenMode);
+            set
+            {
+                _completaPedida = value;
+                _fotogramaPedido = Time.frameCount;
+                var escritorio = Screen.currentResolution;
+                Screen.SetResolution(escritorio.width, escritorio.height,
+                                     value ? FullScreenMode.FullScreenWindow : FullScreenMode.MaximizedWindow);
+            }
+        }
+
+        static bool EsPantallaCompleta(FullScreenMode modo) =>
+            modo == FullScreenMode.FullScreenWindow || modo == FullScreenMode.ExclusiveFullScreen;
+
+        static bool _completaPedida;
+        static int _fotogramaPedido = -10;
+
+        /// <summary>
+        /// Si el juego arranca en una ventana normal (Unity recuerda el modo de la última vez,
+        /// también el de builds anteriores), pasa a maximizada. Una vez, al cargar la primera escena.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void EncajarVentanaAlArrancar()
+        {
+            if (Application.isEditor || Screen.fullScreenMode != FullScreenMode.Windowed) return;
+            var escritorio = Screen.currentResolution;
+            Screen.SetResolution(escritorio.width, escritorio.height, FullScreenMode.MaximizedWindow);
         }
 
         /// <summary>Vuelca lo guardado sobre el sonido de la escena.</summary>
@@ -462,6 +521,8 @@ namespace TinyTactics.Nucleo
 
             sonido.volumenGeneral = Volumen;
             sonido.silenciado = Silencio;
+            sonido.canalEfectos = VolumenDe(Audio.Canal.Efectos);
+            sonido.canalInterfaz = VolumenDe(Audio.Canal.Interfaz);
         }
     }
 }

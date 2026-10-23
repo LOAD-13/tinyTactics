@@ -277,6 +277,8 @@ namespace TinyTactics.Edificios
             if (unidad != null) unidad.Configurar(datos, _edificio.faccion);
 
             copia.SetActive(true);
+            var dibujoNueva = copia.GetComponent<SpriteRenderer>();
+            Combate.EfectosVisuales.Polvo(salida, dibujoNueva != null ? dibujoNueva.sortingOrder + 1 : 0);
 
             var libro = Nucleo.EstadisticasPartida.Actual;
             if (libro != null) libro.UnidadEntrenada(_edificio != null ? _edificio.faccion : 0);
