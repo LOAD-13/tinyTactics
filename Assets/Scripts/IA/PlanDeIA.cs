@@ -189,6 +189,75 @@ namespace TinyTactics.IA
             return mejor;
         }
 
+        /// <summary>Lo que un bot sabe de cada rival posible al elegir contra quién ir.</summary>
+        public struct CandidatoARival
+        {
+            public int faccion;
+
+            /// <summary>Del castillo propio a su edificio descubierto más cercano, en casillas.</summary>
+            public float distancia;
+
+            /// <summary>Edificios suyos que este bot ha visto: a menos, más débil parece.</summary>
+            public int edificios;
+
+            /// <summary>1 si acaba de atacarme, 0 si nunca o hace mucho.</summary>
+            public float rencor;
+
+            /// <summary>Cuántos otros bots van ya a por él.</summary>
+            public int yaLoAtacan;
+        }
+
+        /// <summary>Peso de cada motivo al elegir rival. Menos puntos, mejor presa.</summary>
+        public const float PesoDistancia = 1f, PesoFuerza = 0.5f, PesoRencor = 0.7f, PesoReparto = 0.4f;
+
+        /// <summary>
+        /// Contra quién va la próxima ofensiva en un todos contra todos (semana 14).
+        /// </summary>
+        /// <remarks>
+        /// Cuatro motivos, los que usaría una persona: <b>lo cerca</b> que está (cruzar el
+        /// mapa entero dejando la casa vacía es mala idea), <b>lo débil</b> que parece,
+        /// <b>quién me ha atacado</b> (el rencor se olvida con el tiempo) y <b>cuántos van ya
+        /// a por él</b>. El último es el que hace que un FFA sea un FFA: sin él, cuatro bots
+        /// eligen al mismo —casi siempre al jugador, que suele ser el que más molesta— y la
+        /// partida se convierte en cuatro contra uno.
+        /// <para>
+        /// Distancia y fuerza se normalizan contra el máximo de los candidatos, para que los
+        /// pesos signifiquen lo mismo en un mapa de 96 casillas y en uno de 224. Con un único
+        /// candidato —el 1v1 de siempre— no hay nada que elegir.
+        /// </para>
+        /// </remarks>
+        public static int ElegirRival(IReadOnlyList<CandidatoARival> candidatos)
+        {
+            if (candidatos == null || candidatos.Count == 0) return -1;
+
+            float maxDistancia = 0.01f, maxEdificios = 1f;
+            foreach (var c in candidatos)
+            {
+                maxDistancia = Mathf.Max(maxDistancia, c.distancia);
+                maxEdificios = Mathf.Max(maxEdificios, c.edificios);
+            }
+
+            int mejor = -1;
+            float mejorPuntos = float.MaxValue;
+            for (int i = 0; i < candidatos.Count; i++)
+            {
+                var c = candidatos[i];
+                float puntos = PesoDistancia * c.distancia / maxDistancia
+                             + PesoFuerza * c.edificios / maxEdificios
+                             - PesoRencor * Mathf.Clamp01(c.rencor)
+                             + PesoReparto * c.yaLoAtacan;
+                if (puntos >= mejorPuntos) continue;
+                mejorPuntos = puntos;
+                mejor = c.faccion;
+            }
+
+            return mejor;
+        }
+
+        /// <summary>Lo que queda del rencor <paramref name="segundos"/> después del ataque.</summary>
+        public static float Rencor(float segundos, float memoria) =>
+            segundos < 0f || memoria <= 0f ? 0f : Mathf.Clamp01(1f - segundos / memoria);
+
         public static bool HoraDeAtacar(int tropa, int hacenFalta, int minimo,
                                         float esperando, float paciencia)
         {

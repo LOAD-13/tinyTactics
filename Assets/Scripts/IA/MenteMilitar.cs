@@ -83,6 +83,74 @@ namespace TinyTactics.IA
 
         int Faccion => _cerebro.faccion;
 
+        // -----------------------------------------------------------------
+        // Rival (semana 14: todos contra todos)
+        // -----------------------------------------------------------------
+
+        /// <summary>El bando contra el que va la ofensiva. −1 mientras no haya elegido.</summary>
+        public int Rival { get; private set; } = -1;
+
+        [Tooltip("Segundos que el bot recuerda quién le atacó.")]
+        public float memoriaDelRencor = 90f;
+
+        readonly float[] _agraviado = { -999f, -999f, -999f, -999f, -999f, -999f, -999f, -999f };
+        readonly List<PlanDeIA.CandidatoARival> _candidatos = new List<PlanDeIA.CandidatoARival>();
+
+        /// <summary>Apunta que <paramref name="faccion"/> le acaba de atacar.</summary>
+        void Agraviar(int faccion)
+        {
+            if (faccion >= 0 && faccion < _agraviado.Length) _agraviado[faccion] = Time.time;
+        }
+
+        /// <summary>
+        /// Elige rival entre los bandos vivos de los que conoce algún edificio. Solo con lo
+        /// que ha visto: la niebla manda también aquí (ADR-23).
+        /// </summary>
+        void ElegirRival()
+        {
+            var ancla = _cerebro.Base();
+            Vector3 casa = ancla != null ? ancla.PosicionDePlanta : CentroDeLaTropa();
+            var arbitro = ArbitroDePartida.Actual;
+
+            _candidatos.Clear();
+            for (int f = 0; f < _agraviado.Length; f++)
+            {
+                if (f == Faccion || (arbitro != null && arbitro.Eliminado(f))) continue;
+
+                float cerca = float.MaxValue;
+                int vistos = 0;
+                var casas = Edificio.Todos;
+                for (int i = 0; i < casas.Count; i++)
+                {
+                    var e = casas[i];
+                    if (e == null || e.faccion != f) continue;
+                    if (!_cerebro.VeTodo && !NieblaDeGuerra.Descubierto(Faccion, e)) continue;
+                    vistos++;
+                    cerca = Mathf.Min(cerca, e.DistanciaA(casa));
+                }
+                if (vistos == 0) continue;
+
+                int yaVan = 0;
+                foreach (var otro in CerebroIA.Todos)
+                    if (otro != null && otro != _cerebro && otro.Rival == f) yaVan++;
+
+                _candidatos.Add(new PlanDeIA.CandidatoARival
+                {
+                    faccion = f,
+                    distancia = cerca,
+                    edificios = vistos,
+                    rencor = PlanDeIA.Rencor(Time.time - _agraviado[f], memoriaDelRencor),
+                    yaLoAtacan = yaVan,
+                });
+            }
+
+            int antes = Rival;
+            Rival = PlanDeIA.ElegirRival(_candidatos);
+            if (Rival != antes && Rival >= 0)
+                DiarioDePartida.Anotar($"Bando {Faccion + 1} [{_cerebro.NombreDificultad}] elige como rival al bando {Rival + 1}" +
+                                       $" (entre {_candidatos.Count})");
+        }
+
         public void Pensar()
         {
             var plan = _cerebro.plan;
@@ -216,7 +284,13 @@ namespace TinyTactics.IA
             {
                 // Se busca alrededor de donde estaba la presa: ahi esta el grueso del
                 // ejercito, y ahi esta lo que queda de esa base.
-                _presa = ObjetivoConocido(_dondePresa ?? CentroDeLaTropa());
+                _presa = ObjetivoConocido(_dondePresa ?? CentroDeLaTropa(), soloRival: true);
+                if (_presa == null)
+                {
+                    // Al rival no le queda nada a la vista: ¿a por quién ahora?
+                    ElegirRival();
+                    _presa = ObjetivoConocido(_dondePresa ?? CentroDeLaTropa());
+                }
                 if (_presa != null) _dondePresa = _presa.PosicionDePlanta;
 
                 if (_presa == null)
@@ -277,6 +351,7 @@ namespace TinyTactics.IA
                 return;
             }
 
+            ElegirRival();
             var presa = ObjetivoConocido(CentroDeLaTropa());
             if (presa == null)
             {
@@ -365,6 +440,7 @@ namespace TinyTactics.IA
             }
 
             var amenaza = _enemigas[k];
+            Agraviar(amenaza.faccion);
             Estado = $"peleando por el camino ({_tropa.Count}) con " +
                      $"{amenaza.datos.tipo} del bando {amenaza.faccion + 1}";
 
@@ -471,6 +547,7 @@ namespace TinyTactics.IA
 
                 donde = u.transform.position;
                 intruso = u.faccion;
+                Agraviar(intruso);
                 return true;
             }
 
@@ -502,8 +579,19 @@ namespace TinyTactics.IA
         /// el ejército derribaba un castillo y se marchaba entero hacia el edificio más
         /// cercano A SU PROPIA BASE, dejando al rival tiempo de reconstruir. Ahora se mide
         /// desde donde cayó la presa anterior, o desde el centro de la tropa.
+        /// <para>
+        /// <b>Con varios rivales (semana 14), primero los del rival elegido.</b> Si de él no
+        /// se conoce nada, vale cualquiera: un ejército en marcha no se para a pensar.
+        /// </para>
         /// </remarks>
-        Edificio ObjetivoConocido(Vector3 tropa)
+        Edificio ObjetivoConocido(Vector3 tropa, bool soloRival = false)
+        {
+            var delRival = Rival >= 0 ? Buscar(tropa, Rival) : null;
+            if (delRival != null || soloRival) return delRival;
+            return Buscar(tropa, -1);
+        }
+
+        Edificio Buscar(Vector3 tropa, int soloDe)
         {
             Edificio mejor = null;
             float mejorDistancia = float.MaxValue;
@@ -514,6 +602,7 @@ namespace TinyTactics.IA
             {
                 var e = casas[i];
                 if (e == null || e.faccion == Faccion) continue;
+                if (soloDe >= 0 && e.faccion != soloDe) continue;
                 if (!_cerebro.VeTodo && !NieblaDeGuerra.Descubierto(Faccion, e)) continue;
 
                 float d = e.DistanciaA(tropa);

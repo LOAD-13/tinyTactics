@@ -73,6 +73,11 @@ namespace TinyTactics.Nucleo
                 var eco = Object.FindFirstObjectByType<Economia>();
                 if (eco != null) eco.bandos = bandos;
 
+                // El panel de pruebas también: venía con los tres de Tres Coronas y en Cuatro
+                // Vientos no dejaba pasarse al cuarto bando (semana 14).
+                var panel = Object.FindFirstObjectByType<Pruebas.PanelDePruebas>(FindObjectsInactive.Include);
+                if (panel != null) panel.bandos = bandos;
+
                 MundoJuego.MapaForzado = pedida.mapa.AMapaGenerado();
                 ConstructorEnPartida.Vaciar();
             }
