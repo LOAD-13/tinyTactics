@@ -349,6 +349,10 @@ namespace TinyTactics.Edificios
             if (agresor != null) _ultimoAgresor = agresor.faccion;
 
             Destellar();
+            if (agresor != null) Combate.AvisoDeAtaque.Golpe(faccion, agresor.faccion, transform.position);
+
+            // Las llamas se encienden solas según la vida que le quede (semana 14).
+            if (_vida > 0 && !TryGetComponent<Combate.FuegoDeEdificio>(out _)) gameObject.AddComponent<Combate.FuegoDeEdificio>();
 
             if (_vida > 0) return;
 

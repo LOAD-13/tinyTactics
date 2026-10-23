@@ -181,6 +181,7 @@ namespace TinyTactics.Unidades
             _vida = Mathf.Max(0, _vida - cantidad);
 
             if (conDestello && _maquina != null) _maquina.Destellar();
+            if (agresor != null) Combate.AvisoDeAtaque.Golpe(faccion, agresor.faccion, transform.position);
 
             if (_vida > 0)
             {
