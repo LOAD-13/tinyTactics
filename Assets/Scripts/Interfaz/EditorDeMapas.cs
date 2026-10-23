@@ -95,6 +95,7 @@ namespace TinyTactics.Interfaz
         public void Abrir(MapaGuardado mapa)
         {
             _mapa = mapa;
+            _guardado = mapa.AJson();
             _camara = Camera.main;
             _pintor = PintorDeTerreno.Actual ?? FindFirstObjectByType<PintorDeTerreno>();
             _fuente = tema != null && tema.titular != null ? tema.titular : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -186,6 +187,10 @@ namespace TinyTactics.Interfaz
             var raton = Mouse.current;
             var teclado = Keyboard.current;
             if (raton == null) return;
+
+            // Con la pregunta en pantalla el mapa no se toca: el velo ya se come los clics,
+            // pero no el teclado.
+            if (_dialogo != null && _dialogo.gameObject.activeSelf) return;
 
             if (teclado != null && teclado.ctrlKey.isPressed && teclado.zKey.wasPressedThisFrame) Deshacer();
 
@@ -660,22 +665,56 @@ namespace TinyTactics.Interfaz
         // Archivo
         // -----------------------------------------------------------------
 
+        /// <summary>
+        /// Guardar pregunta antes (semana 14): escribir un archivo no se deshace con Ctrl+Z, y
+        /// con el mismo nombre se pisa el mapa anterior sin remedio.
+        /// </summary>
         void Guardar()
         {
+            TomarNombre();
+            Preguntar($"¿Guardar «{_mapa.nombre}»?", DetalleDeGuardar(), "Guardar", () => GuardarYa());
+        }
+
+        void TomarNombre() =>
             _mapa.nombre = string.IsNullOrWhiteSpace(_campoNombre.text) ? _mapa.nombre : _campoNombre.text.Trim();
 
+        /// <summary>Lo que conviene saber antes de decir que sí.</summary>
+        string DetalleDeGuardar()
+        {
+            var partes = new List<string>();
+            string ruta = System.IO.Path.Combine(ArchivoDeMapas.CarpetaPropia, ArchivoDeMapas.NombreDeArchivo(_mapa.nombre) + ".json");
+            if (System.IO.File.Exists(ruta)) partes.Add("Ya hay un mapa tuyo con ese nombre: se sustituirá.");
+            if (!ReglasDeMapa.EsJugable(_mapa, out var motivo)) partes.Add("Aún no se puede jugar. " + motivo);
+            int sinAcceso = ReglasDeMapa.ZonasAltasSinAcceso(_mapa);
+            if (sinAcceso > 0)
+                partes.Add(sinAcceso == 1 ? "Hay una zona alta sin escalera: nadie podrá subir."
+                                          : $"Hay {sinAcceso} zonas altas sin escalera: nadie podrá subir.");
+            return partes.Count == 0 ? "Se podrá jugar desde Sandbox." : string.Join("\n", partes);
+        }
+
+        bool GuardarYa()
+        {
             bool jugable = ReglasDeMapa.EsJugable(_mapa, out var motivo);
             var ruta = ArchivoDeMapas.Guardar(_mapa);
 
-            if (ruta == null) Avisar("No se pudo guardar el mapa.");
-            else Avisar(jugable ? $"Guardado: {_mapa.nombre}" : $"Guardado, pero aún no se puede jugar. {motivo}", 6f);
+            if (ruta == null) { Avisar("No se pudo guardar el mapa."); return false; }
+            _guardado = _mapa.AJson();
+            Avisar(jugable ? $"Guardado: {_mapa.nombre}" : $"Guardado, pero aún no se puede jugar. {motivo}", 6f);
+            return true;
         }
 
         void Probar()
         {
             if (!ReglasDeMapa.EsJugable(_mapa, out var motivo)) { Avisar(motivo, 6f); return; }
 
-            Guardar();
+            TomarNombre();
+            if (!HayCambios) { Jugar(); return; }
+            Preguntar("¿Guardar y probar?", "Para probar el mapa hay que guardarlo.\n" +DetalleDeGuardar(), "Sí",
+                      () => { if (GuardarYa()) Jugar(); });
+        }
+
+        void Jugar()
+        {
             var c = ConfiguracionDePartida.PorDefecto(_mapa.bases.Count, Navegacion.EscenaDelMenu);
             c.modo = ModoDePartida.Sandbox;
             c.mapa = MapaGuardado.DeJson(_mapa.AJson());
@@ -684,7 +723,68 @@ namespace TinyTactics.Interfaz
 
         void Salir()
         {
-            Navegacion.IrAlMenu();
+            if (!HayCambios) { Navegacion.IrAlMenu(); return; }
+            Preguntar("¿Salir sin guardar?", "Los cambios desde la última vez que guardaste se perderán.", "Salir",
+                      Navegacion.IrAlMenu);
+        }
+
+        /// <summary>El mapa tal como se guardó o se abrió, para saber si hay algo que perder.</summary>
+        string _guardado;
+
+        bool HayCambios => _mapa != null && _mapa.AJson() != _guardado;
+
+        Text _tituloDialogo, _textoDialogo;
+        Button _botonSi;
+        System.Action _alAceptar;
+
+        /// <summary>
+        /// La pregunta de sí o no, con la misma madera que el resto. Se monta la primera vez
+        /// y luego solo se cambian sus textos.
+        /// </summary>
+        void Preguntar(string titulo, string detalle, string si, System.Action alAceptar)
+        {
+            if (_dialogo == null) ConstruirDialogo();
+            _tituloDialogo.text = titulo;
+            _textoDialogo.text = detalle;
+            KitInterfaz.CambiarTexto(_botonSi, si);
+            _alAceptar = alAceptar;
+            _dialogo.gameObject.SetActive(true);
+            _dialogo.SetAsLastSibling();
+        }
+
+        void ConstruirDialogo()
+        {
+            var velo = KitInterfaz.Velo(_raiz, 0.55f);
+            _dialogo = velo.rectTransform;
+
+            var caja = KitInterfaz.Imagen(velo.transform, "Caja", tema != null ? tema.panelFondo : null, Color.white);
+            caja.raycastTarget = true;
+            KitInterfaz.Colocar(caja.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(760f, 400f));
+
+            _tituloDialogo = KitInterfaz.Texto(caja.transform, "Titulo", "", _fuente, 42, KitInterfaz.Crema, TextAnchor.MiddleCenter);
+            KitInterfaz.Colocar(_tituloDialogo.rectTransform, new Vector2(0.5f, 1f), new Vector2(680f, 70f), new Vector2(0f, -70f));
+
+            _textoDialogo = KitInterfaz.TextoQueCabe(caja.transform, "Texto", _fuente, 26, 16, KitInterfaz.Crema, TextAnchor.MiddleCenter);
+            KitInterfaz.Colocar(_textoDialogo.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(640f, 130f), new Vector2(0f, 10f));
+
+            var no = KitInterfaz.Boton(caja.transform, "No", tema != null ? tema.BotonDeColor(1) : null, "No", _fuente, 30, Cerrar);
+            KitInterfaz.Colocar((RectTransform)no.transform, new Vector2(0.5f, 0f), new Vector2(230f, 70f), new Vector2(-135f, 75f));
+
+            _botonSi = KitInterfaz.Boton(caja.transform, "Si", tema != null ? tema.BotonDeColor(0) : null, "Sí", _fuente, 30, () =>
+            {
+                var accion = _alAceptar;
+                Cerrar();
+                accion?.Invoke();
+            });
+            KitInterfaz.Colocar((RectTransform)_botonSi.transform, new Vector2(0.5f, 0f), new Vector2(230f, 70f), new Vector2(135f, 75f));
+
+            _dialogo.gameObject.SetActive(false);
+        }
+
+        void Cerrar()
+        {
+            _alAceptar = null;
+            if (_dialogo != null) _dialogo.gameObject.SetActive(false);
         }
 
         void Avisar(string texto, float segundos = 3.5f)
