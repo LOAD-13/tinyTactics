@@ -116,6 +116,7 @@ namespace TinyTactics.Interfaz
             Audio.SonidoJuego.SonarInterfaz(_desenlace == Desenlace.Victoria
                 ? Audio.Sonido.Victoria
                 : Audio.Sonido.Derrota);
+            Audio.MusicaDeJuego.Final(_desenlace == Desenlace.Victoria);
 
             Componer();
 

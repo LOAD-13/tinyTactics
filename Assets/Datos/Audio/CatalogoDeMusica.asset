@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eeaf5bcbbc9a21f418d0f57db45836be, type: 3}
+  m_Name: CatalogoDeMusica
+  m_EditorClassIdentifier: Assembly-CSharp::TinyTactics.Audio.CatalogoDeMusica
+  menu:
+  - {fileID: 8300000, guid: 3a5bc1d5bab90764489041a13d4fe338, type: 3}
+  partida:
+  - {fileID: 8300000, guid: 2758e20dabd03814f9392924d245f38c, type: 3}
+  - {fileID: 8300000, guid: 435bb454fd3461a43aadbc4799812925, type: 3}
+  combate:
+  - {fileID: 8300000, guid: 68632d37937ee514cb7818333e596f99, type: 3}
+  - {fileID: 8300000, guid: 48f9af96118eb0b42886b01e29370ca8, type: 3}
+  victoria: []
+  derrota: []
+  volumenMenu: 0.7
+  volumenPartida: 0.3
+  volumenCombate: 0.3
+  volumenFinal: 0.5
+  fundido: 4
+  dia:
+  - {fileID: 8300000, guid: 54cea015dca586c41851ce4d1dd0ae61, type: 3}
+  noche:
+  - {fileID: 8300000, guid: 579a2a9e58b42b348942ea32d304c2cc, type: 3}
+  viento: []
+  volumenDia: 0.25
+  volumenNoche: 0.25
+  volumenViento: 0.15

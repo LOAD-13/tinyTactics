@@ -19,6 +19,9 @@ namespace TinyTactics.Audio
         // Interfaz
         SeleccionarUnidad, OrdenMover, OrdenAtacar, BotonPanel, AccionNoValida,
         EntrenarUnidad, Victoria, Derrota,
+
+        // Semana 14. Siempre al final: el catálogo guarda el número, no el nombre.
+        AlertaAtaque,
     }
 
     /// <summary>
@@ -121,6 +124,7 @@ namespace TinyTactics.Audio
                 case Sonido.EntrenarUnidad: Poner(e, "entrenar_unidad_", 0.4f, 0.02f, 1, 0.6f, true); break;
                 case Sonido.Victoria: Poner(e, "victoria_", 0.8f, 0f, 1, 1f, true); break;
                 case Sonido.Derrota: Poner(e, "derrota_", 0.8f, 0f, 1, 1f, true); break;
+                case Sonido.AlertaAtaque: Poner(e, "alerta_ataque_", 0.5f, 0f, 1, 2f, true); break;
             }
 
             return e;
