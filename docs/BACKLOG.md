@@ -19,11 +19,11 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E06` | Combate | 07-08 | 🟢 Cerrada |
 | `E07` | Percepción — niebla, minimapa y hora | 09 | 🟢 Cerrada |
 | `E08` | IA rival | 10-11 | 🟢 Cerrada |
-| `E09` | Flujo de partida y FFA | 12-13 | 🔵 En curso |
-| `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🔵 Empezada *(efectos de sonido adelantados a la 11)* |
+| `E09` | Flujo de partida y FFA | 12, 14 | 🟢 Cerrada |
+| `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🔵 En curso *(audio y efectos cerrados en la 14; UI final en la 15)* |
 | `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
 | `E12` | PvP LAN *(condicional — compuerta S11)* | — | ⛔ NO-GO en la semana 11 · [ADR-24](ARQUITECTURA.md#adr-24) |
-| `E13` | Editor de mapas | 13 | 🔵 En curso *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
+| `E13` | Editor de mapas | 13 | 🟢 Cerrada *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
 
 Leyenda: 🔵 en curso · 🟢 cerrada · ⚪ pendiente · ⚫ condicional · ⛔ descartada con decisión documentada
 
@@ -1675,6 +1675,96 @@ semana siguiente significaba volver a abrir el mismo archivo.
 
 ---
 
+# Semana 14 — Audio, feedback y FFA (E09 · E10)
+
+**Meta de la semana:** que el juego suene y reaccione —música que acompaña y entra en combate,
+fuego en lo que arde, aviso cuando te atacan— y que el todos contra todos sea de verdad: cada
+bot elige a quién atacar. Y medir si aguanta las 250 unidades del presupuesto.
+
+> **Una sola rama:** `feat/E09-E10-audio-feedback-ffa`.
+
+**Decidido el 22/10/2026:** E09 se cierra esta semana; de E10 se cierran el audio y los
+efectos, y la UI final queda para la 15. Desde esta semana exponen solo Kiara y Joaquín,
+intercalando. Joaquín eligió la música y el ambiente por audición, con una regla clara: **el
+menú a volumen normal; la partida, el combate y el ambiente muy bajos, de fondo**. Los
+filtros de color del sandbox no se tocan: solo se aplican a los mapas guardados con ellos.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-116 | Modo ventana que respeta la barra de tareas *(corrección de la 13)* | bajo |
+| HU-117 | El editor pregunta antes de guardar, probar o salir con cambios *(corrección)* | bajo |
+| HU-118 | Cuatro Vientos con subida a la isla, y aviso de zonas altas sin escalera *(corrección)* | bajo |
+| HU-119 | Música de menú, de partida y de combate, con fundidos | medio |
+| HU-120 | Sonido ambiente de día y de noche | bajo |
+| HU-121 | Mezclador: volumen general y por canal en Opciones | medio |
+| HU-122 | Partículas del pack: fuego en edificios dañados, polvo al terminar y al entrenar | bajo |
+| HU-123 | «Te atacan»: campana y anillo en el minimapa | medio |
+| HU-124 | Todos contra todos: cada bot elige rival | alto |
+| HU-125 | Prueba de carga con 250 unidades | medio |
+| HU-126 | Controles con teclado y ratón dibujados, créditos del equipo y borrar mapas propios | bajo |
+
+---
+
+### HU-116 · Modo ventana
+**Criterios de aceptación**
+- [x] Al quitar la pantalla completa, la ventana se maximiza respetando la barra de tareas.
+- [x] Si el juego arranca en una ventana normal de una versión anterior, se maximiza solo.
+
+### HU-117 · Confirmar en el editor
+**Criterios de aceptación**
+- [x] Guardar pregunta sí o no, y avisa si sustituye un mapa tuyo o si aún no se puede jugar.
+- [x] Probar y Salir preguntan solo si hay cambios sin guardar.
+
+### HU-118 · Cuatro Vientos y zonas sin acceso
+**Criterios de aceptación**
+- [x] La isla central tiene subida, simétrica (relieve y escaleras rehechos por Joaquín en el editor).
+- [x] Al guardar, el editor avisa de las mesetas a las que no se puede subir.
+- [x] Una prueba revisa que en los mapas oficiales se suba a todas partes.
+
+### HU-119 · Música · ver [ADR-29](ARQUITECTURA.md#adr-29)
+**Criterios de aceptación**
+- [x] Menú, partida (dos pistas que se alternan) y combate, siempre con fundido cruzado.
+- [x] El combate entra con una pelea **vista** (cuatro golpes en seis segundos) o con un ataque
+      a lo tuyo, dura al menos 18 s y sale tras 10 s de calma.
+- [x] Al volver, la pista de partida sigue por donde iba.
+
+### HU-120 · Ambiente
+**Criterios de aceptación**
+- [x] Pájaros de día y grillos de noche, siguiendo el ciclo que ya pinta la luz. No suena en el menú.
+
+### HU-121 · Mezclador
+**Criterios de aceptación**
+- [x] Volumen general y cuatro canales (música, efectos, ambiente, interfaz) que se recuerdan.
+
+### HU-122 · Partículas
+**Criterios de aceptación**
+- [x] Un edificio herido arde: una, dos o tres llamas según la vida que le quede.
+- [x] Nube de polvo al terminar un edificio y al salir una unidad entrenada.
+
+### HU-123 · «Te atacan»
+**Criterios de aceptación**
+- [x] Si golpean algo tuyo fuera de la pantalla suena una campana y late un anillo en el minimapa.
+- [x] No repite en el mismo sitio antes de 12 s.
+
+### HU-124 · Cada bot elige rival
+**Criterios de aceptación**
+- [x] Puntúa a cada rival conocido por cercanía, fuerza aparente, rencor y cuántos bots van ya a por él.
+- [x] Solo con lo que ha visto (ADR-23). En el 1v1 se porta igual que antes.
+
+### HU-125 · Prueba de carga
+**Criterios de aceptación**
+- [x] Más de 250 unidades en Cuatro Vientos, medido 20 s quietas y 20 s peleando.
+- [x] La herramienta de medida se usa y se retira: no queda en la entrega.
+
+### HU-126 · Controles, créditos y mapas
+**Criterios de aceptación**
+- [x] Pantalla de controles con teclado y ratón en pixel art y una ficha por cada tecla que usa el juego.
+- [x] Créditos con una ficha por integrante, con la cara de una unidad.
+- [x] Borrar mapas propios desde Sandbox, con confirmación. Los oficiales no se pueden borrar.
+- [x] El panel de pruebas ofrece tantos bandos como tenga el mapa.
+
+---
+
 # Semana 13 — Editor de mapas y el mapa como dato (E13)
 
 **Meta de la semana:** que cualquiera pueda dibujar un mapa dentro del juego, guardarlo y
@@ -2050,23 +2140,22 @@ Detallada arriba, en su propia sección.
 ### Semana 12 — Flujo de partida (E09)
 Detallada arriba, en su propia sección.
 
-### Semana 13 — FFA y rendimiento (E09)
-Spawns múltiples · IA multi-bando · perfilado con 250 unidades · optimización de los cuellos detectados ·
-segundo mapa.
+### Semana 13 — Editor de mapas (E13)
+Detallada arriba, en su propia sección. *(El FFA y el rendimiento pasaron a la 14.)*
 
-### Semana 14 — Audio y feedback (E10)
-AudioMixer con buses y volumen por canal · música de partida, combate y menú, con transición
-cuando empieza una pelea · ambiente que sigue la hora del día · partículas de impacto,
-construcción y derrumbe · feedback visual de daño. *(Los efectos de sonido puntuales se
-adelantaron a la semana 11.)*
+### Semana 14 — Audio, feedback y FFA (E09 · E10)
+Detallada arriba, en su propia sección.
 
 ### Semana 15 — UI/UX · HITO 3 · PC3 (E10)
-HUD final con los assets del pack · panel de unidad seleccionada · tooltips · menú de pausa ·
-opciones · tercer mapa · FFA de 5 bandos corriendo.
+Fichas emergentes con coste, tiempo, atajo y motivo de bloqueo · HUD de recursos y cartel final
+pasados de `OnGUI` al sistema de interfaz · mensajes en pantalla · botón de pawns ociosos · un
+pequeño tutorial · pasada de legibilidad de 1366×768 a 4K · tercer mapa (1v1, con el editor).
+El FFA ya está hecho en la 14: aquí solo se demuestra.
 
 ### Semana 16 — Balance y QA (E11)
 Plan de pruebas · sesiones de juego de los 3 integrantes · ajuste de stats y de la tasa de carne ·
-calibración de dificultades · corrección de bugs · VFX del pack.
+calibración de dificultades · corrección de bugs · los tirones de la prueba de carga · que el bot
+reparta los pawns según el recurso que le falta.
 
 ### E13 — Editor de mapas *(semanas 12-13)*
 

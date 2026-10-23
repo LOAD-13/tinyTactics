@@ -179,6 +179,34 @@ la grilla lógica en paralelo, y rehacer un mapa cuesta lo mismo que hacerlo la 
 
 ---
 
+### ADR-29 · Un mezclador propio, y la música de combate oye lo que tú ves
+
+**Decisión.** El volumen por canal (música, efectos, ambiente, interfaz) es una multiplicación
+en código —general × canal— y no un `AudioMixer` de Unity. La música de combate entra cuando
+el jugador **ve** una pelea, con la misma regla de oído que los efectos (ADR-25).
+
+**Por qué no el `AudioMixer`.** Es un asset que solo se crea a mano desde el editor: no hay
+forma pública de crearlo ni de añadirle grupos por código, y en este proyecto toda la escena
+la genera un script. Para cuatro deslizadores basta una multiplicación; lo que el mezclador
+aporta de más (ecualización, «ducking») no se usa.
+
+**La regla del combate.** Cada golpe que pasa el filtro de cámara y niebla avisa a la música.
+Cuatro golpes en seis segundos son una batalla; un arquero suelto contra una oveja, no. Un
+ataque a algo tuyo entra directamente, aunque no se vea. Una vez dentro, la música de combate
+dura al menos 18 s y sale tras 10 s de calma: sin ese mínimo iría y vendría con cada
+escaramuza. Es una función pura (`ReglasDeMusica`) con sus pruebas.
+
+**Dos altavoces que se turnan.** Los cambios son fundidos cruzados de 4 s, y la pista de
+partida interrumpida por un combate se retoma por donde iba.
+
+**Volúmenes, a petición de Joaquín.** El menú suena a volumen normal; la partida, el combate y
+el ambiente, muy por debajo: acompañan sin tapar los efectos. Pistas CC0 elegidas por
+audición: *King's Feast*, *[Chiptune] The Old Tower Inn* y *[Chiptune] Minstrel Dance*
+(RandomMind), *War Theme* (Spring Spring), *8-Bit Battle Loop* y *Crickets* (Wolfgang_), y
+los pájaros de la primera tanda.
+
+---
+
 ### ADR-26 · El menú y la partida son la misma escena
 
 **Decisión.** No hay escena de menú propia. La escena de juego de cada mapa se abre en tres
