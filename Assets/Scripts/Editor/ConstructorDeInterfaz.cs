@@ -161,6 +161,8 @@ namespace TinyTactics.EditorHerramientas
                                        $"{CarpetaUI}/PanelMadera.png", CajaPanel,
                                        Borde(BordePanel), PpuInterfaz);
 
+            tema.papel = PrepararSprite($"{DirPack}/Papers/RegularPaper.png", PpuInterfaz);
+
             tema.cajas = new Sprite[5];
             tema.cajasChicas = new Sprite[5];
 

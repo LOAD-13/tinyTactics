@@ -179,7 +179,7 @@ namespace TinyTactics.Edificios
         /// dos tablas coherentes entre sí, que es justo el tipo de pareja de números que se
         /// acaba desincronizando en la semana de balance.
         /// </remarks>
-        static float TiempoDe(DatosUnidad datos, Economia eco)
+        public static float TiempoDe(DatosUnidad datos, Economia eco)
         {
             float referencia = Mathf.Max(1, 50);
             float proporcion = Mathf.Max(0.5f, datos.oro / referencia);
@@ -286,6 +286,9 @@ namespace TinyTactics.Edificios
             if (_edificio != null)
                 Audio.SonidoJuego.SonarSiEsMio(Audio.Sonido.EntrenarUnidad, _edificio.faccion,
                                                salida);
+
+            if (_edificio != null && Interfaz.MensajesEnPantalla.EsDelJugador(_edificio.faccion))
+                Interfaz.MensajesEnPantalla.Decir($"{datos.nombreVisible} listo", Interfaz.TipoMensaje.Logro);
 
             if (!tienePuntoDeReunion || unidad == null) return;
 

@@ -143,6 +143,8 @@ namespace TinyTactics.Interfaz
 
             Actual = this;
             Construir();
+            var lienzo = GetComponentInParent<Canvas>();
+            if (lienzo != null) FichaEmergente.Crear(lienzo.transform, tema, _fuenteTitulo, _fuenteTexto);
             Mostrar(false, false);
 
             // Sin esto el panel se vería un frame entero, entero y opaco, antes de que la
@@ -925,8 +927,10 @@ namespace TinyTactics.Interfaz
                 Estirar((RectTransform)boton.Espera.transform);
                 boton.Espera.enabled = false;
 
-                boton.Raiz.AddComponent<AvisoDeBoton>()
-                     .Configurar(TextoDe(orden[i].accion), MostrarAviso);
+                var accionDelBoton = orden[i].accion;
+                var pista = boton.Raiz.AddComponent<AvisoDeBoton>();
+                pista.Configurar(TextoDe(accionDelBoton), MostrarAviso);
+                pista.Configurar(() => FichaDe(accionDelBoton));
 
                 var interactivo = boton.Raiz.AddComponent<Button>();
                 interactivo.targetGraphic = boton.Fondo;
@@ -1120,7 +1124,13 @@ namespace TinyTactics.Interfaz
             if (color != null && r.Fondo.sprite != color) r.Fondo.sprite = color;
 
             var pista = r.Raiz.GetComponent<AvisoDeBoton>();
-            if (pista != null) pista.Configurar(aviso, MostrarAviso);
+            if (pista != null)
+            {
+                pista.Configurar(aviso, MostrarAviso);
+                int faccion = _faccionPintada;
+                if (edificio != null) pista.Configurar(() => FichaDe(edificio, faccion));
+                else if (unidad != null) pista.Configurar(() => FichaDe(unidad, faccion));
+            }
 
             if (!r.Raiz.activeSelf) r.Raiz.SetActive(true);
         }
@@ -1177,6 +1187,104 @@ namespace TinyTactics.Interfaz
 
         Image _listonAviso;
         Text _aviso;
+
+        // -----------------------------------------------------------------
+        // Fichas emergentes (semana 15)
+        // -----------------------------------------------------------------
+
+        static FichaEmergente.Contenido FichaDe(Accion accion)
+        {
+            var c = new FichaEmergente.Contenido();
+            switch (accion)
+            {
+                case Accion.Atacar: c.titulo = "Atacar"; c.atajo = "A"; c.descripcion = "Elige un enemigo o un edificio y van a por él."; break;
+                case Accion.AtacarAuto: c.titulo = "Atacar al avanzar"; c.atajo = "T"; c.descripcion = "Caminan hacia un punto y pelean con todo lo que encuentren por el camino."; break;
+                case Accion.Mover: c.titulo = "Mover"; c.atajo = "V"; c.descripcion = "Van al punto sin pararse a pelear. También con clic derecho."; break;
+                case Accion.Detener: c.titulo = "Detener"; c.atajo = "S"; c.descripcion = "Dejan lo que estén haciendo y se quedan quietos."; break;
+                case Accion.Curar: c.titulo = "Curar"; c.descripcion = "El monje cura a un aliado herido."; break;
+                case Accion.Postura: c.titulo = "Postura"; c.atajo = "X"; c.descripcion = "Agresiva persigue al enemigo; defensiva solo responde; pasiva no pelea."; break;
+                case Accion.Construir: c.titulo = "Construir"; c.atajo = "B"; c.descripcion = "Abre la lista de edificios que puede levantar el pawn."; break;
+                case Accion.Cancelar: c.titulo = "Cancelar"; c.atajo = "Esc"; c.descripcion = "Deja de construir o de apuntar."; break;
+                case Accion.EntrenarPawn:
+                    c.titulo = "Entrenar pawn"; c.atajo = "P";
+                    c.descripcion = "El trabajador: recolecta oro, madera y carne, y levanta edificios.";
+                    c.oro = 50; c.poblacion = 1;
+                    c.bloqueo = Bloqueo(FaccionDelJugador, 50, 0, 1);
+                    break;
+            }
+            return c;
+        }
+
+        FichaEmergente.Contenido FichaDe(DatosEdificio ficha, int faccion)
+        {
+            var c = new FichaEmergente.Contenido
+            {
+                titulo = ficha.nombreVisible,
+                descripcion = DescripcionDe(ficha),
+                oro = ficha.oro, madera = ficha.madera, golpes = ficha.golpesDeObra,
+            };
+            c.bloqueo = Bloqueo(faccion, ficha.oro, ficha.madera, 0);
+            return c;
+        }
+
+        FichaEmergente.Contenido FichaDe(DatosUnidad datos, int faccion)
+        {
+            var eco = Nucleo.Economia.Actual;
+            var c = new FichaEmergente.Contenido
+            {
+                titulo = datos.nombreVisible,
+                descripcion = DescripcionDe(datos.tipo),
+                oro = datos.oro, madera = datos.madera, poblacion = datos.poblacion,
+                segundos = eco != null ? Edificios.ProduccionEdificio.TiempoDe(datos, eco) : 0f,
+            };
+            c.bloqueo = Bloqueo(faccion, datos.oro, datos.madera, datos.poblacion);
+            return c;
+        }
+
+        static int FaccionDelJugador => SelectorDeUnidades.Actual != null ? SelectorDeUnidades.Actual.faccionJugador : 0;
+
+        /// <summary>Por qué no se puede ahora mismo, en palabras. Vacío si se puede.</summary>
+        static string Bloqueo(int faccion, int oro, int madera, int poblacion)
+        {
+            var eco = Nucleo.Economia.Actual;
+            var falta = new List<string>();
+            if (eco != null)
+            {
+                int o = oro - eco.Cantidad(faccion, TipoRecurso.Oro);
+                int m = madera - eco.Cantidad(faccion, TipoRecurso.Madera);
+                if (o > 0) falta.Add($"{o} de oro");
+                if (m > 0) falta.Add($"{m} de madera");
+            }
+            var pob = Nucleo.Poblacion.Actual;
+            if (poblacion > 0 && pob != null && !pob.Cabe(faccion, poblacion)) falta.Add("sitio: construye una casa");
+            return falta.Count == 0 ? "" : "Te falta " + string.Join(" y ", falta) + ".";
+        }
+
+        static string DescripcionDe(DatosEdificio ficha)
+        {
+            switch (ficha.tipo)
+            {
+                case TipoEdificio.Casa: return $"Da {ficha.poblacionQueAporta} de población: más casas, más ejército.";
+                case TipoEdificio.Cuartel: return "Entrena guerreros y lanceros.";
+                case TipoEdificio.CampoDeTiro: return "Entrena arqueros.";
+                case TipoEdificio.Monasterio: return "Entrena monjes, que curan a los tuyos.";
+                case TipoEdificio.Torre: return "Dispara flechas a los enemigos que se acercan.";
+                default: return "";
+            }
+        }
+
+        static string DescripcionDe(TipoUnidad tipo)
+        {
+            switch (tipo)
+            {
+                case TipoUnidad.Pawn: return "El trabajador: recolecta y construye.";
+                case TipoUnidad.Guerrero: return "Espada y escudo. Fuerte contra arqueros.";
+                case TipoUnidad.Lancero: return "Lanza larga. Fuerte contra guerreros.";
+                case TipoUnidad.Arquero: return "Dispara de lejos. Fuerte contra lanceros.";
+                case TipoUnidad.Monje: return "Cura a los aliados heridos cercanos.";
+                default: return "";
+            }
+        }
 
         /// <summary>Qué se lee al pasar el ratón por encima de cada comando.</summary>
         static string TextoDe(Accion accion)
