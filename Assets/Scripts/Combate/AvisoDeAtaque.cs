@@ -71,6 +71,7 @@ namespace TinyTactics.Combate
             _dondeUltimo = donde;
             _anillos.Add(new Anillo { donde = donde, desde = ahora });
             Audio.SonidoJuego.SonarInterfaz(Audio.Sonido.AlertaAtaque);
+            Interfaz.MensajesEnPantalla.Decir("¡Te atacan! Mira el minimapa", Interfaz.TipoMensaje.Aviso);
         }
 
         static bool EnPantalla(Vector3 donde)

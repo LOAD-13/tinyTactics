@@ -143,6 +143,8 @@ namespace TinyTactics.Interfaz
             RefrescarPoblacion();
         }
 
+        bool _avisadoLleno, _avisadoHambre;
+
         void RefrescarPoblacion()
         {
             if (_poblacion == null || _censo == null) return;
@@ -157,6 +159,12 @@ namespace TinyTactics.Interfaz
 
             _poblacion.text = $"{usada} / {tope}";
             _poblacion.color = usada >= tope ? colorLleno : colorTexto;
+
+            // Avisa al llenarse, una vez: no cada vez que se repinta estando lleno.
+            bool lleno = tope > 0 && usada >= tope;
+            if (lleno && !_avisadoLleno && MensajesEnPantalla.EsDelJugador(faccion))
+                MensajesEnPantalla.Decir("Población llena: construye una casa", TipoMensaje.Aviso);
+            _avisadoLleno = lleno;
         }
 
         // -----------------------------------------------------------------
@@ -179,7 +187,13 @@ namespace TinyTactics.Interfaz
                 // La carne avisa antes de agotarse. Enterarse de que el ejército tiene
                 // hambre cuando ya pega la mitad es enterarse tarde.
                 if (c.Recurso == TipoRecurso.Carne)
-                    c.Numero.color = Sustento.EnAviso(faccion) ? colorAviso : colorTexto;
+                {
+                    bool hambre = Sustento.EnAviso(faccion);
+                    c.Numero.color = hambre ? colorAviso : colorTexto;
+                    if (hambre && !_avisadoHambre && MensajesEnPantalla.EsDelJugador(faccion))
+                        MensajesEnPantalla.Decir("La carne se acaba: caza ovejas", TipoMensaje.Aviso);
+                    _avisadoHambre = hambre;
+                }
             }
         }
 
@@ -214,6 +228,10 @@ namespace TinyTactics.Interfaz
             }
 
             ConstruirPoblacion();
+
+            // Semana 15: los avisos, centrados justo debajo de los recursos.
+            MensajesEnPantalla.Crear((RectTransform)transform, tema, _fuente,
+                                     new Vector2(0f, -(margen.y + tamanoCaja.y + 14f)));
         }
 
         /// <summary>
@@ -284,6 +302,11 @@ namespace TinyTactics.Interfaz
             // demás tienen tres, y a 28 puntos se le comían el icono.
             _poblacion.fontSize = 24;
             _poblacion.text = "0 / 0";
+
+            // Semana 15: el botón de pawns ociosos, pegado a la derecha de la población. Va
+            // dentro de la misma raíz para apartarse con ella cuando se abre el panel.
+            PawnsOciosos.Crear(raiz, tema, _fuente, new Vector2(104f, tamanoCaja.y),
+                               new Vector2(tamanoCaja.x + separacion, 0f));
         }
 
         Contador ConstruirContador(RectTransform padre, TipoRecurso recurso, Vector2 posicion,
