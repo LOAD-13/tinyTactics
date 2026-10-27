@@ -292,6 +292,7 @@ namespace TinyTactics.Interfaz
             var entradas = new (string texto, int color, System.Action accion)[]
             {
                 ("Jugar", Azul, () => Preparar(ModoDePartida.Partida)),
+                ("Tutorial", Rojo, Navegacion.Tutorial),
                 ("Sandbox", Amarillo, () => Preparar(ModoDePartida.Sandbox)),
                 ("Opciones", Morado, () => Ir(Pantalla.Opciones)),
                 ("Créditos", Negro, () => Ir(Pantalla.Creditos)),
@@ -301,8 +302,10 @@ namespace TinyTactics.Interfaz
             for (int i = 0; i < entradas.Length; i++)
             {
                 var (texto, color, accion) = entradas[i];
+                // Seis espadas desde la semana 15 (entró el tutorial): un poco más juntas para
+                // que la columna siga cabiendo entera en 1080 de alto.
                 var b = Espada(p, texto, color, accion,
-                               new Vector2(-470f, 270f - i * 135f));
+                               new Vector2(-470f, 300f - i * 120f));
                 b.gameObject.AddComponent<EfectoDeEspada>().orden = i;
             }
 

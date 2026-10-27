@@ -61,6 +61,9 @@ namespace TinyTactics.Interfaz
         [Header("Panel")]
         public Sprite panelFondo;
 
+        [Tooltip("El pergamino del pack (Papers/RegularPaper), para fichas y diálogos.")]
+        public Sprite papel;
+
         [Tooltip("Caja grande del pack (BigBlueButton), reteñida al color de cada facción.")]
         public Sprite[] cajas = new Sprite[5];
 

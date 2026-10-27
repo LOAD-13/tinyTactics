@@ -11,6 +11,51 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 14 — Audio, feedback y todos contra todos (E09 · E10)
+**Entrega:** domingo 08/11/2026 · **Expo:** lunes 09/11/2026 · **Expone:** Kiara
+**Tag:** [`v0.14.0-s14`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.14.0-s14) · **Rama:** `feat/E09-E10-audio-feedback-ffa`
+
+### Lo prometido
+Música con transición a combate, ambiente, mezclador, partículas y aviso de daño; el FFA que
+venía de la 13 y la prueba de carga de 250 unidades. Más tres correcciones que Joaquín vio en
+la build de la 13. HU-116 a HU-126.
+
+### Lo entregado
+Las once. E09 se cierra; de E10 se cierran el audio y los efectos. Por el camino entraron la
+pantalla de controles dibujada, los créditos con las caras y el borrado de mapas, que Joaquín
+pidió al probar.
+
+### Cambios de organización
+Raúl deja de exponer: desde la 14 intercalan Kiara y Joaquín. El cronograma se ordenó para que
+ninguna épica se reparta sin motivo: el FFA entero en la 14, la interfaz final en la 15.
+
+### Lo que costó de verdad
+
+**La medida se perdió la primera vez.** El diario se reinicia en cada partida, y al entrar al
+editor se borró. Se repitió escribiendo el resultado también en un archivo aparte. Resultado:
+258 unidades a 75 FPS de media; peleando, 263 a 66, con el 1 % más lento en 30. La herramienta
+se retiró después de medir.
+
+**La isla necesitó tres intentos.** Una escalera central fea, luego dos al revés; al final
+Joaquín rehízo el relieve con el editor y esa versión es la oficial. El editor avisa ahora de
+zonas altas sin subida, y una prueba revisa los mapas oficiales.
+
+**El AudioMixer no se puede crear por código.** Toda la escena sale de un script, así que el
+volumen por canal es una multiplicación propia (ADR-29).
+
+**El panel de pruebas no estaba en la build.** Desde la semana 6 se borraba en las builds que
+no son de desarrollo; nadie lo vio porque las capturas se sacaban en el editor. Se corrigió
+después del tag y entra en la 15.
+
+### Pendiente
+- Los tirones en combate (30 FPS en el 1 % más lento): balance de la semana 16.
+- El arreglo del panel de pruebas en la build: rama `feat/E10-ui-final`.
+
+### Cifras
+8 commits · 1 811 líneas de C# · 105 scripts · 75 bloques y 48 084 comprobaciones · ADR-29.
+
+---
+
 ## Semana 13 — Editor de mapas y el mapa como dato (E13)
 **Entrega:** domingo 01/11/2026 · **Expo:** lunes 02/11/2026 · **Expone:** Joaquín
 **Tag:** [`v0.13.0-s13`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.13.0-s13) · **Rama:** `feat/E13-editor-de-mapas`

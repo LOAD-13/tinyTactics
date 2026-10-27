@@ -22,6 +22,9 @@ namespace TinyTactics.Audio
 
         // Semana 14. Siempre al final: el catálogo guarda el número, no el nombre.
         AlertaAtaque,
+
+        // Semana 15: la voz de Bruno en el tutorial.
+        Murmullo,
     }
 
     /// <summary>
@@ -125,6 +128,7 @@ namespace TinyTactics.Audio
                 case Sonido.Victoria: Poner(e, "victoria_", 0.8f, 0f, 1, 1f, true); break;
                 case Sonido.Derrota: Poner(e, "derrota_", 0.8f, 0f, 1, 1f, true); break;
                 case Sonido.AlertaAtaque: Poner(e, "alerta_ataque_", 0.5f, 0f, 1, 2f, true); break;
+                case Sonido.Murmullo: Poner(e, "murmullo_", 0.35f, 0.12f, 2, 0.05f, true); break;
             }
 
             return e;

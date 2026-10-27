@@ -136,6 +136,7 @@ namespace TinyTactics.Nucleo
 
             if (c.modo == ModoDePartida.Menu) PrepararFondo(c);
             if (c.modo == ModoDePartida.Sandbox) AplicarSandbox(c);
+            if (c.modo == ModoDePartida.Tutorial) PrepararTutorial();
 
             Opciones.Aplicar();
         }
@@ -216,6 +217,33 @@ namespace TinyTactics.Nucleo
 
         [Tooltip("Unidades militares con las que empieza cada bando del fondo del menú.")]
         [Range(0, 16)] public int ejercitoDeFondo = 7;
+
+        /// <summary>
+        /// El tutorial: el rival no piensa (su castillo es solo una diana), no hay niebla
+        /// para que el castillo enemigo se vea desde el principio, y el jugador empieza con
+        /// lo justo para construir y entrenar sin esperar.
+        /// </summary>
+        void PrepararTutorial()
+        {
+            foreach (var cerebro in CerebroIA.Todos)
+                if (cerebro != null) cerebro.pensando = false;
+
+            var niebla = NieblaDeGuerra.Actual ?? Object.FindFirstObjectByType<NieblaDeGuerra>();
+            if (niebla != null) niebla.ignorarNiebla = true;
+
+            var eco = Economia.Actual ?? Object.FindFirstObjectByType<Economia>();
+            if (eco != null)
+            {
+                eco.Depositar(0, Datos.TipoRecurso.Oro, 400);
+                eco.Depositar(0, Datos.TipoRecurso.Madera, 300);
+            }
+            PreparacionDeBandos.Ejercito(0, 3);
+
+            var hud = Object.FindFirstObjectByType<HudRecursos>();
+            var lienzo = hud != null ? hud.GetComponentInParent<Canvas>() : null;
+            if (lienzo != null)
+                TutorialGuiado.Crear(lienzo.transform, hud.tema, PanelDeUnidad.PrimeraInstalada(hud.fuentes));
+        }
 
         /// <summary>Las reglas del sandbox, una por una.</summary>
         void AplicarSandbox(ConfiguracionDePartida c)

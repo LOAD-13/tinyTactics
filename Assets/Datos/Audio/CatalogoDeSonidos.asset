@@ -276,3 +276,17 @@ MonoBehaviour:
     maximoSimultaneo: 1
     separacion: 2
     deInterfaz: 1
+  - sonido: 24
+    prefijo: murmullo_
+    tomas:
+    - {fileID: 8300000, guid: ec182cd081280e340ae6bf619317debb, type: 3}
+    - {fileID: 8300000, guid: 7e961d74f7ac7bb46bc104a25d94edb8, type: 3}
+    - {fileID: 8300000, guid: 5be5d27d131fb4048b42faeeca61452d, type: 3}
+    - {fileID: 8300000, guid: 6caecc379e985654f9248f558b1f48f3, type: 3}
+    - {fileID: 8300000, guid: 0f336c4d7ebdff348b7135e98d4e5aa2, type: 3}
+    - {fileID: 8300000, guid: 42c572d08f2da2d42b8fb5503fbfb2a9, type: 3}
+    volumen: 0.35
+    variacionDeTono: 0.12
+    maximoSimultaneo: 2
+    separacion: 0.05
+    deInterfaz: 1
