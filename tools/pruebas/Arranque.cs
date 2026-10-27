@@ -83,6 +83,7 @@ namespace TinyTactics.Pruebas
             PruebasDeSonido.Registrar();
             PruebasDeConfiguracion.Registrar();
             PruebasDeMapas.Registrar();
+            PruebasDeMapas.RegistrarSemana15();
             PruebasDeMusica.Registrar();
             PruebasDeFeedback.Registrar();
             PruebasDeRivales.Registrar();
