@@ -73,6 +73,21 @@ namespace TinyTactics.Mundo
             }
         }
 
+        /// <summary>El prado del tutorial, o null si falta el archivo.</summary>
+        public static MapaGuardado LeerTutorial()
+        {
+            try
+            {
+                var ruta = Path.Combine(Application.streamingAssetsPath, "Tutorial", "Tutorial.json");
+                return File.Exists(ruta) ? MapaGuardado.DeJson(File.ReadAllText(ruta)) : null;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Tiny Tactics] No pude leer el tutorial: {e.Message}");
+                return null;
+            }
+        }
+
         /// <summary>Guarda en la carpeta propia. Devuelve la ruta, o null si falló.</summary>
         public static string Guardar(MapaGuardado m)
         {

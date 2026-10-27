@@ -41,12 +41,9 @@ namespace TinyTactics.Pruebas
     {
         public static PanelDePruebas Actual { get; private set; }
 
-        void Awake()
-        {
-#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
-            Destroy(gameObject);
-#endif
-        }
+        // Antes se borraba en las builds que no eran de desarrollo (semana 06). Desde la 12 el
+        // panel es parte del juego: vive en el sandbox y tras el atajo oculto, también en la
+        // build de entrega. Quien decide si se ve es ArranqueDePartida, según el modo.
 
         [Tooltip("Ancho del panel desplegado, en píxeles de pantalla.")]
         public float ancho = 250f;

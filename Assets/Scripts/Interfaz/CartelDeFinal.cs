@@ -198,11 +198,27 @@ namespace TinyTactics.Interfaz
         // Dibujo
         // -----------------------------------------------------------------
 
+        /// <summary>
+        /// Alto de referencia, el mismo que usa el lienzo del resto de la interfaz (semana 15).
+        /// </summary>
+        /// <remarks>
+        /// <c>OnGUI</c> dibuja en píxeles reales: con letras de tamaño fijo, en 4K el cartel
+        /// salía con texto diminuto y en 1366×768 se apretaba. Se dibuja en una pantalla
+        /// virtual de 1080 de alto y una matriz la escala a la de verdad, así que el cartel
+        /// se ve igual en cualquier resolución sin reescribirlo en otro sistema.
+        /// </remarks>
+        const float AltoDeReferencia = 1080f;
+
+        static float Escala => Mathf.Max(0.01f, Screen.height / AltoDeReferencia);
+        static float AnchoVirtual => Screen.width / Escala;
+        static float AltoVirtual => AltoDeReferencia;
+
         void OnGUI()
         {
             if (!_visible) return;
 
             PrepararEstilos();
+            GUI.matrix = Matrix4x4.Scale(new Vector3(Escala, Escala, 1f));
 
             float t = Mathf.Clamp01(_reloj / Mathf.Max(0.05f, entrada));
 
@@ -228,19 +244,19 @@ namespace TinyTactics.Interfaz
             // El tamaño sale de la PANTALLA y deja sitio a los retratos de los lados. El
             // papel nunca pasa del 66 % del ancho: el resto es el hueco donde asoman las
             // unidades, que es lo que le da profundidad al cartel.
-            float cabecera = Mathf.Min(Screen.height * 0.13f, 120f);
+            float cabecera = Mathf.Min(AltoVirtual * 0.13f, 120f);
 
             float altoPapel = Mathf.Min(anchoCartel * 0.98f,
-                                        Screen.height * 0.84f - cabecera);
+                                        AltoVirtual * 0.84f - cabecera);
 
-            float anchoPapel = Mathf.Min(anchoCartel, Screen.width * 0.66f,
+            float anchoPapel = Mathf.Min(anchoCartel, AnchoVirtual * 0.66f,
                                          altoPapel * 1.12f);
 
             altoPapel *= escala;
             anchoPapel *= escala;
 
-            var caja = new Rect((Screen.width - anchoPapel) * 0.5f,
-                                (Screen.height - altoPapel) * 0.5f + cabecera * 0.45f,
+            var caja = new Rect((AnchoVirtual - anchoPapel) * 0.5f,
+                                (AltoVirtual - altoPapel) * 0.5f + cabecera * 0.45f,
                                 anchoPapel, altoPapel);
 
             DibujarPergamino(caja);
@@ -284,7 +300,7 @@ namespace TinyTactics.Interfaz
 
             var color = GUI.color;
             GUI.color = fondo;
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Velo());
+            GUI.DrawTexture(new Rect(0f, 0f, AnchoVirtual, AltoVirtual), Velo());
             GUI.color = color;
         }
 
@@ -359,7 +375,7 @@ namespace TinyTactics.Interfaz
             // texto, y con siete u ocho letras salía una cinta corta y rechoncha que parecía
             // una pegatina: un estandarte se lee como estandarte cuando es claramente más
             // largo que alto y más ancho que lo que cuelga de él.
-            float ancho = Mathf.Min(caja.width * 1.24f, Screen.width * 0.9f);
+            float ancho = Mathf.Min(caja.width * 1.24f, AnchoVirtual * 0.9f);
 
             // El alto lo manda la cabecera reservada, no la proporción del dibujo: así la
             // cinta nunca puede crecer hasta comerse las estadísticas, que es lo que pasaba.
@@ -658,7 +674,7 @@ namespace TinyTactics.Interfaz
 
             // El retrato se dimensiona por lo que CABE al lado, no por el ancho del papel:
             // así en una ventana estrecha se encoge en vez de meterse sobre las cifras.
-            float hueco = (Screen.width - caja.width) * 0.5f;
+            float hueco = (AnchoVirtual - caja.width) * 0.5f;
             float lado = Mathf.Clamp(hueco * 0.86f, 48f, caja.width * 0.26f);
 
             float aparicion = Mathf.Clamp01((_reloj - entrada * 0.4f) / 0.5f);

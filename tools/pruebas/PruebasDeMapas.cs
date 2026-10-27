@@ -173,6 +173,40 @@ namespace TinyTactics.Pruebas
             return m;
         }
 
+        // Semana 15: el tercer mapa y el prado del tutorial.
+        public static void RegistrarSemana15()
+        {
+            Arranque.Registrar("mapa: Lago Helado es igual girado media vuelta", v =>
+            {
+                var carpeta = CarpetaOficial();
+                var ruta = carpeta == null ? null : System.IO.Path.Combine(carpeta, "Lago_Helado.json");
+                v.Cierto(ruta != null && System.IO.File.Exists(ruta), "existe el tercer mapa");
+                if (ruta == null || !System.IO.File.Exists(ruta)) return;
+                var m = LeerSinUnity(System.IO.File.ReadAllText(ruta));
+                int distintas = 0;
+                for (int x = 0; x < m.ancho; x++)
+                    for (int y = 0; y < m.alto; y++)
+                        if (m.TerrenoEn(x, y) != m.TerrenoEn(m.ancho - 1 - x, m.alto - 1 - y)) distintas++;
+                v.Igual(distintas, 0, "cada celda igual a su opuesta");
+                v.Igual(m.bases.Count, 2, "es un 1v1");
+                v.Igual(m.bases[0].x + m.bases[1].x, m.ancho - 1, "las bases, enfrentadas en x");
+                v.Igual(m.bases[0].y + m.bases[1].y, m.alto - 1, "y en y");
+            });
+
+            Arranque.Registrar("mapa: el prado del tutorial se puede jugar y no esta en la lista", v =>
+            {
+                var carpeta = CarpetaOficial();
+                v.Cierto(carpeta != null, "carpeta de mapas");
+                if (carpeta == null) return;
+                var tutorial = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(carpeta), "Tutorial", "Tutorial.json");
+                v.Cierto(System.IO.File.Exists(tutorial), "existe el prado");
+                v.Falso(System.IO.File.Exists(System.IO.Path.Combine(carpeta, "Tutorial.json")), "no esta entre los mapas de la lista");
+                if (!System.IO.File.Exists(tutorial)) return;
+                var m = LeerSinUnity(System.IO.File.ReadAllText(tutorial));
+                v.Cierto(ReglasDeMapa.EsJugable(m, out var motivo), "se juega " + motivo);
+            });
+        }
+
         static string CarpetaOficial()
         {
             var d = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());

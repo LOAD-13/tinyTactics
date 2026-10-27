@@ -15,6 +15,8 @@ namespace TinyTactics.Nucleo
         Sandbox,
         /// <summary>El editor de mapas: sin bandos, sin IA, solo el mapa y los pinceles.</summary>
         Editor,
+        /// <summary>El tutorial: un prado propio, un rival que no se mueve y Bruno explicando (semana 15).</summary>
+        Tutorial,
     }
 
     /// <summary>Quién se sienta en cada base del mapa.</summary>
@@ -307,6 +309,23 @@ namespace TinyTactics.Nucleo
         /// va directo al menú principal.
         /// </summary>
         public static bool TituloVisto;
+
+        /// <summary>
+        /// Abre el tutorial en su prado. El prado vive aparte de los mapas
+        /// (<c>StreamingAssets/Tutorial</c>): ni sale en la lista ni se abre en el editor.
+        /// </summary>
+        public static void Tutorial()
+        {
+            var mapa = Mundo.ArchivoDeMapas.LeerTutorial();
+            if (mapa == null) return;
+
+            var c = ConfiguracionDePartida.PorDefecto(2, EscenaDelMenu);
+            c.modo = ModoDePartida.Tutorial;
+            c.bases = new[] { Ocupante.Jugador, Ocupante.BotFacil };
+            c.colores = ReglasDeConfiguracion.ColoresDeFabrica(2);
+            c.mapa = mapa;
+            Empezar(c);
+        }
 
         public static void IrAlMenu()
         {

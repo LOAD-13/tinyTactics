@@ -130,6 +130,9 @@ namespace TinyTactics.Edificios
 
             Nucleo.DiarioDePartida.Anotar($"Terminado: {_edificio.tipo} del bando {_edificio.faccion + 1}");
 
+            if (Interfaz.MensajesEnPantalla.EsDelJugador(_edificio.faccion))
+                Interfaz.MensajesEnPantalla.Decir((_edificio.datos != null ? _edificio.datos.nombreVisible : _edificio.tipo.ToString()) + " terminado", Interfaz.TipoMensaje.Logro);
+
             Audio.SonidoJuego.SonarSiEsMio(Audio.Sonido.EdificioTerminado, _edificio.faccion,
                                            _edificio.transform.position);
 

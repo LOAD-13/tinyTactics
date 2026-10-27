@@ -30,6 +30,7 @@ MonoBehaviour:
   barraChicaMarco: {fileID: 21300000, guid: d410c511e208615468e244b53073bb5e, type: 3}
   barraChicaRelleno: {fileID: 21300000, guid: 0a9687702ae69a34aaa69cb72bfe4907, type: 3}
   panelFondo: {fileID: 21300000, guid: 85fd34e6a64fd414fae2973b0a111cd4, type: 3}
+  papel: {fileID: 21300000, guid: ffac7e0b474194ffd90e3892b95dbac8, type: 3}
   cajas:
   - {fileID: 21300000, guid: ff08e0e6a714bd64793eed42b20c091a, type: 3}
   - {fileID: 21300000, guid: 86f81ea3f6174fb40b35052aa06a4a5a, type: 3}
