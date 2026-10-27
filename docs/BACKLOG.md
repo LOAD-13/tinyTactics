@@ -20,7 +20,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E07` | Percepción — niebla, minimapa y hora | 09 | 🟢 Cerrada |
 | `E08` | IA rival | 10-11 | 🟢 Cerrada |
 | `E09` | Flujo de partida y FFA | 12, 14 | 🟢 Cerrada |
-| `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🔵 En curso *(audio y efectos cerrados en la 14; UI final en la 15)* |
+| `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🟢 Cerrada |
 | `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
 | `E12` | PvP LAN *(condicional — compuerta S11)* | — | ⛔ NO-GO en la semana 11 · [ADR-24](ARQUITECTURA.md#adr-24) |
 | `E13` | Editor de mapas | 13 | 🟢 Cerrada *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
@@ -1672,6 +1672,67 @@ carrera a ver quién derriba antes.
 **Nota de alcance.** Estaba en la semana 11 y se adelanta. Una vez que existe la capa táctica,
 defender es la misma decisión —a dónde mando el ejército— con otra respuesta; dejarlo para la
 semana siguiente significaba volver a abrir el mismo archivo.
+
+---
+
+# Semana 15 — Interfaz final, tutorial y tercer mapa · PC3 (E10)
+
+**Meta de la semana:** cerrar la presentación del juego. Que cada botón explique qué hace y
+por qué no se puede, que el juego avise de lo importante, que un jugador nuevo aprenda solo, y
+el tercer mapa oficial.
+
+> **Una sola rama:** `feat/E10-ui-final`.
+
+**Decidido el 27/10/2026:** Joaquín pidió que todo use los recursos del pack y que el tutorial
+lo dé un pawn que habla, con su cara y murmullos. El tercer mapa sale de una referencia suya
+(dos bases enfrentadas, lago helado en el centro). **Corrección del plan:** el HUD de recursos ya
+usaba el sistema de interfaz moderno; solo el cartel final dibujaba con `OnGUI`, y en vez de
+reescribirlo se le dio la misma resolución de referencia que al resto.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-127 | Fichas emergentes: nombre, coste, tiempo, atajo y motivo de bloqueo | medio |
+| HU-128 | El cartel final escala con la pantalla (resolución de referencia de 1080) | bajo |
+| HU-129 | Mensajes en pantalla bajo los recursos | bajo |
+| HU-130 | Botón de pawns ociosos, con la tecla O | bajo |
+| HU-131 | Tutorial guiado: el capataz enseña a jugar en seis pasos | medio |
+| HU-132 | El prado del tutorial, fuera de la lista de mapas | bajo |
+| HU-133 | Tercer mapa oficial: Lago Helado (1v1) | medio |
+| HU-134 | Versiones finales de Cuatro Vientos y Lago Helado, retocadas por Joaquín | bajo |
+| HU-135 | El panel de pruebas también en la build de entrega | bajo |
+
+---
+
+### HU-127 · Fichas emergentes
+- [x] Pergamino encima del botón, con el coste en los mismos iconos del HUD y la tecla en dorado.
+- [x] El contenido se calcula al pasar el ratón: «Te falta 30 de oro» es verdad en ese momento.
+
+### HU-128 · El cartel final escala
+- [x] Se dibuja en una pantalla virtual de 1080 de alto: el texto mide lo mismo en 1366×768 y en 4K.
+
+### HU-129 · Mensajes en pantalla
+- [x] Cintas del pack: dorado lo bueno, rojo lo urgente. Tres como mucho; las repetidas cuentan «×n».
+- [x] Solo para el jugador: edificio terminado, unidad lista, población llena, carne que se acaba, ataque.
+
+### HU-130 · Pawns ociosos
+- [x] Junto a la población, solo si hay alguno parado; clic o O llevan al siguiente.
+
+### HU-131 · Tutorial
+- [x] Seis pasos que avanzan al hacerlos, no con un botón: elegir, recolectar, casa, cuartel y guerrero, atacar, ganar.
+- [x] El capataz habla letra a letra con murmullos sintetizados por el equipo; arriba a la derecha, mirando al texto.
+- [x] Se puede saltar y la partida sigue.
+
+### HU-132 · El prado del tutorial
+- [x] Vive en `StreamingAssets/Tutorial`: no sale en la lista ni en el editor. Rival quieto y sin niebla.
+
+### HU-133 · Lago Helado
+- [x] Simetría de giro de 180°, comprobada por una prueba.
+
+### HU-134 · Mapas finales
+- [x] Las versiones de Joaquín pasan a ser las oficiales; siguen siendo simétricas y accesibles.
+
+### HU-135 · Panel de pruebas en la build
+- [x] Ya no se borra en las builds que no son de desarrollo.
 
 ---
 
