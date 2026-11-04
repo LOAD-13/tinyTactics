@@ -123,6 +123,11 @@ namespace TinyTactics.Nucleo
                 else QuitarBot(bando);
             }
 
+            // La escena trae un cerebro por cada base de Tres Coronas. Un mapa de archivo con
+            // menos bases dejaba los que sobraban pensando en el vacío, y el panel de pruebas
+            // los enseñaba como bandos que no existen (semana 16).
+            for (int bando = c.bases.Length; bando < Bandos.Colores; bando++) QuitarBot(bando);
+
             // El color de cada base, antes de que nadie lea un dibujo. Un mapa de archivo ya
             // construye sus bases con las plantillas de su color: no hay nada que vestir.
             if (c.mapa == null)
@@ -137,6 +142,9 @@ namespace TinyTactics.Nucleo
             if (c.modo == ModoDePartida.Menu) PrepararFondo(c);
             if (c.modo == ModoDePartida.Sandbox) AplicarSandbox(c);
             if (c.modo == ModoDePartida.Tutorial) PrepararTutorial();
+            // El historial guarda las partidas de verdad: ni el fondo del menú ni el tutorial.
+            if (c.modo == ModoDePartida.Partida || c.modo == ModoDePartida.Sandbox)
+                gameObject.AddComponent<CronistaDePartida>();
 
             Opciones.Aplicar();
         }

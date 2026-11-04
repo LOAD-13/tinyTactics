@@ -17,4 +17,5 @@ MonoBehaviour:
   ventajaDeRecursos: 1
   tamanoDeOleada: 1
   esperaInicial: 60
+  segundosEntreIncursiones: 150
   veTodoElMapa: 0

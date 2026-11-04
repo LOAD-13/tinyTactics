@@ -18,4 +18,5 @@ MonoBehaviour:
   tamanoDeOleada: 1.3
   esperaInicial: 30
   ritmo: 0.7
+  segundosEntreIncursiones: 90
   veTodoElMapa: 0
