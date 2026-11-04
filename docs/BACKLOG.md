@@ -1675,6 +1675,81 @@ semana siguiente significaba volver a abrir el mismo archivo.
 
 ---
 
+# Semana 16 — Balance, QA e historial de partidas (E11)
+
+**Meta de la semana:** que el bot reparta su economía según lo que le falta, poder demostrarlo
+con números, y que cada partida quede guardada para el jugador: un historial con el marcador,
+la evolución y el mapa de cada una.
+
+> **Una sola rama:** `feat/E11-balance-historial`.
+
+**Decidido el 03/11/2026:** el historial entra porque el informe de partida hacía falta igual
+para medir la IA; la pantalla es solo quien lo lee. El visor de repeticiones se descarta: la
+simulación no es determinista. El rendimiento se mide en la build y solo se toca si el 1 %
+lento baja de 45 FPS.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-136 | El bot reparte los pawns según lo que le falta | medio |
+| HU-137 | Comparar la regla vieja y la nueva: bot contra bot | bajo |
+| HU-138 | Informe de cada partida, guardado en disco | bajo |
+| HU-139 | Historial de partidas en el menú | medio |
+| HU-140 | Detalle de una partida: marcador, evolución y mapa | medio |
+| HU-141 | Plan de pruebas | bajo |
+| HU-142 | Balance con partidas reales | medio |
+| HU-143 | Corrección de errores encontrados al probar | bajo |
+| HU-144 | Partidas automáticas desde la línea de comandos | medio |
+| HU-145 | El bot defiende agrupado, deja guarnición, se retira a tiempo y hostiga | alto |
+
+---
+
+### HU-136 · Reparto por reservas
+- [x] La proporción de madera se tuerce hacia lo que falta: un pawn de cada diez por cada 150 de diferencia, hasta tres.
+- [x] Con la despensa llena (200 / 400 de carne), menos pawns a la carne.
+- [x] Si sobran dos o más en un recurso, se mueve uno por vuelta aunque esté ocupado.
+- [x] Busca el recurso que falta hasta 200 de distancia antes de cambiar de recurso.
+
+### HU-137 · Comparar las dos reglas
+- [x] Interruptor «Reparto» en el panel de pruebas; `tools/comparar_reparto.py` resume los informes.
+
+### HU-138 · Informe de partida
+- [x] Todos los bandos, una foto cada 10 s; también en la build normal. Abandonada si se sale a mitad.
+- [x] Las torres apuntan sus bajas a su bando.
+
+### HU-139 · Historial
+- [x] Séptima espada del menú. Últimas 20 partidas: resultado, tu unidad estrella, mapa, rivales, bajas, duración.
+- [x] Resumen: porcentaje de victorias, racha, resultado contra cada dificultad. El sandbox no cuenta.
+
+### HU-140 · Detalle de una partida
+- [x] Marcador por puesto, gráfica de población o recolectado, minimapa con las bases y tres claves de la partida.
+
+### HU-141 · Plan de pruebas
+- [x] `docs/PLAN_DE_PRUEBAS.md`: automáticas, 26 casos manuales, sesiones de juego, IA y rendimiento.
+
+### HU-142 · Balance
+- [ ] Partidas de los tres integrantes contra las tres dificultades.
+- [x] El plan del bot manda 3 de cada 10 pawns a la madera (antes 5): las tropas cuestan casi todo oro.
+
+### HU-143 · Errores
+- [x] El panel de pruebas enseñaba cerebros de bases que el mapa no tiene.
+
+### HU-144 · Partidas automáticas
+- [x] `-autopartidas N` juega solo, sin ventana, y guarda cada informe; `ConstruirEjecutable` hace la build sin abrir el editor.
+- [x] `-medir M` adelanta la partida hasta el minuto M, mide 60 s a tiempo real y saca una captura.
+
+### HU-145 · Nuevos patrones de la IA
+- [x] Defensa agrupada: si el atacante es más (cada torre cuenta como dos), espera junto al castillo en vez de salir de uno en uno.
+- [x] Refuerzos en grupo: los recién entrenados no cruzan el mapa solos; salen de tres en tres.
+- [x] Guarnición: dos tropas se quedan en casa cuando sale la oleada.
+- [x] Retirada: si en la pelea el enemigo es 1,5 veces más y al menos dos más, la oleada vuelve a casa.
+- [x] Incursiones: tres tropas van a la mina del rival a por sus pawns; huyen si llega su ejército. Fácil cada 240 s, Normal 150, Difícil 90 (ritmo, no inteligencia).
+- [x] Se comparan con la táctica anterior en la misma partida: cada una en las dos bases.
+
+> **Para la semana 17:** ejército que responde (entrenar lo que gana a lo que ve) y objetivos
+> con cabeza (cuarteles primero). Descartado: el ataque en pinza.
+
+---
+
 # Semana 15 — Interfaz final, tutorial y tercer mapa · PC3 (E10)
 
 **Meta de la semana:** cerrar la presentación del juego. Que cada botón explique qué hace y

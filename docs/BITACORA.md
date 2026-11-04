@@ -11,6 +11,80 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 16 — Balance, QA, historial de partidas e IA con tácticas (E11)
+**Entrega:** domingo 22/11/2026 · **Expo:** lunes 23/11/2026 · **Expone:** Kiara
+**Tag:** [`v0.16.0-s16`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.16.0-s16) · **Rama:** `feat/E11-balance-historial`
+
+### Lo prometido
+Que el bot reparta los pawns según lo que le falta, poder medirlo, un informe de cada partida,
+plan de pruebas, balance y la medida de rendimiento en la build. HU-136 a HU-143.
+
+### Lo entregado
+Todo, y tres cosas más que salieron por el camino: el historial de partidas con su detalle
+(marcador, evolución y mapa), las partidas automáticas desde la línea de comandos (HU-144) y
+cuatro patrones nuevos de la IA (HU-145): defensa agrupada, guarnición, retirada e incursiones.
+Joaquín pidió que todo lo que se probara fuera automático: unas 250 partidas jugadas solas.
+
+### Lo que costó de verdad
+**La primera versión de las tácticas perdía casi siempre.** Repetía cada tres segundos la orden
+de agruparse y las tropas morían andando; la incursión salía con la mitad del ejército justo
+antes del ataque rival. Se vio por el diario de una build de desarrollo, se corrigió y ahora gana
+el 63 % a la táctica anterior. Quitar cualquier patrón la deja entre el 53 y el 57 %.
+
+**La base sur de Lago Helado gana el 71 %** de 150 partidas de bots. No es el asiento del
+jugador ni la distancia a las minas. Queda abierto para la 17; la calibración se hizo cambiando
+de base en cada partida para que no influyera.
+
+**Las pruebas se construyen en una copia del proyecto**, para no bloquear el Unity de Joaquín.
+La primera copia se llevó su `Library` con el editor abierto: salió una build con la escena de
+inicio sin script, y la build cerró el compilador auxiliar de su editor. Se borró y se regeneró.
+
+**El rendimiento no hizo falta tocarlo.** En la build, con 289 unidades peleando: 170 FPS de
+media y 94 en el 1 % más lento (en la semana 14, en el editor, eran 66 y 30).
+
+### Pendiente
+- La ventaja de la base sur en Lago Helado.
+- Semana 17: ejército que responde a lo que ve y objetivos con cabeza (HU de IA); borrar el
+  historial de ejemplo de `StreamingAssets`.
+
+### Cifras
+2 248 líneas de C# · 117 scripts · 93 bloques y 48 158 comprobaciones · ~250 partidas automáticas.
+
+---
+
+## Semana 15 — Interfaz final, tutorial y tercer mapa · PC3 (E10)
+**Entrega:** domingo 15/11/2026 · **Expo:** lunes 16/11/2026 · **Expone:** Joaquín
+**Tag:** [`v0.15.0-s15`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.15.0-s15) · **Rama:** `feat/E10-ui-final`
+
+### Lo prometido
+Fichas emergentes, HUD y cartel final en el sistema moderno, mensajes, pawns ociosos, un
+tutorial corto y el tercer mapa. HU-127 a HU-135.
+
+### Lo entregado
+Las nueve, con un cambio de alcance: el HUD de recursos ya era moderno (lo confundieron unos
+comentarios) y el cartel final no se reescribió, se le dio una resolución de referencia de 1080.
+E10 se cierra: once de trece épicas.
+
+### Lo que costó de verdad
+**El tutorial cambió de forma al probarlo.** Joaquín pidió un pawn que hablara con murmullos; el
+primer diálogo, a la izquierda, tapaba la base, y el nombre propio no le convenció. Quedó arriba
+a la derecha, con la cara volteada mirando al texto, y como «el capataz».
+
+**Lago Helado salió de una referencia de Joaquín**, generado con simetría de giro de 180° y
+retocado por él en el editor. También rehízo Cuatro Vientos; sus versiones son las oficiales.
+
+**Unity Hub dejó de abrir:** una actualización automática se cortó y dejó la instalación sin sus
+archivos. Al reinstalar, el instalador se colgaba en una comprobación de procesos de Windows, con
+un vigilante de instalaciones de terceros de por medio.
+
+### Pendiente
+- Balance y QA en la 16: el reparto de pawns del bot por recurso y los tirones de combate.
+
+### Cifras
+9 commits · 1 232 líneas de C# · 109 scripts · 77 bloques y 48 098 comprobaciones.
+
+---
+
 ## Semana 14 — Audio, feedback y todos contra todos (E09 · E10)
 **Entrega:** domingo 08/11/2026 · **Expo:** lunes 09/11/2026 · **Expone:** Kiara
 **Tag:** [`v0.14.0-s14`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.14.0-s14) · **Rama:** `feat/E09-E10-audio-feedback-ffa`
