@@ -217,7 +217,7 @@ namespace TinyTactics.Edificios
             float factor = TablaDeContadores.Factor(TipoAtaque.Flecha,
                                                     ((IObjetivo)presa).Armadura);
 
-            presa.RecibirDano(Mathf.Max(1, Mathf.RoundToInt(golpe * factor)), null);
+            presa.RecibirDano(Mathf.Max(1, Mathf.RoundToInt(golpe * factor)), null, true, _edificio.faccion);
         }
 
         void LanzarFlecha(Vector3 destino)

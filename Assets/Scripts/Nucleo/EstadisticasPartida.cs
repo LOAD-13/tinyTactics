@@ -21,6 +21,9 @@ namespace TinyTactics.Nucleo
         /// <summary>Segundo de partida en que este bando entró en combate. −1 si nunca.</summary>
         public float PrimerCombate = -1f;
 
+        /// <summary>Segundo de partida en que el bando cayó. −1 si sigue en pie.</summary>
+        public float EliminadoEn = -1f;
+
         /// <summary>Bajas por tipo de unidad. De aquí sale el MVP.</summary>
         public readonly Dictionary<TipoUnidad, int> BajasPorTipo = new Dictionary<TipoUnidad, int>();
 
@@ -152,11 +155,15 @@ namespace TinyTactics.Nucleo
         /// <summary>
         /// Alguien cayó. Se apunta en las dos hojas: pérdida para uno, baja para el otro.
         /// </summary>
-        public void UnidadCaida(Unidades.Unidad victima, Unidades.Unidad matador)
+        public void UnidadCaida(Unidades.Unidad victima, Unidades.Unidad matador, int bandoMatador = -1)
         {
             if (victima == null) return;
 
             Hoja(victima.faccion).UnidadesPerdidas++;
+
+            // Una torre: cuenta como baja de su bando, pero no tiene tipo de unidad para el MVP.
+            if (matador == null && bandoMatador >= 0 && bandoMatador != victima.faccion)
+                Hoja(bandoMatador).UnidadesEliminadas++;
 
             if (matador == null || matador.faccion == victima.faccion) return;
 

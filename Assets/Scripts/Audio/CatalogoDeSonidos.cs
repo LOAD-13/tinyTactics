@@ -23,7 +23,7 @@ namespace TinyTactics.Audio
         // Semana 14. Siempre al final: el catálogo guarda el número, no el nombre.
         AlertaAtaque,
 
-        // Semana 15: la voz de Bruno en el tutorial.
+        // Semana 15: la voz del capataz en el tutorial.
         Murmullo,
     }
 

@@ -708,6 +708,12 @@ namespace TinyTactics.Pruebas
             if (BotonConIcono(hayBotEnMiBando ? "Quitar bot de mi bando" : "Bot contra bot",
                               null, hayBotEnMiBando))
                 AlternarBotPropio(jugador, hayBotEnMiBando);
+
+            // Regla vieja contra nueva (semana 16): se juega bot contra bot con cada una y se
+            // comparan los informes del historial.
+            if (BotonConIcono(PlanDeIA.RepartoPorReservas ? "Reparto: por reservas" : "Reparto: fijo (antiguo)",
+                              null, PlanDeIA.RepartoPorReservas))
+                PlanDeIA.RepartoPorReservas = !PlanDeIA.RepartoPorReservas;
         }
 
         /// <summary>
@@ -783,6 +789,14 @@ namespace TinyTactics.Pruebas
             if (BotonConIcono("Ver cartel final", null)) VerCartel();
 
             if (BotonConIcono("Arrasar rivales", null)) ArrasarRivales();
+
+            // Semana 16: la medida de rendimiento, para repetirla en la build de entrega.
+            var medidor = MedidorDeRendimiento.Actual;
+            if (BotonConIcono(medidor != null ? $"Midiendo… {medidor.Restante:0} s" : "Medir rendimiento (60 s)",
+                              null, medidor != null) && medidor == null)
+                MedidorDeRendimiento.Empezar();
+            if (MedidorDeRendimiento.Resultado.Length > 0)
+                GUILayout.Label($"  {MedidorDeRendimiento.Resultado}", _ayuda);
         }
 
         void VerCartel()

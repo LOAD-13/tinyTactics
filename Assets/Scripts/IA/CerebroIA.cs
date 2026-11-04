@@ -69,6 +69,12 @@ namespace TinyTactics.IA
         [Tooltip("Regla del sandbox: el bot crece y se defiende, pero no sale a atacar.")]
         public bool soloDefender;
 
+        /// <summary>
+        /// Defensa agrupada y refuerzos en grupo (semana 16). Por bando y no global para poder
+        /// enfrentar en la misma partida un bot con la táctica nueva y otro con la vieja.
+        /// </summary>
+        public bool tacticaAgrupada = true;
+
         /// <summary>Todos los cerebros vivos. Lo usa el panel de partida libre.</summary>
         public static readonly List<CerebroIA> Todos = new List<CerebroIA>();
 

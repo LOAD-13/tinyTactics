@@ -167,19 +167,35 @@ namespace TinyTactics.IA
             // Defender gana siempre. Una oleada que sigue camino del enemigo mientras le
             // queman la base cambia un cuartel por una casa, y esa es una mala idea que
             // ningun jugador cometeria dos veces.
-            if (HayIntrusos(out var donde, out int intruso))
+            if (HayIntrusos(out var donde, out int intruso, out int intrusos, out var casa, out int torres))
             {
-                Estado = $"defendiendo la base del bando {intruso + 1}";
-
                 // Defender corta la ofensiva: cuando se vuelva a atacar, sera una nueva.
                 _presa = null;
                 _dondePresa = null;
                 _enOfensiva = false;
                 _desdeQueEspera = Time.time;
 
-                MandarA(donde);
+                if (!_cerebro.tacticaAgrupada || !PlanDeIA.Usa("defensa") || PlanDeIA.SalirADefender(_tropa.Count, intrusos, torres))
+                {
+                    Estado = $"defendiendo la base de un ataque del bando {intruso + 1}";
+                    MandarA(donde);
+                    return;
+                }
+
+                // Son más: se espera junto al castillo, donde se pelea todos juntos y con las
+                // torres. A cada unidad se la llama UNA vez por ataque: una unidad que anda por
+                // orden no pelea, y repetirle la orden cada tres segundos la dejaba andando
+                // mientras la mataban (la primera versión perdió así sus diez primeras partidas).
+                Estado = $"agrupando ({_tropa.Count}) contra {intrusos} del bando {intruso + 1}";
+                _lejos.Clear();
+                for (int i = 0; i < _tropa.Count; i++)
+                    if (_llamadas.Add(_tropa[i]) && (_tropa[i].transform.position - casa).sqrMagnitude > 100f)
+                        _lejos.Add(_tropa[i]);
+                if (_lejos.Count > 0) MandarA(casa, _lejos);
                 return;
             }
+
+            _llamadas.Clear();
 
             // Regla del sandbox: crece y defiende, pero nunca sale de casa.
             if (_cerebro.soloDefender)
@@ -203,6 +219,9 @@ namespace TinyTactics.IA
             int hacenFalta = PlanDeIA.TamanoDeOleada(Lanzadas, plan.primeraOleada,
                                                      plan.crecimientoPorOleada,
                                                      plan.oleadaMaxima, multiplicador);
+
+            if (_cerebro.tacticaAgrupada && PlanDeIA.Usa("incursion")) Hostigar(hacenFalta);
+            if (_tropa.Count == 0) return;
 
             if (_tropa.Count < hacenFalta)
             {
@@ -257,13 +276,24 @@ namespace TinyTactics.IA
         {
             int retirada = Mathf.Max(1, _cerebro.plan.primeraOleada / 2);
 
+            // Los recién entrenados no cruzan el mapa de uno en uno hasta la oleada: esperan en
+            // casa a ser tres y salen juntos (semana 16). Antes cada recluta iba solo y caía
+            // por el camino, que es justo lo que hacía crecer la ventaja del que iba ganando.
+            if (_cerebro.tacticaAgrupada && PlanDeIA.Usa("refuerzos")) Separar();
+
             // Primero, quien le esta pegando por el camino. Una oleada que sigue andando
             // hacia el castillo mientras dos caballeros la desangran por detras llega sin
             // nadie y no derriba nada: se pierde el ejercito entero a cambio de nada.
-            if (_tropa.Count >= retirada && ResponderAmenazas()) return;
+            if (_tropa.Count >= retirada && ResponderAmenazas())
+            {
+                if (_cerebro.tacticaAgrupada && PlanDeIA.Usa("retirada") && PlanDeIA.HayQueRetirarse(_tropa.Count, _enemigas.Count))
+                    Retirarse();
+                return;
+            }
 
             if (_tropa.Count < retirada)
             {
+                _enLaOleada.Clear();
                 // La ofensiva se acabo. AHORA se cuenta, y la siguiente pedira mas gente.
                 _enOfensiva = false;
                 _presa = null;
@@ -341,8 +371,14 @@ namespace TinyTactics.IA
 
             int minimo = Mathf.Max(2, _cerebro.plan.primeraOleada / 2);
 
-            bool bastante = _tropa.Count >= hacenFalta;
-            bool ataca = PlanDeIA.HoraDeAtacar(_tropa.Count, hacenFalta, minimo,
+            // Guarnición (semana 16): unas pocas se quedan en casa, así que la oleada se cuenta
+            // sin ellas. La paciencia sigue valiendo: si se cansa de esperar, sale con lo que hay.
+            // Solo se quedan las que sobran de la oleada: la guarnición no retrasa el ataque.
+            int guardia = _cerebro.tacticaAgrupada && PlanDeIA.Usa("guarnicion") ? Mathf.Clamp(_cerebro.plan.guarnicion, 0, Mathf.Max(0, _tropa.Count - hacenFalta)) : 0;
+            int salen = _tropa.Count - guardia;
+
+            bool bastante = salen >= hacenFalta;
+            bool ataca = PlanDeIA.HoraDeAtacar(salen, hacenFalta, minimo,
                                                Time.time - _desdeQueEspera, pacienciaMaxima);
 
             if (!ataca)
@@ -361,6 +397,9 @@ namespace TinyTactics.IA
             }
 
             _enOfensiva = true;
+            DejarGuarnicion(guardia);
+            _enLaOleada.Clear();
+            for (int i = 0; i < _tropa.Count; i++) _enLaOleada.Add(_tropa[i]);
             _presa = presa;
             _dondePresa = presa.PosicionDePlanta;
             _proximoEmpujon = Time.time + segundosEntreEmpujones;
@@ -521,10 +560,13 @@ namespace TinyTactics.IA
         /// regla del proyecto desde la semana 04. Y se filtra por la niebla del PROPIO bando:
         /// el bot no puede reaccionar a un ataque que no ve, igual que tú tampoco.
         /// </remarks>
-        bool HayIntrusos(out Vector3 donde, out int intruso)
+        bool HayIntrusos(out Vector3 donde, out int intruso, out int intrusos, out Vector3 casa, out int torres)
         {
             donde = default;
             intruso = -1;
+            intrusos = 0;
+            torres = 0;
+            casa = default;
 
             // La casa es el castillo, y si ya no hay castillo, lo que quede en pie. Antes
             // exigia castillo: un bando al que se lo derribaban dejaba de defender lo que le
@@ -532,7 +574,7 @@ namespace TinyTactics.IA
             var ancla = _cerebro.Base();
             if (ancla == null) return false;
 
-            var casa = ancla.PosicionDePlanta;
+            casa = ancla.PosicionDePlanta;
 
             RegistroDeUnidades.VecinasEnRadio(casa, radioDeAlarma, _cerca);
 
@@ -545,14 +587,33 @@ namespace TinyTactics.IA
                 if (!_cerebro.VeTodo && !NieblaDeGuerra.Ve(Faccion, u.transform.position))
                     continue;
 
-                donde = u.transform.position;
-                intruso = u.faccion;
-                Agraviar(intruso);
-                return true;
+                // Se cuentan todos los intrusos y no solo el primero: de cuántos son depende
+                // si se sale a por ellos o se espera agrupado (semana 16).
+                if (intrusos == 0)
+                {
+                    donde = u.transform.position;
+                    intruso = u.faccion;
+                    Agraviar(intruso);
+                }
+                if (u.datos.tipo != TipoUnidad.Pawn) intrusos++;
             }
 
-            return false;
+            if (intruso < 0) return false;
+
+            var casas = Edificio.Todos;
+            for (int i = 0; i < casas.Count; i++)
+            {
+                var e = casas[i];
+                if (e != null && e.faccion == Faccion && e.tipo == TipoEdificio.Torre && e.Operativo &&
+                    (e.PosicionDePlanta - casa).sqrMagnitude <= radioDeAlarma * radioDeAlarma)
+                    torres++;
+            }
+
+            return true;
         }
+
+        readonly List<Unidad> _lejos = new List<Unidad>();
+        readonly HashSet<Unidad> _llamadas = new HashSet<Unidad>();
 
         /// <summary>Hasta dónde llega «mi casa», en tiles.</summary>
         /// <remarks>
@@ -686,12 +747,188 @@ namespace TinyTactics.IA
             return suma / _tropa.Count;
         }
 
+        /// <summary>
+        /// Deja en <c>_tropa</c> solo a los de la oleada. Los nuevos se suman cuando son tres.
+        /// </summary>
+        void Separar()
+        {
+            _nuevos.Clear();
+            _tropa.RemoveAll(u => _guarnicion.Contains(u));
+            for (int i = 0; i < _tropa.Count; i++)
+                if (!_enLaOleada.Contains(_tropa[i])) _nuevos.Add(_tropa[i]);
+
+            if (_nuevos.Count >= 3)
+            {
+                for (int i = 0; i < _nuevos.Count; i++) _enLaOleada.Add(_nuevos[i]);
+                if (_presa != null && ((IObjetivo)_presa).Vivo)
+                    Autoridad.Emitir(new OrdenAtacar { Faccion = Faccion, Estructura = _presa }, _nuevos);
+                return;
+            }
+
+            for (int i = 0; i < _nuevos.Count; i++) _tropa.Remove(_nuevos[i]);
+        }
+
+        readonly HashSet<Unidad> _enLaOleada = new HashSet<Unidad>();
+
+        // -----------------------------------------------------------------
+        // Patrones de la semana 16: guarnición, retirada e incursiones
+        // -----------------------------------------------------------------
+
+        readonly HashSet<Unidad> _guarnicion = new HashSet<Unidad>();
+        readonly HashSet<Unidad> _incursion = new HashSet<Unidad>();
+        readonly List<Unidad> _grupo = new List<Unidad>();
+        float _proximaIncursion = -1f, _inicioIncursion, _proximoGolpe;
+
+        const int tamanoDeIncursion = 3;
+        const float duracionDeIncursion = 45f;
+
+        Vector3 Casa => _cerebro.Base() != null ? _cerebro.Base().PosicionDePlanta : CentroDeLaTropa();
+
+        /// <summary>Las <paramref name="cuantas"/> más cercanas al castillo se quedan; salen las demás.</summary>
+        void DejarGuarnicion(int cuantas)
+        {
+            _guarnicion.Clear();
+            if (cuantas <= 0) return;
+
+            var casa = Casa;
+            _tropa.Sort((a, b) => (a.transform.position - casa).sqrMagnitude
+                                  .CompareTo((b.transform.position - casa).sqrMagnitude));
+            for (int i = 0; i < cuantas && i < _tropa.Count; i++) _guarnicion.Add(_tropa[i]);
+            _tropa.RemoveAll(u => _guarnicion.Contains(u));
+        }
+
+        /// <summary>
+        /// La pelea va mal: la oleada vuelve a casa a juntarse con los refuerzos.
+        /// </summary>
+        void Retirarse()
+        {
+            Estado = $"retirandose ({_tropa.Count} contra {_enemigas.Count})";
+            DiarioDePartida.Anotar($"Bando {Faccion + 1} se retira: {_tropa.Count} contra {_enemigas.Count}");
+
+            _enOfensiva = false;
+            _presa = null;
+            _dondePresa = null;
+            _amenaza = null;
+            _peleando = false;
+            _enLaOleada.Clear();
+            _guarnicion.Clear();
+            Lanzadas++;
+            _desdeQueEspera = Time.time;
+            _mejorTropa = _tropa.Count;
+
+            MandarA(Casa);
+        }
+
+        /// <summary>
+        /// Incursión: tres tropas van a la mina del rival a por sus pawns y vuelven.
+        /// </summary>
+        /// <remarks>
+        /// Hace daño a la economía en vez de a los edificios, que es otra forma de ganar: un
+        /// rival que pierde cuatro pawns tarda un minuto en reponerlos y entrena menos. La
+        /// incursión huye si aparece más tropa que ella, y vuelve a los 45 segundos pase lo que
+        /// pase. Sus tropas salen de la cuenta del ejército mientras están fuera.
+        /// <para>
+        /// Solo va a donde sabe que hay algo (ADR-23): la mina más cercana a un edificio del
+        /// rival que ya haya visto. Si no conoce ninguno, no sale.
+        /// </para>
+        /// </remarks>
+        void Hostigar(int hacenFalta)
+        {
+            float cada = _cerebro.dificultad != null ? _cerebro.dificultad.segundosEntreIncursiones : 150f;
+            if (_proximaIncursion < 0f) _proximaIncursion = Time.time + cada * 0.5f;
+
+            _incursion.RemoveWhere(u => u == null || !u.Viva);
+
+            if (_incursion.Count > 0)
+            {
+                _grupo.Clear();
+                _grupo.AddRange(_incursion);
+                var centro = Centro(_grupo);
+
+                bool tiempo = Time.time - _inicioIncursion > duracionDeIncursion;
+                bool peligro = Contar(centro, 7f, soldados: true, out _) > _incursion.Count;
+
+                if (tiempo || peligro)
+                {
+                    DiarioDePartida.Anotar($"Bando {Faccion + 1} vuelve de la incursion" + (peligro ? " (huye)" : ""));
+                    MandarA(Casa, _grupo);
+                    _incursion.Clear();
+                    _proximaIncursion = Time.time + cada;
+                }
+                else if (Time.time >= _proximoGolpe)
+                {
+                    _proximoGolpe = Time.time + 2f;
+                    Contar(centro, 9f, soldados: false, out var pawn);
+                    if (pawn != null) Autoridad.Emitir(new OrdenAtacar { Faccion = Faccion, Objetivo = pawn }, _grupo);
+                }
+
+                _tropa.RemoveAll(u => _incursion.Contains(u));
+                return;
+            }
+
+            if (_enOfensiva || Time.time < _proximaIncursion) return;
+            // Solo sobra gente para hostigar si, sin ellos, sigue habiendo una oleada entera en
+            // casa. La primera versión salía con tres de seis y la oleada rival la pillaba a medias.
+            if (_tropa.Count < hacenFalta + tamanoDeIncursion) return;
+
+            var objetivo = ObjetivoConocido(Casa);
+            if (objetivo == null) return;
+
+            var mina = NodoRecurso.MasCercano(objetivo.PosicionDePlanta, TipoRecurso.Oro, 20f);
+            var destino = mina != null ? mina.transform.position : objetivo.PosicionDePlanta;
+
+            _grupo.Clear();
+            for (int i = 0; i < _tropa.Count && _grupo.Count < tamanoDeIncursion; i++)
+                if (_tropa[i].datos.tipo != TipoUnidad.Monje) _grupo.Add(_tropa[i]);
+            if (_grupo.Count < tamanoDeIncursion) return;
+
+            foreach (var u in _grupo) _incursion.Add(u);
+            _inicioIncursion = Time.time;
+            _proximaIncursion = Time.time + cada;
+            DiarioDePartida.Anotar($"Bando {Faccion + 1} manda una incursion de {_grupo.Count} contra el bando {objetivo.faccion + 1}");
+            MandarA(destino, _grupo);
+            _tropa.RemoveAll(u => _incursion.Contains(u));
+        }
+
+        static Vector3 Centro(List<Unidad> grupo)
+        {
+            var suma = Vector3.zero;
+            foreach (var u in grupo) suma += u.transform.position;
+            return grupo.Count > 0 ? suma / grupo.Count : suma;
+        }
+
+        /// <summary>Enemigos visibles cerca: soldados, o pawns. Devuelve el más cercano en <paramref name="cercano"/>.</summary>
+        int Contar(Vector3 punto, float radio, bool soldados, out Unidad cercano)
+        {
+            cercano = null;
+            float mejor = float.MaxValue;
+            int n = 0;
+
+            RegistroDeUnidades.VecinasEnRadio(punto, radio, _cerca);
+            for (int i = 0; i < _cerca.Count; i++)
+            {
+                var u = _cerca[i];
+                if (u == null || !u.Viva || u.faccion == Faccion || u.datos == null) continue;
+                if ((u.datos.tipo == TipoUnidad.Pawn) == soldados) continue;
+                if (!_cerebro.VeTodo && !NieblaDeGuerra.Ve(Faccion, u.transform.position)) continue;
+
+                n++;
+                float d = (u.transform.position - punto).sqrMagnitude;
+                if (d < mejor) { mejor = d; cercano = u; }
+            }
+
+            return n;
+        }
+        readonly List<Unidad> _nuevos = new List<Unidad>();
+
         void Atacar(Edificio presa)
         {
             Autoridad.Emitir(new OrdenAtacar { Faccion = Faccion, Estructura = presa }, _tropa);
         }
 
-        void MandarA(Vector3 punto)
+        void MandarA(Vector3 punto) => MandarA(punto, _tropa);
+
+        void MandarA(Vector3 punto, List<Unidad> quienes)
         {
             var mundo = MundoJuego.Actual;
             if (mundo == null || mundo.Grilla == null) return;
@@ -703,7 +940,7 @@ namespace TinyTactics.IA
 
             if (!mundo.Grilla.CeldaTransitableCercana(celda, 8, out celda)) return;
 
-            Autoridad.Emitir(new OrdenMover { Faccion = Faccion, Destino = celda }, _tropa);
+            Autoridad.Emitir(new OrdenMover { Faccion = Faccion, Destino = celda }, quienes);
         }
 
         /// <summary>
