@@ -61,9 +61,9 @@ namespace TinyTactics.Interfaz
         [Tooltip("Los mapas que se pueden elegir. El generador pone el de la escena.")]
         public FichaDeMapa[] mapas = new FichaDeMapa[0];
 
-        public string version = "v0.12 · Grupo 01 · UTP";
+        public string version = "v0.16 · Grupo 01 · UTP";
 
-        enum Pantalla { Titulo, Principal, Partida, Opciones, Creditos }
+        enum Pantalla { Titulo, Principal, Partida, Opciones, Creditos, Historial }
 
         const int Azul = 0, Rojo = 1, Amarillo = 2, Morado = 3, Negro = 4;
 
@@ -137,7 +137,11 @@ namespace TinyTactics.Interfaz
             }
 
             if (teclado != null && teclado.escapeKey.wasPressedThisFrame && _actual != Pantalla.Principal)
-                Ir(Pantalla.Principal);
+            {
+                // En el detalle de una partida, ESC vuelve a la lista, no al menú.
+                if (_actual == Pantalla.Historial) VolverDelHistorial();
+                else Ir(Pantalla.Principal);
+            }
         }
 
         void Ir(Pantalla p, bool instantaneo = false)
@@ -165,6 +169,7 @@ namespace TinyTactics.Interfaz
 
             if (p == Pantalla.Partida) PintarPartida();
             if (p == Pantalla.Opciones) PintarOpciones();
+            if (p == Pantalla.Historial) PintarHistorial();
         }
 
         void AnimarLogo()
@@ -192,6 +197,7 @@ namespace TinyTactics.Interfaz
             _pantallas[Pantalla.Partida] = ConstruirPartida(raiz);
             _pantallas[Pantalla.Opciones] = ConstruirOpciones(raiz);
             _pantallas[Pantalla.Creditos] = ConstruirCreditos(raiz);
+            _pantallas[Pantalla.Historial] = ConstruirHistorial(raiz);
 
             ConstruirLogo(raiz);
 
@@ -294,18 +300,20 @@ namespace TinyTactics.Interfaz
                 ("Jugar", Azul, () => Preparar(ModoDePartida.Partida)),
                 ("Tutorial", Rojo, Navegacion.Tutorial),
                 ("Sandbox", Amarillo, () => Preparar(ModoDePartida.Sandbox)),
-                ("Opciones", Morado, () => Ir(Pantalla.Opciones)),
-                ("Créditos", Negro, () => Ir(Pantalla.Creditos)),
+                ("Historial", Morado, () => Ir(Pantalla.Historial)),
+                ("Opciones", Negro, () => Ir(Pantalla.Opciones)),
+                ("Créditos", Azul, () => Ir(Pantalla.Creditos)),
                 ("Salir", Rojo, Navegacion.Salir),
             };
 
             for (int i = 0; i < entradas.Length; i++)
             {
                 var (texto, color, accion) = entradas[i];
-                // Seis espadas desde la semana 15 (entró el tutorial): un poco más juntas para
-                // que la columna siga cabiendo entera en 1080 de alto.
+                // Siete espadas desde la semana 16 (entró el historial): más juntas para que la
+                // columna siga cabiendo entera en 1080 de alto. La zona de clic de cada hoja
+                // mide 100 de alto, así que 104 de separación no las solapa.
                 var b = Espada(p, texto, color, accion,
-                               new Vector2(-470f, 300f - i * 120f));
+                               new Vector2(-470f, 318f - i * 104f));
                 b.gameObject.AddComponent<EfectoDeEspada>().orden = i;
             }
 

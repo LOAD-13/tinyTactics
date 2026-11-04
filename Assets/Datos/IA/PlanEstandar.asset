@@ -43,7 +43,7 @@ MonoBehaviour:
   - que: 9
     cantidad: 1
   bucleMilitar: 060000000800000007000000
-  pawnsALaMadera: 5
+  pawnsALaMadera: 3
   topePawns: 10
   primeraOleada: 5
   crecimientoPorOleada: 2

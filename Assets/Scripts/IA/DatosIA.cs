@@ -46,6 +46,10 @@ namespace TinyTactics.IA
                  "es un bot que tarda en reaccionar; menos de 1, uno que no pierde el tiempo.")]
         [Range(0.5f, 2f)] public float ritmo = 1f;
 
+        [Tooltip("Cada cuántos segundos manda una incursión contra los pawns del rival (semana 16). " +
+                 "Es ritmo, no inteligencia: las tres dificultades hostigan igual, unas más a menudo.")]
+        [Range(30f, 600f)] public float segundosEntreIncursiones = 150f;
+
         [Header("Percepcion")]
         [Tooltip("Si el bot hace trampa y ve el mapa entero. Apagado en las tres " +
                  "dificultades (ADR-23): solo existe para pruebas.")]

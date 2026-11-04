@@ -170,7 +170,11 @@ namespace TinyTactics.Unidades
         /// ejercito entero parpadearia cada dos segundos mientras se muere de hambre y no
         /// se entenderia nada de lo que pasa en pantalla.
         /// </param>
-        public void RecibirDano(int cantidad, Unidad agresor = null, bool conDestello = true)
+        /// <param name="bandoAgresor">
+        /// Quién pega cuando no es una unidad: una torre. Sin él, las bajas de las torres no se
+        /// apuntaban a nadie y el marcador del historial se quedaba corto (semana 16).
+        /// </param>
+        public void RecibirDano(int cantidad, Unidad agresor = null, bool conDestello = true, int bandoAgresor = -1)
         {
             if (_vida == 0 || cantidad <= 0) return;
 
@@ -204,7 +208,7 @@ namespace TinyTactics.Unidades
             }
 
             var libro = EstadisticasPartida.Actual;
-            if (libro != null) libro.UnidadCaida(this, agresor);
+            if (libro != null) libro.UnidadCaida(this, agresor, bandoAgresor);
 
             // Morir es un estado, no un interruptor. Antes esto apagaba el objeto de golpe
             // y la unidad desaparecía en un frame; ahora la máquina de estados se encarga

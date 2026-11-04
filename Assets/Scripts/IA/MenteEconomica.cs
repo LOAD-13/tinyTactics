@@ -30,6 +30,11 @@ namespace TinyTactics.IA
         readonly List<Unidad> _ociosos = new List<Unidad>();
         readonly List<Unidad> _pawns = new List<Unidad>();
 
+        // Por TipoRecurso: cuántos recolectan cada uno, y uno cualquiera de ellos por si hay
+        // que moverlo (semana 16).
+        readonly int[] _hay = new int[4], _quiere = new int[4];
+        readonly Unidad[] _unoEn = new Unidad[4];
+
         public MenteEconomica(CerebroIA cerebro) => _cerebro = cerebro;
 
         int Faccion => _cerebro.faccion;
@@ -57,7 +62,8 @@ namespace TinyTactics.IA
 
             var todas = RegistroDeUnidades.Todas;
 
-            int enMadera = 0, enCarne = 0;
+            System.Array.Clear(_hay, 0, _hay.Length);
+            System.Array.Clear(_unoEn, 0, _unoEn.Length);
 
             for (int i = 0; i < todas.Count; i++)
             {
@@ -77,11 +83,11 @@ namespace TinyTactics.IA
 
                 if (recolector == null || !recolector.Recolectando) continue;
 
-                if (recolector.Recurso == TipoRecurso.Madera) enMadera++;
-                else if (recolector.Recurso == TipoRecurso.Carne) enCarne++;
+                int r = (int)recolector.Recurso;
+                if (r <= 0 || r >= _hay.Length) continue;
+                _hay[r]++;
+                _unoEn[r] = u;
             }
-
-            if (_ociosos.Count == 0) return;
 
             int quiereCarne = plan.pawnsALaCarne;
 
@@ -92,8 +98,18 @@ namespace TinyTactics.IA
             if (eco != null && eco.Cantidad(Faccion, TipoRecurso.Carne) <= 0)
                 quiereCarne = Mathf.Max(quiereCarne, 4);
 
-            PlanDeIA.Reparto(_pawns.Count, plan.pawnsALaMadera, quiereCarne,
-                             out int quiereEnMadera, out int quiereEnCarne, out _);
+            int aLaMadera = plan.pawnsALaMadera;
+            if (PlanDeIA.RepartoPorReservas && eco != null)
+                quiereCarne = PlanDeIA.CarneSegunReservas(quiereCarne, eco.Cantidad(Faccion, TipoRecurso.Carne));
+            if (PlanDeIA.RepartoPorReservas && eco != null)
+                aLaMadera = PlanDeIA.MaderaSegunReservas(aLaMadera, eco.Cantidad(Faccion, TipoRecurso.Oro),
+                                                         eco.Cantidad(Faccion, TipoRecurso.Madera));
+
+            PlanDeIA.Reparto(_pawns.Count, aLaMadera, quiereCarne,
+                             out _quiere[(int)TipoRecurso.Madera], out _quiere[(int)TipoRecurso.Carne],
+                             out _quiere[(int)TipoRecurso.Oro]);
+
+            int enMadera = _hay[(int)TipoRecurso.Madera], enCarne = _hay[(int)TipoRecurso.Carne];
 
             for (int i = 0; i < _ociosos.Count; i++)
             {
@@ -101,12 +117,17 @@ namespace TinyTactics.IA
                 // no acaben los dos en el mismo recurso.
                 TipoRecurso recurso;
 
-                if (enCarne < quiereEnCarne) { recurso = TipoRecurso.Carne; enCarne++; }
-                else if (enMadera < quiereEnMadera) { recurso = TipoRecurso.Madera; enMadera++; }
+                if (enCarne < _quiere[(int)TipoRecurso.Carne]) { recurso = TipoRecurso.Carne; enCarne++; }
+                else if (enMadera < _quiere[(int)TipoRecurso.Madera]) { recurso = TipoRecurso.Madera; enMadera++; }
                 else recurso = TipoRecurso.Oro;
 
                 MandarARecolectar(_ociosos[i], recurso);
             }
+
+            // Con todos ocupados, se corrige el reparto moviendo a uno que sobre (semana 16).
+            if (_ociosos.Count == 0 && PlanDeIA.RepartoPorReservas &&
+                PlanDeIA.QuienCambia(_hay, _quiere, out int desde, out int hacia))
+                MandarARecolectar(_unoEn[desde], (TipoRecurso)hacia);
         }
 
         void MandarARecolectar(Unidad pawn, TipoRecurso recurso)
@@ -114,6 +135,12 @@ namespace TinyTactics.IA
             // Radio generoso: en un mapa de 224 tiles, el bosque puede quedar lejos de la
             // base, y un pawn que no encuentra nada es un pawn parado para siempre.
             var nodo = NodoRecurso.MasCercano(pawn.transform.position, recurso, 60f);
+
+            // Si cerca no queda, se busca más lejos antes de cambiar de recurso: cuando las
+            // minas de casa se agotan, la siguiente veta suele estar fuera de ese radio, y sin
+            // esto el bot mandaba al bosque a todos los que pedía en el oro (semana 16).
+            if (nodo == null && PlanDeIA.RepartoPorReservas)
+                nodo = NodoRecurso.MasCercano(pawn.transform.position, recurso, 200f);
 
             // Sin nodos de ese tipo cerca, se prueban los otros dos antes de rendirse:
             // mejor un pawn recogiendo lo que no tocaba que un pawn mirando al horizonte.

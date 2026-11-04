@@ -247,6 +247,8 @@ namespace TinyTactics.Nucleo
             if (!_eliminados.Add(bando)) return;
 
             DiarioDePartida.Anotar($"ELIMINADO el bando {bando + 1}");
+            var libro = EstadisticasPartida.Actual;
+            if (libro != null) libro.Hoja(bando).EliminadoEn = libro.Duracion;
             Foto();
 
             _condenadas.Clear();

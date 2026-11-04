@@ -73,6 +73,9 @@ namespace TinyTactics.IA
         [Tooltip("De cada diez pawns, cuantos van a la madera.")]
         [Range(0, 10)] public int pawnsALaMadera = 4;
 
+        [Tooltip("Tropas que se quedan en casa cuando sale una oleada (semana 16).")]
+        [Range(0, 6)] public int guarnicion = 2;
+
         [Tooltip("De cada diez pawns, cuantos van a la carne. El resto va al oro. " +
                  "Desde la semana 10 el hambre quita vida, asi que un bot que ignore la " +
                  "carne se muere solo. Dos de cada diez bastan para un ejercito mediano.")]
@@ -311,6 +314,109 @@ namespace TinyTactics.IA
             Asegurar(ref madera, ref carne, ref oro, pMadera > 0);
             Asegurar(ref carne, ref madera, ref oro, pCarne > 0);
             Asegurar(ref oro, ref madera, ref carne, pMadera + pCarne < 10);
+        }
+
+        /// <summary>
+        /// Apaga el reparto por reservas (semana 16). Solo para comparar la regla vieja con
+        /// la nueva desde el panel de pruebas; en una partida normal siempre está encendido.
+        /// </summary>
+        public static bool RepartoPorReservas = true;
+
+        /// <summary>
+        /// Patrones de la semana 16 apagados para las pruebas: «defensa», «refuerzos»,
+        /// «guarnicion», «retirada», «incursion». Vacío en una partida normal.
+        /// </summary>
+        public static readonly System.Collections.Generic.HashSet<string> PatronesApagados =
+            new System.Collections.Generic.HashSet<string>();
+
+        public static bool Usa(string patron) => !PatronesApagados.Contains(patron);
+
+        /// <summary>
+        /// Corrige la proporción de madera del plan según lo que haya en el almacén.
+        /// </summary>
+        /// <remarks>
+        /// Por cada 150 de diferencia entre madera y oro, un pawn de cada diez cambia de
+        /// recurso, hasta tres. El plan sigue mandando en el punto de partida; esto solo lo
+        /// tuerce cuando un recurso se amontona y el otro falta. Es gradual a propósito: con
+        /// un umbral de todo o nada, la proporción salta de golpe al cruzarlo y los pawns van
+        /// y vienen entre la mina y el bosque.
+        /// </remarks>
+        public static int MaderaSegunReservas(int deCadaDiez, int oro, int madera)
+        {
+            int giro = Mathf.Clamp((madera - oro) / 150, -3, 3);
+            return Mathf.Clamp(deCadaDiez - giro, 1, 8);
+        }
+
+        /// <summary>
+        /// ¿La pelea por el camino está perdida? Entonces la oleada vuelve a casa (semana 16).
+        /// </summary>
+        /// <remarks>
+        /// Antes se peleaba hasta el último: una oleada de cinco contra ocho moría entera y no
+        /// se llevaba nada. Retirarse a tiempo guarda las tropas para la siguiente, que además
+        /// pelea en casa, con las torres. Hace falta que el enemigo sea una vez y media más y
+        /// al menos dos más: un empate, o uno de diferencia, se sigue peleando.
+        /// </remarks>
+        public static bool HayQueRetirarse(int propias, int enemigas) =>
+            propias >= 1 && enemigas * 2 >= propias * 3 && enemigas - propias >= 2;
+
+        /// <summary>
+        /// ¿Se sale a por los intrusos o se espera agrupado junto al castillo?
+        /// </summary>
+        /// <remarks>
+        /// Antes se salía siempre, y con cada tropa recién entrenada: contra una oleada de cinco
+        /// eso es regalar las unidades de una en una (semana 16, la partida que Joaquín perdió
+        /// con 33 caídas). Ahora, si el atacante es más, la defensa espera junto al castillo,
+        /// donde pelea toda junta y con las torres disparando. Cada torre cuenta como dos.
+        /// Un explorador suelto se sale a buscar siempre.
+        /// <para>
+        /// Solo se espera con mucha desventaja (menos del 60 % de los atacantes). La primera
+        /// versión esperaba con cualquier desventaja, y cuatro contra cinco sin torres miraba
+        /// desde el castillo cómo le tiraban los cuarteles: perdió sus diez primeras partidas
+        /// contra la táctica vieja.
+        /// </para>
+        /// </remarks>
+        public static bool SalirADefender(int defensores, int intrusos, int torres) =>
+            intrusos <= 1 || (defensores + 2 * torres) * 5 >= intrusos * 3;
+
+        /// <summary>
+        /// Recorta los pawns de la carne cuando la despensa está llena.
+        /// </summary>
+        /// <remarks>
+        /// La carne solo se come despacio, así que con dos de cada diez fijos se amontona: en
+        /// una partida de prueba los dos bots acabaron con 600 de carne y sin oro para tropas.
+        /// Con 200 se baja a uno; con 400, a ninguno, hasta que vuelva a bajar.
+        /// </remarks>
+        public static int CarneSegunReservas(int deCadaDiez, int carne)
+        {
+            if (carne >= 400) return 0;
+            if (carne >= 200) return Mathf.Min(deCadaDiez, 1);
+            return deCadaDiez;
+        }
+
+        /// <summary>
+        /// Si sobran pawns en un recurso y faltan en otro, de cuál a cuál se mueve uno.
+        /// </summary>
+        /// <remarks>
+        /// Antes solo se repartían los pawns parados, así que un reparto que dejaba de servir
+        /// no se corregía nunca: los que ya talaban seguían talando. Ahora se mueve uno por
+        /// vuelta, y solo si en el origen sobran dos o más —con uno de margen, el redondeo
+        /// del reparto bastaría para tenerlo cambiando de sitio cada segundo.
+        /// </remarks>
+        /// <param name="hay">Pawns recolectando cada recurso, indexado por <c>TipoRecurso</c>.</param>
+        /// <param name="quiere">Los que debería haber, con el mismo índice.</param>
+        public static bool QuienCambia(int[] hay, int[] quiere, out int desde, out int hacia)
+        {
+            desde = hacia = -1;
+            int sobraMas = 1, faltaMas = 0;
+
+            for (int r = 0; r < hay.Length && r < quiere.Length; r++)
+            {
+                int diferencia = hay[r] - quiere[r];
+                if (diferencia > sobraMas) { sobraMas = diferencia; desde = r; }
+                if (-diferencia > faltaMas) { faltaMas = -diferencia; hacia = r; }
+            }
+
+            return desde >= 0 && hacia >= 0;
         }
 
         /// <summary>Le da uno al que se quedo sin nada, quitandoselo al que mas tiene.</summary>

@@ -15,7 +15,7 @@ namespace TinyTactics.Nucleo
         Sandbox,
         /// <summary>El editor de mapas: sin bandos, sin IA, solo el mapa y los pinceles.</summary>
         Editor,
-        /// <summary>El tutorial: un prado propio, un rival que no se mueve y Bruno explicando (semana 15).</summary>
+        /// <summary>El tutorial: un prado propio, un rival que no se mueve y el capataz explicando (semana 15).</summary>
         Tutorial,
     }
 
