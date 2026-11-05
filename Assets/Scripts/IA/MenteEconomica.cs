@@ -257,7 +257,37 @@ namespace TinyTactics.IA
                 elegido = bucle[i];
             }
 
+            // Ejército que responde (semana 17): si se ve al rival, se entrena sobre todo lo que
+            // le gana. Solo mientras no se aleje demasiado del resto: un ejército de una sola
+            // pieza es fácil de contrarrestar a su vez.
+            if (_cerebro.Usa("respuesta"))
+            {
+                var contra = PlanDeIA.Contra(Visto());
+                var objetivo = contra == TipoUnidad.Guerrero ? Objetivo.Guerreros
+                             : contra == TipoUnidad.Lancero ? Objetivo.Lanceros
+                             : contra == TipoUnidad.Arquero ? Objetivo.Arqueros : elegido;
+                if (System.Array.IndexOf(bucle, objetivo) >= 0 && inventario[(int)objetivo] <= menos + 2)
+                    elegido = objetivo;
+            }
+
             Perseguir(elegido);
+        }
+
+        /// <summary>El tipo de soldado enemigo que más ve este bando ahora mismo (respeta la niebla).</summary>
+        TipoUnidad Visto()
+        {
+            int g = 0, l = 0, a = 0;
+            var todas = RegistroDeUnidades.Todas;
+            for (int i = 0; i < todas.Count; i++)
+            {
+                var u = todas[i];
+                if (u == null || !u.Viva || u.faccion == Faccion || u.datos == null) continue;
+                if (!_cerebro.VeTodo && !NieblaDeGuerra.Ve(Faccion, u.transform.position)) continue;
+                if (u.datos.tipo == TipoUnidad.Guerrero) g++;
+                else if (u.datos.tipo == TipoUnidad.Lancero) l++;
+                else if (u.datos.tipo == TipoUnidad.Arquero) a++;
+            }
+            return PlanDeIA.Mayoritario(g, l, a);
         }
 
         // -----------------------------------------------------------------
@@ -336,8 +366,13 @@ namespace TinyTactics.IA
             // nada que el castillo no defienda ya.
             int separacion = tipo == TipoEdificio.Torre ? 9 : 4;
 
+            // Detrás del castillo, lejos del centro del mapa; las torres, hacia el centro, que es
+            // por donde llega el enemigo. Así dos bases simétricas construyen simétrico (semana 17).
+            var detras = (Vector2)(centro - new Vector2Int(mundo.Grilla.Ancho / 2, mundo.Grilla.Alto / 2));
+            var hacia = tipo == TipoEdificio.Torre ? -detras : detras;
+
             if (!BuscadorDeSitio.Buscar(mundo.Grilla, centro, ficha.planta,
-                                        separacion, 26, out var celdas))
+                                        separacion, 26, out var celdas, hacia))
                 return $"sin sitio para {tipo}";
 
             if (!economia.Cobrar(Faccion, ficha.oro, ficha.madera))

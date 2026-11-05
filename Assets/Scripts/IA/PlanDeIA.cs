@@ -348,6 +348,51 @@ namespace TinyTactics.IA
         }
 
         /// <summary>
+        /// Lo que gana a una unidad, según el triángulo del GDD (semana 17): el lancero gana al
+        /// guerrero, el guerrero al arquero y el arquero al lancero.
+        /// </summary>
+        public static Datos.TipoUnidad Contra(Datos.TipoUnidad visto)
+        {
+            switch (visto)
+            {
+                case Datos.TipoUnidad.Guerrero: return Datos.TipoUnidad.Lancero;
+                case Datos.TipoUnidad.Arquero: return Datos.TipoUnidad.Guerrero;
+                case Datos.TipoUnidad.Lancero: return Datos.TipoUnidad.Arquero;
+                default: return Datos.TipoUnidad.Pawn;
+            }
+        }
+
+        /// <summary>
+        /// El tipo de soldado que más se ve en el rival, o Pawn si se han visto menos de tres:
+        /// con dos soldados vistos no se sabe nada de un ejército.
+        /// </summary>
+        public static Datos.TipoUnidad Mayoritario(int guerreros, int lanceros, int arqueros)
+        {
+            if (guerreros + lanceros + arqueros < 3) return Datos.TipoUnidad.Pawn;
+            if (guerreros >= lanceros && guerreros >= arqueros) return Datos.TipoUnidad.Guerrero;
+            return lanceros >= arqueros ? Datos.TipoUnidad.Lancero : Datos.TipoUnidad.Arquero;
+        }
+
+        /// <summary>
+        /// Lo lejos que «parece» un edificio enemigo al elegir objetivo (semana 17).
+        /// </summary>
+        /// <remarks>
+        /// Cuarteles y campos de tiro parecen 15 casillas más cerca: derribarlos corta los
+        /// refuerzos. Las torres, 8 más lejos: cuestan mucho y no producen nada. El castillo y
+        /// las casas, tal cual.
+        /// </remarks>
+        public static float DistanciaConPrioridad(Datos.TipoEdificio tipo, float distancia)
+        {
+            switch (tipo)
+            {
+                case Datos.TipoEdificio.Cuartel:
+                case Datos.TipoEdificio.CampoDeTiro: return distancia - 15f;
+                case Datos.TipoEdificio.Torre: return distancia + 8f;
+                default: return distancia;
+            }
+        }
+
+        /// <summary>
         /// ¿La pelea por el camino está perdida? Entonces la oleada vuelve a casa (semana 16).
         /// </summary>
         /// <remarks>
