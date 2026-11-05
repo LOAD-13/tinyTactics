@@ -21,7 +21,7 @@ Numeración global correlativa. La épica es un campo, no un prefijo.
 | `E08` | IA rival | 10-11 | 🟢 Cerrada |
 | `E09` | Flujo de partida y FFA | 12, 14 | 🟢 Cerrada |
 | `E10` | Presentación — audio, VFX, UI | 11, 14-15 | 🟢 Cerrada |
-| `E11` | Calidad — balance, QA, build | 16-17 | ⚪ Pendiente |
+| `E11` | Calidad — balance, QA, build | 16-17 | 🟢 Cerrada |
 | `E12` | PvP LAN *(condicional — compuerta S11)* | — | ⛔ NO-GO en la semana 11 · [ADR-24](ARQUITECTURA.md#adr-24) |
 | `E13` | Editor de mapas | 13 | 🟢 Cerrada *(primer trozo en la 08; requisitos en [SANDBOX.md](SANDBOX.md))* |
 
@@ -1672,6 +1672,66 @@ carrera a ver quién derriba antes.
 **Nota de alcance.** Estaba en la semana 11 y se adelanta. Una vez que existe la capa táctica,
 defender es la misma decisión —a dónde mando el ejército— con otra respuesta; dejarlo para la
 semana siguiente significaba volver a abrir el mismo archivo.
+
+---
+
+# Semana 17 — Entrega final: IA que responde, Linux y versión 1.0 (E11)
+
+**Meta de la semana:** cerrar el proyecto. Los dos patrones de la IA que quedaron para esta
+semana, la ventaja injusta de Lago Helado, el ejecutable para Linux, un vídeo de lanzamiento y
+la versión 1.0 publicada con sus ejecutables.
+
+> **Una sola rama:** `feat/E11-entrega-final`.
+
+**Decidido el 04/11/2026:** la etiqueta del menú queda solo con la versión y la medida de
+rendimiento sale del panel (se lanza con `-medir`). El historial de ejemplo se queda en el tag
+de la 17 y se quita en la 1.0. **Decidido el 05/11:** el vídeo se monta con gameplay grabado por
+el propio juego, no con capturas de pantalla.
+
+| HU | Título | Riesgo |
+|---|---|---|
+| HU-146 | El ejército responde a lo que ve | medio |
+| HU-147 | Objetivos con cabeza: cuarteles antes que casas | bajo |
+| HU-148 | La base sur de Lago Helado ya no gana más que la norte | medio |
+| HU-149 | Patrones apagables por bando y prueba de carga desde la línea de comandos | bajo |
+| HU-150 | Ejecutable para Linux | medio |
+| HU-151 | Modo grabación y vídeo de lanzamiento | medio |
+| HU-152 | Limpieza de la entrega: versión, panel e informe al cerrar | bajo |
+| HU-153 | README, informe final y versión 1.0 | bajo |
+
+---
+
+### HU-146 · Ejército que responde
+- [x] El bot cuenta los soldados enemigos que ve y entrena lo que gana al tipo mayoritario.
+- [x] Sin enemigos a la vista, sigue su plan de siempre.
+
+### HU-147 · Objetivos con cabeza
+- [x] Al elegir qué atacar, el cuartel y el campo de tiro parecen 15 casillas más cerca y la torre 8 más lejos.
+
+### HU-148 · Ventaja de la base sur
+- [x] Causa: la búsqueda de sitio empezaba cada anillo por el suroeste, y una base construía hacia fuera y la otra hacia el rival.
+- [x] Ahora los edificios se buscan detrás del castillo y las torres hacia el centro, igual en cualquier giro del mapa.
+- [x] De 71 % a 14 contra 16 en 30 partidas con las bases alternadas.
+
+### HU-149 · Patrones por bando y prueba de carga
+- [x] `-sinpatronrivales` apaga un patrón solo en los rivales: cada patrón se mide contra sí mismo en la misma partida.
+- [x] `-recursos infinitos -carga N -medir M`: N tropas por bando en el centro y medida de 60 s, sin tocar el panel.
+
+### HU-150 · Linux
+- [x] `ConstruirEjecutable -linux` construye `TinyTactics.x86_64`; probado en Ubuntu 22.04.
+- [x] El informe de partida se guarda también al cerrar el juego (en Linux no llegaba).
+
+### HU-151 · Vídeo de lanzamiento
+- [x] `-grabar`: el juego graba su propia toma a 60 fotogramas exactos, con cámara que se desplaza sola, hora fija y sin HUD.
+- [x] Vídeo de 84 s a 1080p60 con voz, música y seis tomas del juego.
+
+### HU-152 · Limpieza de la entrega
+- [x] La etiqueta del menú dice solo la versión; el botón de medir sale del panel.
+
+### HU-153 · Cierre
+- [x] README con capturas, descarga, controles y cómo ejecutar las pruebas.
+- [ ] Informe final del proyecto.
+- [ ] Versión 1.0 en Releases con los ejecutables de Windows y Linux, sin el historial de ejemplo.
 
 ---
 
