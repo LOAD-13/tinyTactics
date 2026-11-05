@@ -1730,8 +1730,8 @@ el propio juego, no con capturas de pantalla.
 
 ### HU-153 · Cierre
 - [x] README con capturas, descarga, controles y cómo ejecutar las pruebas.
-- [ ] Informe final del proyecto.
-- [ ] Versión 1.0 en Releases con los ejecutables de Windows y Linux, sin el historial de ejemplo.
+- [x] Informe final del proyecto.
+- [x] Versión 1.0 en Releases con los ejecutables de Windows y Linux, sin el historial de ejemplo.
 
 ---
 
