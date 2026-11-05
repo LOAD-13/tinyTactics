@@ -43,9 +43,12 @@ pantalla, y era el panel el que hacía aparecer los ejércitos. Se busca aunque 
 salir del juego. El primer intento de build para Linux se cayó dentro del compilador de Unity;
 al repetirlo salió.
 
+### Versión 1.0
+Publicada en Releases después del tag de la semana, con los ejecutables de Windows y Linux y sin
+el historial de ejemplo. El menú dice `v1.0`.
+
 ### Pendiente
 - HU-142: partidas de los tres integrantes contra las tres dificultades (sigue sin hacerse).
-- La versión 1.0 en Releases.
 
 ### Cifras
 ~380 líneas de C# · 118 scripts · 96 bloques y 48 167 comprobaciones · ~150 partidas automáticas.
