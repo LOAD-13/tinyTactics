@@ -61,7 +61,7 @@ namespace TinyTactics.Interfaz
         [Tooltip("Los mapas que se pueden elegir. El generador pone el de la escena.")]
         public FichaDeMapa[] mapas = new FichaDeMapa[0];
 
-        public string version = "v0.16 · Grupo 01 · UTP";
+        public string version = "v0.17";
 
         enum Pantalla { Titulo, Principal, Partida, Opciones, Creditos, Historial }
 
