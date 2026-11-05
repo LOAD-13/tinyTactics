@@ -75,6 +75,13 @@ namespace TinyTactics.IA
         /// </summary>
         public bool tacticaAgrupada = true;
 
+        /// <summary>Patrones apagados solo en este bando, para las pruebas (semana 17).</summary>
+        public readonly System.Collections.Generic.HashSet<string> patronesApagados =
+            new System.Collections.Generic.HashSet<string>();
+
+        /// <summary>¿Usa este bando el patrón? Los apagados para todos o solo para él, no.</summary>
+        public bool Usa(string patron) => tacticaAgrupada && PlanDeIA.Usa(patron) && !patronesApagados.Contains(patron);
+
         /// <summary>Todos los cerebros vivos. Lo usa el panel de partida libre.</summary>
         public static readonly List<CerebroIA> Todos = new List<CerebroIA>();
 

@@ -4,6 +4,8 @@
 // proporción fija y solo se aplicaba a los pawns parados. Lo que se comprueba aquí es que la
 // proporción se tuerce hacia lo que falta, que lo hace de forma gradual y que mover pawns
 // ya ocupados tiene margen para no ir y venir.
+using System.Collections.Generic;
+using UnityEngine;
 using TinyTactics.IA;
 
 namespace TinyTactics.Pruebas
@@ -72,6 +74,43 @@ namespace TinyTactics.Pruebas
                 v.Falso(PlanDeIA.HayQueRetirarse(2, 3), "uno de diferencia: aguanta");
                 v.Cierto(PlanDeIA.HayQueRetirarse(2, 4), "dos contra cuatro: se retira");
                 v.Falso(PlanDeIA.HayQueRetirarse(0, 5), "sin tropa no hay retirada");
+            });
+
+            Arranque.Registrar("sitio: dos bases giradas media vuelta construyen girado", v =>
+            {
+                List<Vector2Int> Anillo(int r)
+                {
+                    var l = new List<Vector2Int>();
+                    for (int dx = -r; dx <= r; dx++)
+                        for (int dy = -r; dy <= r; dy++)
+                            if (Mathf.Abs(dx) == r || Mathf.Abs(dy) == r) l.Add(new Vector2Int(dx, dy));
+                    return l;
+                }
+                var norte = Anillo(4); var sur = Anillo(4);
+                BuscadorDeSitio.OrdenarHacia(norte, new Vector2(13, 37));
+                BuscadorDeSitio.OrdenarHacia(sur, new Vector2(-13, -37));
+                int iguales = 0;
+                for (int i = 0; i < norte.Count; i++) if (norte[i] == -sur[i]) iguales++;
+                v.Igual(iguales, norte.Count, "cada hueco del norte es el del sur girado");
+                v.Cierto(Vector2.Dot(norte[0], new Vector2(13, 37)) > 0f, "el primero va hacia donde se pide");
+            });
+
+            Arranque.Registrar("respuesta: se entrena lo que gana a lo que se ve", v =>
+            {
+                v.Igual((int)PlanDeIA.Contra(TinyTactics.Datos.TipoUnidad.Guerrero), (int)TinyTactics.Datos.TipoUnidad.Lancero, "contra guerreros, lanceros");
+                v.Igual((int)PlanDeIA.Contra(TinyTactics.Datos.TipoUnidad.Arquero), (int)TinyTactics.Datos.TipoUnidad.Guerrero, "contra arqueros, guerreros");
+                v.Igual((int)PlanDeIA.Contra(TinyTactics.Datos.TipoUnidad.Lancero), (int)TinyTactics.Datos.TipoUnidad.Arquero, "contra lanceros, arqueros");
+                v.Igual((int)PlanDeIA.Mayoritario(1, 1, 0), (int)TinyTactics.Datos.TipoUnidad.Pawn, "con dos vistos no se sabe");
+                v.Igual((int)PlanDeIA.Mayoritario(1, 0, 4), (int)TinyTactics.Datos.TipoUnidad.Arquero, "mayoria de arqueros");
+            });
+
+            Arranque.Registrar("objetivos: primero lo que produce, las torres al final", v =>
+            {
+                float cuartel = PlanDeIA.DistanciaConPrioridad(TinyTactics.Datos.TipoEdificio.Cuartel, 20f);
+                float casa = PlanDeIA.DistanciaConPrioridad(TinyTactics.Datos.TipoEdificio.Casa, 10f);
+                float torre = PlanDeIA.DistanciaConPrioridad(TinyTactics.Datos.TipoEdificio.Torre, 5f);
+                v.Cierto(cuartel < casa, "un cuartel a 20 antes que una casa a 10");
+                v.Cierto(casa < torre, "una casa a 10 antes que una torre a 5");
             });
 
             Arranque.Registrar("reparto: la carne con hambre tambien recibe", v =>

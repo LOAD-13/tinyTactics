@@ -175,7 +175,7 @@ namespace TinyTactics.IA
                 _enOfensiva = false;
                 _desdeQueEspera = Time.time;
 
-                if (!_cerebro.tacticaAgrupada || !PlanDeIA.Usa("defensa") || PlanDeIA.SalirADefender(_tropa.Count, intrusos, torres))
+                if (!_cerebro.Usa("defensa") || PlanDeIA.SalirADefender(_tropa.Count, intrusos, torres))
                 {
                     Estado = $"defendiendo la base de un ataque del bando {intruso + 1}";
                     MandarA(donde);
@@ -220,7 +220,7 @@ namespace TinyTactics.IA
                                                      plan.crecimientoPorOleada,
                                                      plan.oleadaMaxima, multiplicador);
 
-            if (_cerebro.tacticaAgrupada && PlanDeIA.Usa("incursion")) Hostigar(hacenFalta);
+            if (_cerebro.Usa("incursion")) Hostigar(hacenFalta);
             if (_tropa.Count == 0) return;
 
             if (_tropa.Count < hacenFalta)
@@ -279,14 +279,14 @@ namespace TinyTactics.IA
             // Los recién entrenados no cruzan el mapa de uno en uno hasta la oleada: esperan en
             // casa a ser tres y salen juntos (semana 16). Antes cada recluta iba solo y caía
             // por el camino, que es justo lo que hacía crecer la ventaja del que iba ganando.
-            if (_cerebro.tacticaAgrupada && PlanDeIA.Usa("refuerzos")) Separar();
+            if (_cerebro.Usa("refuerzos")) Separar();
 
             // Primero, quien le esta pegando por el camino. Una oleada que sigue andando
             // hacia el castillo mientras dos caballeros la desangran por detras llega sin
             // nadie y no derriba nada: se pierde el ejercito entero a cambio de nada.
             if (_tropa.Count >= retirada && ResponderAmenazas())
             {
-                if (_cerebro.tacticaAgrupada && PlanDeIA.Usa("retirada") && PlanDeIA.HayQueRetirarse(_tropa.Count, _enemigas.Count))
+                if (_cerebro.Usa("retirada") && PlanDeIA.HayQueRetirarse(_tropa.Count, _enemigas.Count))
                     Retirarse();
                 return;
             }
@@ -374,7 +374,7 @@ namespace TinyTactics.IA
             // Guarnición (semana 16): unas pocas se quedan en casa, así que la oleada se cuenta
             // sin ellas. La paciencia sigue valiendo: si se cansa de esperar, sale con lo que hay.
             // Solo se quedan las que sobran de la oleada: la guarnición no retrasa el ataque.
-            int guardia = _cerebro.tacticaAgrupada && PlanDeIA.Usa("guarnicion") ? Mathf.Clamp(_cerebro.plan.guarnicion, 0, Mathf.Max(0, _tropa.Count - hacenFalta)) : 0;
+            int guardia = _cerebro.Usa("guarnicion") ? Mathf.Clamp(_cerebro.plan.guarnicion, 0, Mathf.Max(0, _tropa.Count - hacenFalta)) : 0;
             int salen = _tropa.Count - guardia;
 
             bool bastante = salen >= hacenFalta;
@@ -667,6 +667,8 @@ namespace TinyTactics.IA
                 if (!_cerebro.VeTodo && !NieblaDeGuerra.Descubierto(Faccion, e)) continue;
 
                 float d = e.DistanciaA(tropa);
+                if (_cerebro.Usa("objetivos"))
+                    d = PlanDeIA.DistanciaConPrioridad(e.tipo, d);
                 if (d >= mejorDistancia) continue;
 
                 mejorDistancia = d;

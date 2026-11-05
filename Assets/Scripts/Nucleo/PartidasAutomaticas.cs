@@ -43,6 +43,8 @@ namespace TinyTactics.Nucleo
         /// <summary>-carga N: al empezar a medir aparecen N tropas por bando en el centro, como la prueba de la semana 14.</summary>
         int _carga;
         float _capturaEn = -1f;
+        GrabadoraDeVideo _grabadora;
+        bool _cargado;
         static int _partidaActual;
 
         int _restantes;
@@ -55,6 +57,7 @@ namespace TinyTactics.Nucleo
         bool _enPartida, _cerebroPuesto;
         int _frameDeCarga;
         bool _tacticaYo = true, _tacticaRivales = true;
+        string[] _sinRivales = new string[0];
 
         // -medir: minuto de partida en que se pasa a tiempo real y se mide el rendimiento.
         float _medirEn = -1f;
@@ -93,12 +96,14 @@ namespace TinyTactics.Nucleo
             _alternar = Array.IndexOf(args, "-alternar") >= 0;
             _infinitos = Valor("-recursos") == "infinitos";
             if (int.TryParse(Valor("-carga"), out int carga)) auto._carga = carga;
+            auto._grabadora = GrabadoraDeVideo.Crear(args);
             if (Valor("-historial") is string carpeta) HistorialDePartidas.CarpetaForzada = carpeta;
             // Táctica vieja o nueva por lado: para enfrentarlas en la misma partida.
             if (Valor("-sinpatron") is string sin)
                 foreach (var p in sin.Split(',')) PlanDeIA.PatronesApagados.Add(p.Trim());
             if (float.TryParse(Valor("-medir"), out float medir) && medir > 0f) auto._medirEn = medir * 60f;
             auto._tacticaYo = Valor("-tacticayo") != "vieja";
+            if (Valor("-sinpatronrivales") is string sinr) auto._sinRivales = sinr.Split(',');
             auto._tacticaRivales = Valor("-tacticarivales") != "vieja";
             Activas = true;
 
@@ -112,6 +117,9 @@ namespace TinyTactics.Nucleo
             // nadie mirando, así que se quita en cada fotograma.
             Application.targetFrameRate = -1;
             QualitySettings.vSyncCount = 0;
+
+            // Grabando, el paso de tiempo lo pone la grabadora: 1/60 exacto.
+            if (GrabadoraDeVideo.Activa) return;
 
             if (_midiendo)
             {
@@ -154,12 +162,22 @@ namespace TinyTactics.Nucleo
                     cerebro.pensando = true;
                 }
                 foreach (var otro in CerebroIA.Todos)
-                    if (otro != null) otro.tacticaAgrupada = otro.faccion == c.Jugador ? _tacticaYo : _tacticaRivales;
+                    if (otro != null)
+                    {
+                        otro.tacticaAgrupada = otro.faccion == c.Jugador ? _tacticaYo : _tacticaRivales;
+                        if (otro.faccion != c.Jugador) foreach (var p in _sinRivales) otro.patronesApagados.Add(p.Trim());
+                    }
                 _cerebroPuesto = true;
             }
 
             var arbitro = ArbitroDePartida.Actual;
             var libro = EstadisticasPartida.Actual;
+
+            if (_grabadora != null && libro != null && _grabadora.Empezar(libro.Duracion))
+            {
+                if (_carga > 0 && !_cargado) { _cargado = true; Cargar(c.bases.Length); }
+                return;
+            }
 
             if (_medirEn > 0f && libro != null && libro.Duracion >= _medirEn && !(arbitro != null && arbitro.Terminada))
             {
@@ -217,7 +235,8 @@ namespace TinyTactics.Nucleo
         /// </summary>
         void Cargar(int bandos)
         {
-            var panel = Pruebas.PanelDePruebas.Actual;
+            // También con el panel apagado: la grabadora sin HUD lo apaga justo antes.
+            var panel = Pruebas.PanelDePruebas.Actual ?? UnityEngine.Object.FindFirstObjectByType<Pruebas.PanelDePruebas>();
             var grilla = Mundo.MundoJuego.Actual != null ? Mundo.MundoJuego.Actual.Grilla : null;
             if (panel == null || grilla == null) return;
 

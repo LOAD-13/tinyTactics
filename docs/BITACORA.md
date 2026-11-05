@@ -11,6 +11,47 @@ Formato de entrada: entradas nuevas **arriba**.
 
 ---
 
+## Semana 17 — Entrega final: IA que responde, Linux y versión 1.0 (E11)
+**Entrega:** domingo 29/11/2026 · **Expo:** lunes 30/11/2026 · **Expone:** Joaquín
+**Tag:** [`v0.17.0-s17`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.17.0-s17) · **Rama:** `feat/E11-entrega-final`
+
+### Lo prometido
+Los dos patrones de la IA que quedaron de la 16 (ejército que responde y objetivos con cabeza),
+encontrar por qué la base sur de Lago Helado ganaba el 71 %, el ejecutable para Linux, el
+README, el informe final y la versión 1.0 publicada. HU-146 a HU-153.
+
+### Lo entregado
+Todo lo de código. Y una cosa que no estaba: un **vídeo de lanzamiento** de 84 s montado con
+tomas que grabó el propio juego (`-grabar`), a 60 fotogramas exactos aunque haya 289 unidades
+en pantalla. La versión 1.0 se publica después de este tag, sin el historial de ejemplo.
+
+### Lo que costó de verdad
+**La ventaja de la base sur no era el mapa.** La búsqueda de sitio recorría cada anillo
+alrededor del castillo empezando siempre por el suroeste. En un mapa girado 180°, una base
+construía sus casas detrás y la otra delante, hacia el rival, donde estorbaban y caían primero.
+Ahora los edificios se buscan detrás del castillo y las torres hacia el centro, con un desempate
+que da lo mismo en cualquier giro. De 71 % a 14 contra 16.
+
+**Los dos patrones nuevos apenas se notan en los números.** Con los dos, el bot gana el 55 %
+de 55 partidas a la versión sin ellos (±13 %): dentro del ruido. Se quedan porque el jugador sí
+los ve —el bot cambia de tropa cuando le enseñas lanceros— y no empeoran nada.
+
+**Una toma del vídeo salió vacía.** El panel de pruebas iba apagado para que no saliera en
+pantalla, y era el panel el que hacía aparecer los ejércitos. Se busca aunque esté apagado.
+
+**En Linux no se guardaba el informe** al cerrar con la partida a medias. Se guarda también al
+salir del juego. El primer intento de build para Linux se cayó dentro del compilador de Unity;
+al repetirlo salió.
+
+### Pendiente
+- HU-142: partidas de los tres integrantes contra las tres dificultades (sigue sin hacerse).
+- La versión 1.0 en Releases.
+
+### Cifras
+~380 líneas de C# · 118 scripts · 96 bloques y 48 167 comprobaciones · ~150 partidas automáticas.
+
+---
+
 ## Semana 16 — Balance, QA, historial de partidas e IA con tácticas (E11)
 **Entrega:** domingo 22/11/2026 · **Expo:** lunes 23/11/2026 · **Expone:** Kiara
 **Tag:** [`v0.16.0-s16`](https://github.com/LOAD-13/tinyTactics/releases/tag/v0.16.0-s16) · **Rama:** `feat/E11-balance-historial`
