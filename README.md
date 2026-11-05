@@ -20,9 +20,9 @@
 
 <br>
 
-<img src="docs/img/capturas/partida.jpg" alt="Inicio de una partida en Cuatro Vientos" width="860">
+<a href="https://utpedupe-my.sharepoint.com/:v:/g/personal/u22201636_utp_edu_pe/IQAvCohMUD_nTI856ytjaqsUAcxYS8IpSLYU2vG1s8ENVII?e=tQ7FfW"><img src="docs/img/capturas/trailer.jpg" alt="Fotogramas del tráiler de Tiny Tactics 1.0" width="860"></a>
 
-<sub>El inicio de una partida en Cuatro Vientos: dos pawns, ovejas y oro a la vista.</sub>
+<sub>Fotogramas del tráiler. Haz clic para verlo.</sub>
 
 <br><br>
 
@@ -39,7 +39,6 @@
 ## Índice
 
 - [El juego](#el-juego)
-- [Tráiler](#tráiler)
 - [Descargar y jugar](#descargar-y-jugar)
 - [Características](#características)
 - [Cómo se juega](#cómo-se-juega)
@@ -76,16 +75,6 @@ normalmente ya es tarde.
 <div align="center">
 <img src="docs/img/capturas/aldea.jpg" alt="Una base en marcha" width="49%">
 <img src="docs/img/capturas/noche.jpg" alt="La noche en Lago Helado" width="49%">
-</div>
-
----
-
-## Tráiler
-
-<div align="center">
-<a href="https://utpedupe-my.sharepoint.com/:v:/g/personal/u22201636_utp_edu_pe/IQAvCohMUD_nTI856ytjaqsUAcxYS8IpSLYU2vG1s8ENVII?e=tQ7FfW"><img src="docs/img/capturas/trailer.jpg" alt="Fotogramas del tráiler de Tiny Tactics 1.0" width="860"></a>
-
-**[🎬 Ver el Trailer TinyTactics 1.0](https://utpedupe-my.sharepoint.com/:v:/g/personal/u22201636_utp_edu_pe/IQAvCohMUD_nTI856ytjaqsUAcxYS8IpSLYU2vG1s8ENVII?e=tQ7FfW)**
 </div>
 
 ---
