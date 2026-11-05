@@ -64,6 +64,13 @@ namespace TinyTactics.Nucleo
             if (!_guardado && enabled && Duracion >= MinimoParaGuardar) Guardar();
         }
 
+        // Al cerrar el juego también: en Linux el OnDestroy no siempre llega a correr al salir
+        // con la partida a medias, y el informe se perdía (semana 17).
+        void OnApplicationQuit()
+        {
+            if (!_guardado && enabled && Duracion >= MinimoParaGuardar) Guardar();
+        }
+
         void AlTerminar(int ganador) => Guardar();
 
         static float Duracion => EstadisticasPartida.Actual != null ? EstadisticasPartida.Actual.Duracion : 0f;
