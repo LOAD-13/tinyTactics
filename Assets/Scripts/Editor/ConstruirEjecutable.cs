@@ -28,7 +28,9 @@ namespace TinyTactics.EditorHerramientas
             var escenas = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
             // -desarrollo: build de desarrollo, que escribe el diario de la IA (Logs/partida_ia.log).
             var opciones = Array.IndexOf(args, "-desarrollo") >= 0 ? BuildOptions.Development : BuildOptions.None;
-            var informe = BuildPipeline.BuildPlayer(escenas, salida, BuildTarget.StandaloneWindows64, opciones);
+            // -linux: la misma build para Linux de 64 bits (semana 17, para la release 1.0).
+            var destino = Array.IndexOf(args, "-linux") >= 0 ? BuildTarget.StandaloneLinux64 : BuildTarget.StandaloneWindows64;
+            var informe = BuildPipeline.BuildPlayer(escenas, salida, destino, opciones);
 
             Debug.Log($"[Tiny Tactics] Build: {informe.summary.result}, {informe.summary.totalSize / 1048576} MB, {salida}");
             if (informe.summary.result != BuildResult.Succeeded) EditorApplication.Exit(1);

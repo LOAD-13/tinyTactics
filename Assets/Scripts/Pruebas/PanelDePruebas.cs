@@ -790,13 +790,7 @@ namespace TinyTactics.Pruebas
 
             if (BotonConIcono("Arrasar rivales", null)) ArrasarRivales();
 
-            // Semana 16: la medida de rendimiento, para repetirla en la build de entrega.
-            var medidor = MedidorDeRendimiento.Actual;
-            if (BotonConIcono(medidor != null ? $"Midiendo… {medidor.Restante:0} s" : "Medir rendimiento (60 s)",
-                              null, medidor != null) && medidor == null)
-                MedidorDeRendimiento.Empezar();
-            if (MedidorDeRendimiento.Resultado.Length > 0)
-                GUILayout.Label($"  {MedidorDeRendimiento.Resultado}", _ayuda);
+            // La medida de rendimiento ya no está aquí (semana 17): se lanza con -medir.
         }
 
         void VerCartel()

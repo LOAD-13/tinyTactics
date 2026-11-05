@@ -210099,7 +210099,7 @@ MonoBehaviour:
     - {x: 0.50223213, y: 0.203125}
     - {x: 0.7566964, y: 0.6495536}
     - {x: 0.24330357, y: 0.6495536}
-  version: "v0.16 \xB7 Grupo 01 \xB7 UTP"
+  version: v0.17
 --- !u!1 &745172701
 GameObject:
   m_ObjectHideFlags: 0

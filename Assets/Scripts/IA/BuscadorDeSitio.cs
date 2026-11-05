@@ -35,9 +35,16 @@ namespace TinyTactics.IA
         /// <param name="tamano">Celdas que ocupa el edificio en el suelo.</param>
         /// <param name="separacion">Anillo mínimo, para no pegar el edificio al castillo.</param>
         /// <param name="alcance">Anillo máximo antes de rendirse.</param>
+        /// <param name="hacia">
+        /// Hacia dónde se prefiere construir dentro de cada anillo (semana 17). Cero conserva el
+        /// orden de siempre. El arranque del recorrido no puede ser fijo: empezando siempre por
+        /// el suroeste, en Lago Helado la base norte construía hacia el enemigo y la sur detrás
+        /// de su castillo, y la sur ganaba el 71 % de las partidas.
+        /// </param>
         /// <returns>True si encontró sitio.</returns>
         public static bool Buscar(GrillaMapa grilla, Vector2Int centro, Vector2Int tamano,
-                                  int separacion, int alcance, out RectInt celdas)
+                                  int separacion, int alcance, out RectInt celdas,
+                                  Vector2 hacia = default)
         {
             celdas = default;
 
@@ -48,7 +55,7 @@ namespace TinyTactics.IA
 
             for (int radio = separacion; radio <= alcance; radio++)
             {
-                if (BuscarEnAnillo(grilla, centro, tamano, radio, out celdas)) return true;
+                if (BuscarEnAnillo(grilla, centro, tamano, radio, hacia, out celdas)) return true;
             }
 
             return false;
@@ -64,30 +71,53 @@ namespace TinyTactics.IA
         /// comprobaciones por edificio en vez de ciento veinte.
         /// </remarks>
         static bool BuscarEnAnillo(GrillaMapa grilla, Vector2Int centro, Vector2Int tamano,
-                                   int radio, out RectInt celdas)
+                                   int radio, Vector2 hacia, out RectInt celdas)
         {
             celdas = default;
 
+            var borde = new System.Collections.Generic.List<Vector2Int>(8 * radio);
             for (int dx = -radio; dx <= radio; dx++)
-            {
                 for (int dy = -radio; dy <= radio; dy++)
-                {
                     // Solo el borde del anillo.
-                    if (Mathf.Abs(dx) != radio && Mathf.Abs(dy) != radio) continue;
+                    if (Mathf.Abs(dx) == radio || Mathf.Abs(dy) == radio) borde.Add(new Vector2Int(dx, dy));
 
-                    var origen = new Vector2Int(centro.x + dx - tamano.x / 2,
-                                                centro.y + dy - tamano.y / 2);
+            if (hacia != Vector2.zero) OrdenarHacia(borde, hacia);
 
-                    var candidato = new RectInt(origen.x, origen.y, tamano.x, tamano.y);
+            foreach (var d in borde)
+            {
+                var origen = new Vector2Int(centro.x + d.x - tamano.x / 2,
+                                            centro.y + d.y - tamano.y / 2);
 
-                    if (!Vale(grilla, candidato)) continue;
+                var candidato = new RectInt(origen.x, origen.y, tamano.x, tamano.y);
 
-                    celdas = candidato;
-                    return true;
-                }
+                if (!Vale(grilla, candidato)) continue;
+
+                celdas = candidato;
+                return true;
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Los más alineados con <paramref name="hacia"/> primero; a igualdad, por el producto
+        /// cruzado.
+        /// </summary>
+        /// <remarks>
+        /// Las dos claves son invariantes al girar el mapa: si se giran a la vez la dirección y
+        /// el anillo, el orden es el mismo. Eso es lo que hace que dos bases simétricas
+        /// construyan simétrico. Un desempate por coordenadas volvería a romperlo.
+        /// </remarks>
+        public static void OrdenarHacia(System.Collections.Generic.List<Vector2Int> borde, Vector2 hacia)
+        {
+            var h = hacia.normalized;
+            borde.Sort((a, b) =>
+            {
+                float pa = (a.x * h.x + a.y * h.y) / a.magnitude, pb = (b.x * h.x + b.y * h.y) / b.magnitude;
+                if (Mathf.Abs(pa - pb) > 1e-4f) return pb.CompareTo(pa);
+                float ca = h.x * a.y - h.y * a.x, cb = h.x * b.y - h.y * b.x;
+                return ca.CompareTo(cb);
+            });
         }
 
         /// <summary>
