@@ -16,13 +16,13 @@
 
 <br>
 
-**[⬇️ Descargar la última versión](https://github.com/LOAD-13/tinyTactics/releases/latest)**
+**[⬇️ Descargar la última versión](https://github.com/LOAD-13/tinyTactics/releases/latest)** · **[🎬 Trailer TinyTactics 1.0](https://utpedupe-my.sharepoint.com/:v:/g/personal/u22201636_utp_edu_pe/IQAvCohMUD_nTI856ytjaqsUAcxYS8IpSLYU2vG1s8ENVII?e=tQ7FfW)**
 
 <br>
 
-<img src="docs/img/capturas/batalla.jpg" alt="Batalla de cuatro bandos en el centro de Cuatro Vientos" width="860">
+<img src="docs/img/capturas/partida.jpg" alt="Inicio de una partida en Cuatro Vientos" width="860">
 
-<sub>Cuatro bandos y 289 unidades peleando en el centro de Cuatro Vientos.</sub>
+<sub>El inicio de una partida en Cuatro Vientos: dos pawns, ovejas y oro a la vista.</sub>
 
 <br><br>
 
